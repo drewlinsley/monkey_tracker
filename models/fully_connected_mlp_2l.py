@@ -51,7 +51,7 @@ class model_struct:
     def batchsoftmax(self, layer, name=None, axis=2):
         exp_layer = tf.exp(layer)
         exp_sums = tf.expand_dims(
-            tf.reduce_sum(exp_layer, axis=[axis]), axis=axis)
+            tf.reduce_sum(exp_layer, reduction_indices=[axis]), dim=axis)
         return tf.div(exp_layer, exp_sums, name=name)
 
     def batchnorm(self, layer):

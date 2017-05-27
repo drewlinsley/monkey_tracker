@@ -42,11 +42,11 @@ class model_struct:
         rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
 
         # Convert RGB to BGR
-        red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
+        red, green, blue = tf.split(3, 3, rgb_scaled)
         assert red.get_shape().as_list()[1:] == [224, 224, 1]
         assert green.get_shape().as_list()[1:] == [224, 224, 1]
         assert blue.get_shape().as_list()[1:] == [224, 224, 1]
-        bgr = tf.concat(axis=3, values=[
+        bgr = tf.concat(3, [
             blue - VGG_MEAN[0],
             green - VGG_MEAN[1],
             red - VGG_MEAN[2],
@@ -122,7 +122,7 @@ class model_struct:
             self.pool4, resize_layer_dims)
         l3 = tf.image.resize_image_with_crop_or_pad(
             self.pool5, resize_layer_dims)
-        self.feature_encoder = tf.concat(axis=[l1, l2, l3], axis=3)  # channelwise
+        self.feature_encoder = tf.concat([l1, l2, l3], axis=3)  # channelwise
 
         # Add 1x1 convs to vgg features
         # Conv 1 - 1x1/relu/dropout/batchnorm
@@ -201,7 +201,7 @@ class model_struct:
     def batchsoftmax(self, layer, name=None, axis=2):
         exp_layer = tf.exp(layer)
         exp_sums = tf.expand_dims(
-            tf.reduce_sum(exp_layer, axis=[axis]), axis=axis)
+            tf.reduce_sum(exp_layer, reduction_indices=[axis]), dim=axis)
         return tf.div(exp_layer, exp_sums, name=name)
 
     def batchnorm(self, layer):

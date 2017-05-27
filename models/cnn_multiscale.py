@@ -12,6 +12,7 @@ class model_struct:
                 fine_tune_layers=None):
         if vgg16_npy_path is not None:
             print 'Ignoring vgg16_npy_path (not using a vgg!).'
+            self.data_dict = None
         else:
             self.data_dict = None
 
@@ -31,7 +32,7 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
-            fe_keys=['conv2_2', 'conv3_2', 'conv4_2']
+            fe_keys=['conv3_2', 'conv4_1', 'conv4_2']
             ):
         """
         load variable from npy to build the VGG
@@ -46,15 +47,15 @@ class model_struct:
         rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
 
         # Convert RGB to BGR
-        red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
+        red, green, blue = tf.split(rgb_scaled, 3, 3)
         assert red.get_shape().as_list()[1:] == [224, 224, 1]
         assert green.get_shape().as_list()[1:] == [224, 224, 1]
         assert blue.get_shape().as_list()[1:] == [224, 224, 1]
-        bgr = tf.concat(axis=3, values=[
+        bgr = tf.concat([
             blue - self.VGG_MEAN[0],
             green - self.VGG_MEAN[1],
             red - self.VGG_MEAN[2],
-        ], name='bgr')
+        ], 3, name='bgr')
 
         assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
         input_bgr = tf.identity(bgr, name="lrp_input")
@@ -68,21 +69,34 @@ class model_struct:
 
         self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
         self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
-        self.pool3 = self.max_pool(self.conv3_3, 'pool3')
+        self.pool3 = self.max_pool(self.conv3_2, 'pool3')
 
         self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
         self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
-        self.pool4 = self.max_pool(self.conv4_3, 'pool4')
+        self.pool4 = self.max_pool(self.conv4_2, 'pool4')
 
         resize_size = [int(x) for x in self[fe_keys[np.argmin(
             [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
         fe_layers = [tf.image.resize_bilinear(
             self[x], new_size) for x in fe_keys]
-        self.feature_encoder = tf.concat(axis=3, values=fe_layers)
-        self.fc6 = self.fc_layer(
+        self.feature_encoder = tf.concat(fe_layers, 3)
+        self.feature_encoder_1x1 = self.conv_layer(
             self.feature_encoder,
-            np.prod([int(x) for x in self.feature_encoder]),
+            int(self.feature_encoder.get_shape()[-1]),
+            64,
+            "feature_encoder_1x1",
+            filter_size=1)
+        if train_mode is not None:
+            self.feature_encoder_1x1 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.feature_encoder_1x1, 0.5), lambda: self.feature_encoder_1x1)
+        print(self.feature_encoder.get_shape())
+        print(input_bgr.get_shape())
+        self.pool5 = self.max_pool(self.feature_encoder_1x1, 'pool5')
+        self.fc6 = self.fc_layer(
+            self.pool5,
+            np.prod([int(x) for x in self.pool5.get_shape()[1:]]),
             4096,
             "fc6")
         self.relu6 = tf.nn.relu(self.fc6)
@@ -96,26 +110,12 @@ class model_struct:
         if batchnorm is not None:
             if 'fc6' in batchnorm:
                 self.relu6 = self.batchnorm(self.relu6)
-        self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
-        self.relu7 = tf.nn.relu(self.fc7)
-        if train_mode is not None:
-            self.relu7 = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(self.relu7, 0.5), lambda: self.relu7)
-        elif self.trainable:
-            self.relu7 = tf.nn.dropout(self.relu7, 0.5)
-        if batchnorm is not None:
-            if 'fc7' in batchnorm:
-                self.relu7 = self.batchnorm(self.relu7)
-
-        self.fc8 = self.fc_layer(self.relu7, 4096, output_shape, "fc8")
-        if batchnorm is not None:
-            if 'fc8' in batchnorm:
-                self.fc8 = self.batchnorm(self.fc8)
+        self.fc8 = self.fc_layer(self.relu6, 4096, output_shape, "fc8")
         final = tf.identity(self.fc8, name="lrp_output")
         self.prob = tf.nn.softmax(final, name="prob")
 
         self.data_dict = None
+
 
     def batchnorm(self, layer):
         m, v = tf.nn.moments(layer, [0])
@@ -133,10 +133,10 @@ class model_struct:
 
     def conv_layer(
                     self, bottom, in_channels,
-                    out_channels, name, batchnorm=None):
+                    out_channels, name, filter_size=3, batchnorm=None):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
-                3, in_channels, out_channels, name)
+                filter_size, in_channels, out_channels, name)
 
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)

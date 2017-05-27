@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import gc
 
 
 class model_struct:
@@ -10,19 +11,18 @@ class model_struct:
     def __init__(
                 self, vgg16_npy_path=None, trainable=True,
                 fine_tune_layers=None):
-        if vgg16_npy_path is not None:
+        if vgg16_npy_path is not None: 
             print 'Ignoring vgg16_npy_path (not using a vgg!).'
-        else:
-            self.data_dict = None
+        self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
-
+ 
     def __getitem__(self, name):
         return getattr(self, name)
 
-    def __contains__(self, name):
+    def __contains__(self, name): 
         return hasattr(self, name)
 
     def build(
@@ -31,7 +31,7 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
-            fe_keys=['conv2_2', 'conv3_2', 'conv4_2']
+            fe_keys=['pool2', 'pool3', 'pool4', 'lr_pool3']
             ):
         """
         load variable from npy to build the VGG
@@ -40,26 +40,27 @@ class model_struct:
         :param train_mode: a bool tensor, usually a placeholder:
         :if True, dropout will be turned on
         """
-        if output_shape is None:
+        if output_shape is None: 
             output_shape = 1
 
-        rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
+        # rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
 
-        # Convert RGB to BGR
-        red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-        assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        assert blue.get_shape().as_list()[1:] == [224, 224, 1]
-        bgr = tf.concat(axis=3, values=[
-            blue - self.VGG_MEAN[0],
-            green - self.VGG_MEAN[1],
-            red - self.VGG_MEAN[2],
-        ], name='bgr')
+        # # Convert RGB to BGR
+        # red, green, blue = tf.split(rgb_scaled, 3, 3)
+        # assert red.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert green.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
+        # bgr = tf.concat([
+        #     blue - self.VGG_MEAN[0],
+        #     green - self.VGG_MEAN[1],
+        #     red - self.VGG_MEAN[2],
+        # ], 3, name='bgr')
+        bgr = tf.split(rgb, 3, 3)[0]
 
-        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
         input_bgr = tf.identity(bgr, name="lrp_input")
         # Main Head
-        self.conv1_1 = self.conv_layer(input_bgr, 3, 64, "conv1_1")
+        self.conv1_1 = self.conv_layer(input_bgr, int(bgr.get_shape()[-1]), 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
         self.pool1 = self.max_pool(self.conv1_2, 'pool1')
 
@@ -69,32 +70,59 @@ class model_struct:
 
         self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
         self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
-        self.pool3 = self.max_pool(self.conv3_3, 'pool3')
+        self.pool3 = self.max_pool(self.conv3_2, 'pool3')
 
         self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
         self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
-        self.pool4 = self.max_pool(self.conv4_3, 'pool4')
-
+        self.pool4 = self.max_pool(self.conv4_2, 'pool4')
+  
         # Head 2 -- Super low res
-        low_res = [int(x) // 4 for x in input_bgr.get_shape()[:2]]
+        # (int(x) - 1) // 4 + 1 just makes sure the value is rounded up after division by 4
+        low_res = [(int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
         res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
-        self.lr_conv1_1 = self.conv_layer(res_input_bgr, 3, 64, "lr_conv1_1")
-        self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2")
+        self.lr_conv1_1 = self.conv_layer(res_input_bgr, int(bgr.get_shape()[-1]), 64, "lr_conv1_1")
+        self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2") 
         self.lr_pool1 = self.max_pool(self.lr_conv1_2, 'lr_pool1')
 
+        self.lr_conv2_1 = self.conv_layer(self.lr_pool1, 64, 64, "lr_conv2_1")
+        self.lr_conv2_2 = self.conv_layer(self.lr_conv2_1, 64, 64, "lr_conv2_2")
+        self.lr_pool2 = self.max_pool(self.lr_conv2_2, 'lr_pool2')
+
+        self.lr_conv3_1 = self.conv_layer(self.lr_pool2, 64, 64, "lr_conv3_1")
+        self.lr_conv3_2 = self.conv_layer(self.lr_conv3_1, 64, 64, "lr_conv3_2")
+        self.lr_pool3 = self.max_pool(self.lr_conv3_2, 'lr_pool3')
+
+        if train_mode is not None:
+            self.lr_pool3 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.lr_pool3, 0.5), lambda: self.lr_pool3)
+
         # Feature encoder
-        fe_keys += [self.lr_pool1]
         resize_size = [int(x) for x in self[fe_keys[np.argmin(
             [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
-        fe_layers = [tf.image.resize_bilinear(
-            self[x], new_size) for x in fe_keys]
+
+        fe_layers = [self.batchnorm(
+            tf.image.resize_bilinear(
+                self[x], new_size)) for x in fe_keys]
 
         # Combine Heads
-        self.feature_encoder = tf.concat(axis=3, values=fe_layers)
-        self.fc6 = self.fc_layer(
+        self.feature_encoder = tf.concat(fe_layers, 3)
+        self.feature_encoder_1x1 = self.conv_layer(
             self.feature_encoder,
-            np.prod([int(x) for x in self.feature_encoder]),
+            int(self.feature_encoder.get_shape()[-1]),
+            64,
+            "feature_encoder_1x1",
+            filter_size=1)
+        if train_mode is not None:
+            self.feature_encoder_1x1 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.feature_encoder_1x1, 0.5), lambda: self.feature_encoder_1x1)
+
+        self.pool5 = self.max_pool(self.feature_encoder_1x1, 'pool5')
+        self.fc6 = self.fc_layer(
+            self.pool5, 
+            np.prod([int(x) for x in self.pool5.get_shape()[1:]]),
             4096,
             "fc6")
         self.relu6 = tf.nn.relu(self.fc6)
@@ -120,7 +148,7 @@ class model_struct:
             if 'fc7' in batchnorm:
                 self.relu7 = self.batchnorm(self.relu7)
 
-        self.fc8 = self.fc_layer(self.relu7, 4096, output_shape, "fc8")
+        self.fc8 = self.fc_layer(self.relu6, 4096, output_shape, "fc8")
         if batchnorm is not None:
             if 'fc8' in batchnorm:
                 self.fc8 = self.batchnorm(self.fc8)
@@ -145,10 +173,10 @@ class model_struct:
 
     def conv_layer(
                     self, bottom, in_channels,
-                    out_channels, name, batchnorm=None):
+                    out_channels, name, filter_size=3, batchnorm=None):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
-                3, in_channels, out_channels, name)
+                filter_size, in_channels, out_channels, name)
 
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
@@ -226,14 +254,32 @@ class model_struct:
         assert isinstance(sess, tf.Session)
 
         data_dict = {}
+        num_files = 0
 
         for (name, idx), var in self.var_dict.items():
-            var_out = sess.run(var)
-            if name not in data_dict.keys():
-                data_dict[name] = {}
-            data_dict[name][idx] = var_out
+            # print(var.get_shape())
+            if name == 'fc6':
+                np.save(npy_path+str(num_files), data_dict)
+                data_dict.clear()
+                gc.collect()
+                num_files += 1
+                for i, item in enumerate(tf.split(var, 8, 0)):
+                    # print(i)
+                    name = 'fc6-'+ str(i)
+                    if name not in data_dict.keys():
+                        data_dict[name] = {}
+                    data_dict[name][idx] = sess.run(item)
+                    np.save(npy_path+str(num_files), data_dict)
+                    data_dict.clear()
+                    gc.collect()
+                    num_files += 1
+            else :
+                var_out = sess.run(var)
+                if name not in data_dict.keys():
+                    data_dict[name] = {}
+                data_dict[name][idx] = var_out
 
-        np.save(npy_path, data_dict)
+        np.save(npy_path+str(num_files), data_dict)
         print("file saved", npy_path)
         return npy_path
 

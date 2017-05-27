@@ -83,14 +83,14 @@ def create_joint_tf_records(
             # encode -> tfrecord
             label_vector = np.load(label).astype(np.float32)
             if config.use_image_labels:
-                try:
-                    im_label = misc.imread(os.path.join(
-                        config.im_label_dir, re.split(
-                            config.label_extension,
-                            re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image
-                # If the corresponding label image doesnt exist, skip it
-                except IOError:
-                    continue
+                # try:
+                im_label = misc.imread(os.path.join(
+                    config.im_label_dir, re.split(
+                        config.label_extension,
+                        re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image
+                # # If the corresponding label image doesnt exist, skip it
+                # except IOError:
+                #     continue
                 im_label[np.isnan(im_label)] = 0
                 if config.image_input_size != config.image_target_size:
                     im_label = misc.imresize(
