@@ -11,7 +11,7 @@ class monkeyConfig(object):
         self.image_dir = pjoin(self.base_dir, 'walk-all-png')
         self.depth_dir = pjoin(self.image_dir, 'depth', 'layer1')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
-        self.occlusion_dir = pjoin(self.image_dir, 'occlusions', 'joint_coords')  # Set to None if there's no occlusion data
+        self.occlusion_dir = pjoin(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
         self.im_label_dir = pjoin(self.image_dir, 'labels', 'layer2')
         self.depth_regex = '*[0-9].png'
         self.image_extension = '.png'
@@ -85,20 +85,49 @@ class monkeyConfig(object):
             'front_torso':     (250, 200, 189, 254),
             'head':            (199,   0,   0, 254),
             'hip':             (130,  50, 120, 254),
+            'left_finger':     (200,   0, 200, 254),
             'left_foot':       (150, 130, 139, 254),
             'left_hand':       (250,   0, 250, 254),
             'left_lower_arm':  (0,   250,   0, 254),
             'left_lower_leg':  (0,     0, 250, 254),
             'left_shoulder':   (50,   90, 139, 254),
+            'left_toe':        (170, 190,  39, 254),
             'left_upper_arm':  (249, 180,   0, 254),
             'left_upper_leg':  (240, 240, 239, 254),
             'neck':            (70,   70,  69, 254),
+            'right_finger':    (249,  50,   0, 254),
             'right_foot':      (0,   150,   0, 254),
             'right_hand':      (249, 250,   0, 254),
             'right_lower_arm': (249,   0,   0, 254),
             'right_lower_leg': (249, 100,   0, 254),
             'right_shoulder':  (170,   0, 250, 254),
+            'right_toe':       (100, 150, 100, 254),
             'right_upper_arm': (0,   250, 249, 254),
             'right_upper_leg': (20,   20,  19, 254),
             'tail':            (100, 180, 249, 254)
         }
+        self.joint_order = [
+            'lEye', 
+            'neck', 
+            'abdomen', 
+            'lShldr', 
+            'rShldr', 
+            'lForeArm', 
+            'rForeArm', 
+            'lHand', 
+            'rHand', 
+            'lMid1', 
+            'rMid1', 
+            'lMid3', 
+            'rMid3', 
+            'lThigh', 
+            'rThigh',
+            'lShin', 
+            'rShin', 
+            'lFoot', 
+            'rFoot', 
+            'lToe', 
+            'rToe', 
+            'lToeMid3', 
+            'rToeMid3'
+        ]
