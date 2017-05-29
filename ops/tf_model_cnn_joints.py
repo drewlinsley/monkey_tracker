@@ -60,7 +60,8 @@ def train_and_eval(config, use_train=True):
             num_epochs=1,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
-            maya_conversion=config.maya_conversion
+            maya_conversion=config.maya_conversion,
+            occlusions=self.occlusion_dir
             )
 
     with tf.device('/gpu:0'):
