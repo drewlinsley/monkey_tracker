@@ -101,35 +101,6 @@ def int64_feature(values):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=values))
 
 
-def image_to_tfexample(image_data, image_format, height, width, class_id):
-    return tf.train.Example(features=tf.train.Features(feature={
-      'image/encoded': bytes_feature(image_data),
-      'image/format': bytes_feature(image_format),
-      'image/class/label': int64_feature(class_id),
-      'image/height': int64_feature(height),
-      'image/width': int64_feature(width),
-    }))
-
-
-def _add_to_tfrecord(
-        images, labels, tfrecord_writer, im_ext, hw, tf_im_conv, offset=0):
-    num_images = images.shape[0]
-    with tf.Graph().as_default():
-        image_placeholder = tf.placeholder(dtype=tf.uint8)
-        encoded_image = tf_im_conv(image_placeholder)
-        with tf.Session('') as sess:
-            for j in range(num_images):
-                # Have to do below to translate between tf and byte encodigns
-                image = np.squeeze(images[j]).transpose((1, 2, 0))
-                label = labels[j]
-                im_string = sess.run(
-                    encoded_image, feed_dict={image_placeholder: image})
-                example = image_to_tfexample(
-                    im_string, im_ext, hw[0], hw[1], label)
-                tfrecord_writer.write(example.SerializeToString())
-    return offset + num_images
-
-
 def image_converter(im_ext):
     if im_ext == '.jpg' or im_ext == '.jpeg' or im_ext == '.JPEG':
         out_fun = tf.image.encode_jpeg
@@ -140,59 +111,6 @@ def image_converter(im_ext):
         traceback.print_exc(file=sys.stdout)
         print '-'*60
     return out_fun
-
-
-def process_image_data(
-        im_key, im_dict, output_file, im_ext, train_shards, hw, normalize):
-    print 'Building: %s' % output_file
-    files = im_dict[im_key]
-    all_labels = im_dict[im_key + '_labels']
-    output_pointer = output_file + im_key + '.tfrecords'
-    tf_im_conv = image_converter(im_ext)
-    with tf.python_io.TFRecordWriter(output_pointer) as tfrecord_writer:
-        num_shards = np.round(len(files)/train_shards)
-        batch_idx = np.repeat(np.arange(num_shards), train_shards)
-        print 'Storing data in {} shards. Using {}/{} training images \
-            (adjust shard size to change proportion).'.format(
-                num_shards, len(batch_idx), len(files))
-        batch_idx = np.concatenate((
-            batch_idx, np.ones((len(files) - len(batch_idx))) * -1))
-        for idx in tqdm(range(num_shards)):
-            # load_im_batch also returns a string array of labels
-            images, _ = load_im_batch(files[batch_idx == idx], hw, normalize)
-            labels = all_labels[batch_idx == idx]
-            _add_to_tfrecord(
-                images, labels, tfrecord_writer, im_ext, hw, tf_im_conv)
-
-
-def simple_tf_records(
-        im_key, im_dict, output_file, im_ext, train_shards, hw, normalize):
-    print('Building', output_file)
-    files = im_dict[im_key]
-    all_labels = im_dict[im_key + '_labels']
-    output_pointer = output_file + im_key + '.tfrecords'
-    with tf.python_io.TFRecordWriter(output_pointer) as tfrecord_writer:
-        for idx in tqdm(range(len(files))):
-            image, _ = load_im_batch([files[idx]], hw, normalize)
-            label = all_labels[idx]
-            # construct the Example proto boject
-            example = tf.train.Example(
-                # Example contains a Features proto object
-                features=tf.train.Features(
-                    # Features has a map of string to Feature proto objects
-                    feature={
-                        # A Feature contains one of either a int64_list,
-                        # float_list, or bytes_list
-                        'label': int64_feature(label),
-                        'image': bytes_feature(image.tostring()),
-                        # tf.train.Feature(int64_list=tf.train.Int64List(value=image.astype('int64'))),
-                    }
-                )
-            )
-            # use the proto object to serialize the example to a string
-            serialized = example.SerializeToString()
-            # write the serialized object to disk
-            tfrecord_writer.write(serialized)
 
 
 def extract_to_tf_records(files, label_list, output_pointer, config, k):

@@ -121,7 +121,11 @@ def create_joint_tf_records(
                 occlusion = np.load(occlusions[i]).astype(np.float32)
             else:
                 occlusion = None
-            example = encode_example(depth_image, label_vector, im_label, occlusion)
+            example = encode_example(
+                im=depth_image,
+                label=label_vector,
+                im_label=im_label,
+                occlusion=occlusion)
             tfrecord_writer.write(example)
     return im_list
 
@@ -147,7 +151,7 @@ def extract_depth_features_into_tfrecord(
             label_files=label_files[k],
             tf_file=os.path.join(config.tfrecord_dir, '%s.tfrecords' % k),
             config=config,
-            sample=config.sample[k]
+            sample=config.sample[k],
             occlusions=occlusion_files[k])
         mean_dict[k + '_image'] = im_means
     print 'Finished'
@@ -166,14 +170,14 @@ def process_data(config):
             re.split(
                 config.image_extension,
                 re.split('/', x)[-1])[0] + config.label_extension)
-            for x in depth_files])
+        for x in depth_files])
     occlusion_files = np.asarray([  # replace the depth dir with label dir
         os.path.join(
             config.occlusion_dir,
             re.split(
                 config.image_extension,
                 re.split('/', x)[-1])[0] + config.occlusion_extension)
-            for x in depth_files])
+        for x in depth_files])
     if not os.path.isfile(occlusion_files[0]):
         occlusion_files = None
     # Extract directly into a tfrecord
@@ -186,4 +190,3 @@ def process_data(config):
         config.mean_file,
         data=mean_dict,
         **mean_dict)
-

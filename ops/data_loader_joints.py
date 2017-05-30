@@ -173,7 +173,7 @@ def read_and_decode(
                     image_input_size
                     )
         if crop_coors is not None:
-            label = apply_crop_coordinates( 
+            label = apply_crop_coordinates(
                 label,
                 crop_coors
                 )
@@ -279,7 +279,7 @@ def inputs(
 
         # Even when reading in multiple threads, share the filename
         # queue.
-        if return_occlusions:
+        if return_occlusions is not None:
             label, image, occlusions = read_and_decode(
                 filename_queue=filename_queue,
                 im_size=im_size,
@@ -294,11 +294,12 @@ def inputs(
                 )
 
             data, labels, occlusions = tf.train.shuffle_batch(
-                [image, label, occlusions], batch_size=batch_size, num_threads=2,
+                [image, label, occlusions],
+                batch_size=batch_size,
+                num_threads=2,
                 capacity=1000+3 * batch_size,
                 # Ensures a minimum amount of shuffling of examples.
                 min_after_dequeue=1000)
-
             return data, labels, occlusions
         else:
             label, image = read_and_decode(
@@ -314,10 +315,10 @@ def inputs(
                 )
 
             data, labels = tf.train.shuffle_batch(
-                [image, label], batch_size=batch_size, num_threads=2,
+                [image, label],
+                batch_size=batch_size,
+                num_threads=2,
                 capacity=1000+3 * batch_size,
                 # Ensures a minimum amount of shuffling of examples.
                 min_after_dequeue=1000)
-
-            return data, labels
-
+            return data, labels, None
