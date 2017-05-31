@@ -84,6 +84,13 @@ def create_joint_tf_records(
         for i, (depth, label) in tqdm(
                 enumerate(
                     zip(depth_files, label_files)), total=len(depth_files)):
+            try:
+                open(depth)
+                open(label)
+                if occlusions is not None:
+                    open(occlusions[i])
+            except:
+                continue
 
             # extract depth image
             depth_image = misc.imread(depth)[:, :, :3]
