@@ -124,7 +124,7 @@ def create_joint_tf_records(
                 im_label = im_label.astype(np.float32)
 
             im_list.append(np.mean(depth_image))
-            if occlusions:
+            if occlusions is not None:
                 occlusion = np.load(occlusions[i]).astype(np.float32)
             else:
                 occlusion = None
