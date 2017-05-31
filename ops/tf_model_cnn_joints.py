@@ -100,11 +100,13 @@ def train_and_eval(config):
             # Prepare the loss function
             reg_loss = regression_mse(
                 model.fc8, train_labels)
-            occlusion_loss = softmax_cost(
-                model.fc8_occlusion,
-                train_occlusions)
-            loss = reg_loss + occlusion_loss  # You can penalize occlusion loss
-
+            if config.occlusion_dir:
+                occlusion_loss = softmax_cost(
+                    model.fc8_occlusion,
+                    train_occlusions)
+                loss = reg_loss + occlusion_loss  # You can penalize occlusion loss
+            else:
+                loss = reg_loss
             # Add wd if necessary
             if config.wd_penalty is not None:
                 _, l2_wd_layers = fine_tune_prepare_layers(

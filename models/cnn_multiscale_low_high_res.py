@@ -32,7 +32,7 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
-            fe_keys=['pool2', 'pool3', 'pool4', 'lr_pool3']
+            fe_keys=['pool2', 'pool3', 'pool4', 'lr_pool2', 'lr_pool3']
             ):
         """
         load variable from npy to build the VGG
@@ -82,21 +82,22 @@ class model_struct:
         low_res = [(int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
         res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
         self.lr_conv1_1 = self.conv_layer(res_input_bgr, int(bgr.get_shape()[-1]), 64, "lr_conv1_1")
-        self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2") 
+        self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2")
         self.lr_pool1 = self.max_pool(self.lr_conv1_2, 'lr_pool1')
 
         self.lr_conv2_1 = self.conv_layer(self.lr_pool1, 64, 64, "lr_conv2_1")
         self.lr_conv2_2 = self.conv_layer(self.lr_conv2_1, 64, 64, "lr_conv2_2")
         self.lr_pool2 = self.max_pool(self.lr_conv2_2, 'lr_pool2')
 
-        self.lr_conv3_1 = self.conv_layer(self.lr_pool2, 64, 64, "lr_conv3_1")
-        self.lr_conv3_2 = self.conv_layer(self.lr_conv3_1, 64, 64, "lr_conv3_2")
-        self.lr_pool3 = self.max_pool(self.lr_conv3_2, 'lr_pool3')
+        self.lr_conv3_1 = self.conv_layer(self.lr_pool2, 64, 128, "lr_conv3_1", filter_size=3, stride=[1, 2, 2, 1])
+        self.lr_conv3_2 = self.conv_layer(self.lr_conv3_1, 128, 128, "lr_conv3_2", filter_size=3, stride=[1, 2, 2, 1])
+        self.lr_conv3_3 = self.conv_layer(self.lr_conv3_2, 128, 128, "lr_conv3_3", filter_size=3, stride=[1, 2, 2, 1])
+        self.lr_pool3 = self.max_pool(self.lr_conv3_3, 'lr_pool3')
 
-        if train_mode is not None:
-            self.lr_pool3 = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(self.lr_pool3, 0.5), lambda: self.lr_pool3)
+        # if train_mode is not None:
+        #      self.lr_pool4 = tf.cond(
+        #        train_mode,
+        #         lambda: tf.nn.dropout(self.lr_pool3, 0.5), lambda: self.lr_pool3)
 
         # Feature encoder
         resize_size = [int(x) for x in self[fe_keys[np.argmin(
@@ -184,12 +185,12 @@ class model_struct:
 
     def conv_layer(
                     self, bottom, in_channels,
-                    out_channels, name, filter_size=3, batchnorm=None):
+                    out_channels, name, filter_size=3, batchnorm=None, stride=[1, 1, 1, 1]):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
                 filter_size, in_channels, out_channels, name)
 
-            conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
+            conv = tf.nn.conv2d(bottom, filt, stride, padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
             relu = tf.nn.relu(bias)
 

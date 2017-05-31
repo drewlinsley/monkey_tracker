@@ -11,7 +11,7 @@ class monkeyConfig(object):
         self.image_dir = pjoin(self.base_dir, 'walk-all-png')
         self.depth_dir = pjoin(self.image_dir, 'depth', 'layer1')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
-        self.occlusion_dir = pjoin(self.image_dir, 'occlusions', 'joint_coords')  # Set to None if there's no occlusion data
+        self.occlusion_dir = None  # pjoin(self.image_dir, 'occlusions', 'joint_coords')  # Set to None if there's no occlusion data
         self.im_label_dir = pjoin(self.image_dir, 'labels', 'layer2')
         self.depth_regex = '*[0-9].png'
         self.image_extension = '.png'
