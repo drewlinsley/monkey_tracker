@@ -6,8 +6,8 @@ class monkeyConfig(object):
     def __init__(self):
 
         # Directory settings
-        self.base_dir = '/media/data_cifs/monkey_tracking/batches/NewJointLabelBig' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = '/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.base_dir = '/media/data_cifs/monkey_tracking/batches/NewJointLabelBig'  # '/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.results_dir = '/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2'  # '/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.image_dir = pjoin(self.base_dir, 'walk-all-png')
         self.depth_dir = pjoin(self.image_dir, 'depth', 'layer1')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
@@ -17,7 +17,7 @@ class monkeyConfig(object):
         self.image_extension = '.png'
         self.label_extension = '.npy'
         self.occlusion_extension = '.npy'
-        self.model_output = pjoin(self.results_dir, 'model_output') 
+        self.model_output = pjoin(self.results_dir, 'model_output')
         self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
@@ -25,7 +25,8 @@ class monkeyConfig(object):
             '/media/data_cifs/clicktionary/',
             'pretrained_weights',
             'vgg16.npy')
-        self.resume_from_checkpoint = None#'/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2/walk-all-png/model_output/cnn_multiscale_low_high_res_2017_05_22_14_59_44/model_31600.ckpt-31600'
+        self.resume_from_checkpoint = None
+        #'/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2/walk-all-png/model_output/cnn_multiscale_low_high_res_2017_05_22_14_59_44/model_31600.ckpt-31600'
 
         # Tfrecrods
         self.train_tfrecords = 'train.tfrecords'  # 'train.tfrecords'
@@ -33,10 +34,10 @@ class monkeyConfig(object):
 
         # Feature extraction settings
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
-        self.n_features = 400  # Tune this 
+        self.n_features = 400  # Tune this
         self.max_pixels_per_image = 800  # Tune this
         self.background_constant = 1e10  # HIGH_NUMBER
-        self.cte_depth = 2  # ?? 
+        self.cte_depth = 2  # For kinect depth extraction
         self.resize = [224, 224, 3]  # CNN input (don't change)
         self.image_input_size = [480, 640]  # Maya render output
         self.image_target_size = [240, 320, 3]  # Resize before tfrecords
@@ -46,7 +47,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 100
-        self.model_type = 'cnn_multiscale_low_high_res'  # 'vgg_regression_model' 
+        self.model_type = 'cnn_multiscale_low_high_res'  # 'vgg_regression_model'
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
@@ -64,7 +65,7 @@ class monkeyConfig(object):
         self.validation_batch = 64
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-2   # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = self.lr / 2
+        self.hold_lr = 1e-2  #  Because we're training everything form scratch, just make sure the lr is the same. 1e-10
         self.wd_penalty = 0
         self.keep_checkpoints = 100
         self.optimizer = 'adam'

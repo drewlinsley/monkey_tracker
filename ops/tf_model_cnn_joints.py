@@ -6,11 +6,11 @@ import numpy as np
 import tensorflow as tf
 from ops.data_loader_joints import inputs
 from ops.tf_fun import regression_mse, correlation, make_dir, \
-    fine_tune_prepare_layers, ft_optimizer_list
+    fine_tune_prepare_layers, ft_optimizer_list, softmax_cost
 from ops.utils import get_dt
 
 
-def train_and_eval(config, use_train=True):
+def train_and_eval(config):
     """Train and evaluate the model."""
     print 'Model directory: %s' % config.model_output
     print 'Running model: %s' % config.model_type
@@ -26,6 +26,12 @@ def train_and_eval(config, use_train=True):
         from models.vgg_regression_model import model_struct
     elif config.model_type == 'vgg_regression_model_4fc':
         from models.vgg_regression_model_4fc import model_struct
+    elif config.model_type == 'cnn_multiscale':
+        from models.cnn_multiscale import model_struct
+    elif config.model_type == 'cnn_multiscale_low_high_res':
+        from models.cnn_multiscale_low_high_res import model_struct
+    elif config.model_type == 'test':
+        from models.test import model_struct
     else:
         raise Exception
 
@@ -38,18 +44,30 @@ def train_and_eval(config, use_train=True):
         config.model_output, dt_dataset)  # timestamp this run
     config.summary_dir = os.path.join(
         config.train_summaries, config.model_output, dt_dataset)
+    dir_list = [config.train_checkpoint, config.summary_dir]
+    [make_dir(d) for d in dir_list]
 
     # Prepare model inputs
-    if use_train:
-        print 'Testing on training dataset %s' % os.path.join(
-            config.tfrecord_dir, config.train_tfrecords)
-        validation_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
-    else:
-        validation_data = os.path.join(config.tfrecord_dir, config.val_tfrecords)
+    train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
+    validation_data = os.path.join(config.tfrecord_dir, config.val_tfrecords)
 
     # Prepare data on CPU
     with tf.device('/cpu:0'):
-        val_images, val_labels = inputs(
+        train_images, train_labels, train_occlusions = inputs(
+            tfrecord_file=train_data,
+            batch_size=config.train_batch,
+            im_size=config.resize,
+            target_size=config.image_target_size,
+            model_input_shape=config.resize,
+            train=config.data_augmentations,
+            label_shape=config.num_classes,
+            num_epochs=config.epochs,
+            image_target_size=config.image_target_size,
+            image_input_size=config.image_input_size,
+            maya_conversion=config.maya_conversion,
+            return_occlusions=config.occlusion_dir
+            )
+        val_images, val_labels, val_occlusions = inputs(
             tfrecord_file=validation_data,
             batch_size=1,
             im_size=config.resize,
@@ -57,12 +75,14 @@ def train_and_eval(config, use_train=True):
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=1,
+            num_epochs=config.epochs,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
-            occlusions=self.occlusion_dir
+            return_occlusions=config.occlusion_dir
             )
+        tf.summary.image('train images', tf.cast(train_images, tf.float32))
+        tf.summary.image('validation images', tf.cast(val_images, tf.float32))
 
     with tf.device('/gpu:0'):
         with tf.variable_scope('cnn') as scope:
@@ -72,10 +92,57 @@ def train_and_eval(config, use_train=True):
                 fine_tune_layers=config.initialize_layers)
             train_mode = tf.get_variable(name='training', initializer=True)
             model.build(
-                rgb=val_images,
+                rgb=train_images,
                 output_shape=config.num_classes,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
+
+            # Prepare the loss function
+            reg_loss = regression_mse(
+                model.fc8, train_labels)
+            occlusion_loss = softmax_cost(
+                model.fc8_occlusion,
+                train_occlusions)
+            loss = reg_loss + occlusion_loss  # You can penalize occlusion loss
+
+            # Add wd if necessary
+            if config.wd_penalty is not None:
+                _, l2_wd_layers = fine_tune_prepare_layers(
+                    tf.trainable_variables(), config.wd_layers)
+                l2_wd_layers = [
+                    x for x in l2_wd_layers if 'biases' not in x.name]
+                # import ipdb;ipdb.set_trace()
+                loss += (
+                    config.wd_penalty * tf.add_n(
+                        [tf.nn.l2_loss(x) for x in l2_wd_layers]))
+
+            other_opt_vars, ft_opt_vars = fine_tune_prepare_layers(
+                tf.trainable_variables(), config.fine_tune_layers)
+
+            if config.optimizer == 'adam':
+                train_op, _ = ft_optimizer_list(
+                    loss, [other_opt_vars, ft_opt_vars],
+                    tf.train.AdamOptimizer,
+                    [config.hold_lr, config.lr])
+            else:
+                raise 'Unidentified optimizer'
+            train_score, _ = correlation(
+                model.fc8, train_labels)  # training accuracy
+            tf.summary.scalar("training correlation", train_score)
+            tf.summary.scalar("loss", loss)
+
+            # Setup validation op
+            if validation_data is not False:
+                scope.reuse_variables()
+                # Validation graph is the same as training except no batchnorm
+                val_model = model_struct()
+                val_model.build(
+                    rgb=val_images,
+                    output_shape=config.num_classes),
+
+                # Calculate validation accuracy
+                val_score = tf.nn.l2_loss(val_model.fc8 - val_labels)
+                tf.summary.scalar("validation mse", val_score)
 
     # Set up summaries and saver
     saver = tf.train.Saver(
@@ -95,17 +162,84 @@ def train_and_eval(config, use_train=True):
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
     # Start training loop
+    np.save(config.train_checkpoint, config)
+    step, losses = 0, []
+    train_acc = 0
     if config.resume_from_checkpoint is not None:
-        saver.restore(config.resume_from_checkpoint, sess)
-
+        print "Resuming training from checkpoint: %s" % config.resume_from_checkpoint
+        saver.restore(sess, config.resume_from_checkpoint)
     try:
         while not coord.should_stop():
             start_time = time.time()
-            yhat, im, ytrue = sess.run([model.fc8, val_images, val_labels])
-            np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
-            np.save('/media/data_cifs/monkey_tracking/batches/test/yhat', yhat)
-            np.save('/media/data_cifs/monkey_tracking/batches/test/ytrue', ytrue)
+            _, loss_value, train_acc, im, yhat, ytrue = sess.run([
+                train_op,
+                loss,
+                train_score,
+                train_images,
+                model.fc8,
+                train_labels
+            ])
+            # import ipdb; ipdb.set_trace()
+            # import scipy.misc
+            # np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
+            # np.save('/media/data_cifs/monkey_tracking/batches/test/yhat', yhat)
+            # np.save('/media/data_cifs/monkey_tracking/batches/test/ytrue', ytrue)
 
+            losses.append(loss_value)
+            duration = time.time() - start_time
+            assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+
+            if step % 100 == 0 and step % 10 == 0:
+                if validation_data is not False:
+                    val_acc, val_pred, val_ims = sess.run(
+                        [val_score, val_model.fc8, val_images])
+
+                    np.savez(
+                        os.path.join(
+                            config.model_output, '%s_val_coors' % step),
+                        val_pred=val_pred, val_ims=val_ims)
+                else:
+                    val_acc = -1  # Store every checkpoint
+
+                # Summaries
+                summary_str = sess.run(summary_op)
+                summary_writer.add_summary(summary_str, step)
+
+                # Training status and validation accuracy attach 9177
+                format_str = (
+                    '%s: step %d, loss = %.2f (%.1f examples/sec; '
+                    '%.3f sec/batch) | Training r = %s | '
+                    'Validation r = %s | logdir = %s')
+                print (format_str % (
+                    datetime.now(), step, loss_value,
+                    config.train_batch / duration, float(duration),
+                    train_acc, val_acc, config.summary_dir))
+
+                # Save the model checkpoint if it's the best yet
+                if step % 1000 == 0:
+                    np.save(
+                        '/media/data_cifs/monkey_tracking/batches/test/im_%s' % step, im)
+                    np.save(
+                        '/media/data_cifs/monkey_tracking/batches/test/yhat_%s' % step, yhat)
+                    np.save(
+                        '/media/data_cifs/monkey_tracking/batches/test/ytrue_%s' % step, ytrue)
+                    saver.save(
+                        sess, os.path.join(
+                            config.train_checkpoint,
+                            'model_' + str(step) + '.ckpt'), global_step=step)
+                    # model.save_npy(sess, npy_path=os.path.join(config.train_checkpoint, 'backup' + str(step)))
+
+                    # Store the new max validation accuracy
+                    # val_max = val_acc
+
+            else:
+                # Training status
+                format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; '
+                              '%.3f sec/batch) | Training F = %s')
+                print (format_str % (datetime.now(), step, loss_value,
+                                     config.train_batch / duration,
+                                     float(duration), train_acc))
+            # End iteration
             step += 1
 
     except tf.errors.OutOfRangeError:

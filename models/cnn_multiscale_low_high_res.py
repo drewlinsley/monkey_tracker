@@ -28,6 +28,7 @@ class model_struct:
     def build(
             self,
             rgb,
+            occlusions=True,
             output_shape=None,
             train_mode=None,
             batchnorm=None,
@@ -148,12 +149,22 @@ class model_struct:
             if 'fc7' in batchnorm:
                 self.relu7 = self.batchnorm(self.relu7)
 
+        # Regression head
         self.fc8 = self.fc_layer(self.relu6, 4096, output_shape, "fc8")
         if batchnorm is not None:
             if 'fc8' in batchnorm:
                 self.fc8 = self.batchnorm(self.fc8)
-        final = tf.identity(self.fc8, name="lrp_output")
-        self.prob = tf.nn.softmax(final, name="prob")
+        self.final_regression = tf.identity(self.fc8, name="lrp_output")
+
+        # Occlusion head
+        self.fc8_occlusion = self.fc_layer(
+            self.relu6,
+            4096,
+            output_shape,
+            "fc8_occlusion")
+        if batchnorm is not None:
+            if 'fc8_occlusion' in batchnorm:
+                self.fc8_occlusion = self.batchnorm(self.fc8_occlusion)
 
         self.data_dict = None
 
