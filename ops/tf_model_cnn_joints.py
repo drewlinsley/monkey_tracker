@@ -44,7 +44,8 @@ def train_and_eval(config):
         config.model_output, dt_dataset)  # timestamp this run
     config.summary_dir = os.path.join(
         config.train_summaries, config.model_output, dt_dataset)
-    dir_list = [config.train_checkpoint, config.summary_dir]
+    results_dir = os.path.join('/media/data_cifs/monkey_tracking/batches/test/', dt_stamp)
+    dir_list = [config.train_checkpoint, config.summary_dir, results_dir]
     [make_dir(d) for d in dir_list]
 
     # Prepare model inputs
@@ -171,17 +172,18 @@ def train_and_eval(config):
     try:
         while not coord.should_stop():
             start_time = time.time()
-            _, loss_value, train_acc, im, yhat, ytrue, occ = sess.run([
+            _, loss_value, train_acc, im, yhat, ytrue, occhat, occtrue = sess.run([
                 train_op,
                 loss,
                 train_score,
                 train_images,
                 model.fc8,
                 train_labels,
-                occlusion_loss
+                occlusion_loss,
+                model.fc8_occlusion,
+                train_occlusions
             ])
               
-            import ipdb; ipdb.set_trace()
             # import scipy.misc
             # np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
             # np.save('/media/data_cifs/monkey_tracking/batches/test/yhat', yhat)
@@ -220,11 +222,15 @@ def train_and_eval(config):
                 # Save the model checkpoint if it's the best yet
                 if step % 1000 == 0:
                     np.save(
-                        '/media/data_cifs/monkey_tracking/batches/test/im_%s' % step, im)
+                        os.path.join(results_dir, 'im_%s' % step), im)
                     np.save(
-                        '/media/data_cifs/monkey_tracking/batches/test/yhat_%s' % step, yhat)
+                        os.path.join(results_dir, 'yhat_%s' % step), yhat)
                     np.save(
-                        '/media/data_cifs/monkey_tracking/batches/test/ytrue_%s' % step, ytrue)
+                        os.path.join(results_dir, 'ytrue_%s' % step), ytrue)
+                    np.save(
+                        os.path.join(results_dir, 'occhat_%s' % step), occhat)
+                    np.save(
+                        os.path.join(results_dir, 'occtrue_%s' % step), occtrue)
                     saver.save(
                         sess, os.path.join(
                             config.train_checkpoint,
