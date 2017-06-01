@@ -178,9 +178,10 @@ def train_and_eval(config):
                 train_images,
                 model.fc8,
                 train_labels,
-                model.fc8_occlusion
+                occlusion_loss
             ])
-            # import ipdb; ipdb.set_trace()
+              
+            import ipdb; ipdb.set_trace()
             # import scipy.misc
             # np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
             # np.save('/media/data_cifs/monkey_tracking/batches/test/yhat', yhat)
