@@ -32,7 +32,8 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
-            fe_keys=['pool2', 'pool3', 'pool4', 'lr_pool2', 'lr_pool3']
+            hr_fe_keys=['pool2', 'pool3', 'pool4']
+            lr_fe_keys=['lr_pool2', 'lr_pool3']
             ):
         """
         load variable from npy to build the VGG
@@ -78,8 +79,46 @@ class model_struct:
         self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
         self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
         self.pool4 = self.max_pool(self.conv4_2, 'pool4')
-  
-        # Head 2 -- Super low res
+
+        # High-res feature encoder
+        resize_size = [int(x) for x in self[hr_fe_keys[np.argmin(
+            [int(self[x].get_shape()[0]) for x in hr_fe_keys])]].get_shape()]
+        new_size = np.asarray([resize_size[1], resize_size[2]])
+
+        high_fe_layers = [self.batchnorm(
+            tf.image.resize_bilinear(
+                self[x], new_size)) for x in hr_fe_keys]
+        self.high_feature_encoder = tf.concat(high_fe_layers, 3)
+
+        # High-res 1x1 X 2
+        self.high_feature_encoder_1x1_1 = self.conv_layer(
+            self.high_feature_encoder,
+            int(self.feature_encoder.get_shape()[-1]),
+            128,
+            "high_feature_encoder_1x1_1",
+            filter_size=1)
+        if train_mode is not None:
+            self.high_feature_encoder_1x1_1 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_1, 0.5), lambda: self.high_feature_encoder_1x1_1)
+        self.high_feature_encoder_1x1_2 = self.conv_layer(
+            self.high_feature_encoder,
+            int(self.feature_encoder.get_shape()[-1]),
+            128,
+            "high_feature_encoder_1x1_2",
+            filter_size=1)
+        if train_mode is not None:
+            self.high_feature_encoder_1x1_2 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_2, 0.5), lambda: self.high_feature_encoder_1x1_2)
+        self.high_feature_encoder_joints = self.fc_layer(
+            tf.contrib.layers.flatten(
+                self.high_feature_encoder_1x1_2),
+            4096,
+            output_shape,
+            "hr_fc8") 
+
+        # Head 2 -- Low res
         # (int(x) - 1) // 4 + 1 just makes sure the value is rounded up after division by 4
         low_res = [(int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
         res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
@@ -96,33 +135,56 @@ class model_struct:
         self.lr_conv3_3 = self.conv_layer(self.lr_conv3_2, 128, 128, "lr_conv3_3", filter_size=3, stride=[1, 2, 2, 1])
         self.lr_pool3 = self.max_pool(self.lr_conv3_3, 'lr_pool3')
 
-        # if train_mode is not None:
-        #      self.lr_pool4 = tf.cond(
-        #        train_mode,
-        #         lambda: tf.nn.dropout(self.lr_pool3, 0.5), lambda: self.lr_pool3)
-
-        # Feature encoder
-        resize_size = [int(x) for x in self[fe_keys[np.argmin(
-            [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
+        # Low-res feature encoder
+        resize_size = [int(x) for x in self.high_feature_encoder_1x1_2.get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
-
-        fe_layers = [self.batchnorm(
+        low_fe_layers = [self.batchnorm(
             tf.image.resize_bilinear(
-                self[x], new_size)) for x in fe_keys]
+                self[x], new_size)) for x in lr_fe_keys]
+        self.low_feature_encoder = tf.concat(low_fe_layers, 3)
 
-        # Combine Heads
-        self.feature_encoder = tf.concat(fe_layers, 3)
+        # Low-res 1x1 X 2
+        self.low_feature_encoder_1x1_1 = self.conv_layer(
+            self.low_feature_encoder,
+            int(self.feature_encoder.get_shape()[-1]),
+            128,
+            "low_feature_encoder_1x1_1",
+            filter_size=1)
+        if train_mode is not None:
+            self.low_feature_encoder_1x1_1 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.low_feature_encoder_1x1_1, 0.5), lambda: self.low_feature_encoder_1x1_1)
+        self.low_feature_encoder_1x1_2 = self.conv_layer(
+            self.low_feature_encoder,
+            int(self.feature_encoder.get_shape()[-1]),
+            128,
+            "low_feature_encoder_1x1_2",
+            filter_size=1)
+        if train_mode is not None:
+            self.low_feature_encoder_1x1_2 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.low_feature_encoder_1x1_2, 0.5), lambda: self.low_feature_encoder_1x1_2)
+        self.low_feature_encoder_joints = self.fc_layer(
+            tf.contrib.layers.flatten(
+                self.low_feature_encoder_1x1_2),
+            4096,
+            output_shape,
+            "lr_fc8") 
+
+        # Combined feature encoder
+        self.feature_encoder = tf.concat(
+            [self.high_feature_encoder_1x1_2,
+            self.low_feature_encoder_1x1_2], 3)
         self.feature_encoder_1x1 = self.conv_layer(
             self.feature_encoder,
             int(self.feature_encoder.get_shape()[-1]),
-            64,
+            128,
             "feature_encoder_1x1",
             filter_size=1)
         if train_mode is not None:
             self.feature_encoder_1x1 = tf.cond(
                 train_mode,
                 lambda: tf.nn.dropout(self.feature_encoder_1x1, 0.5), lambda: self.feature_encoder_1x1)
-
         self.pool5 = self.max_pool(self.feature_encoder_1x1, 'pool5')
         self.fc6 = self.fc_layer(
             self.pool5, 
@@ -130,7 +192,6 @@ class model_struct:
             4096,
             "fc6")
         self.relu6 = tf.nn.relu(self.fc6)
-        # Consider changing these to numpy conditionals
         if train_mode is not None:
             self.relu6 = tf.cond(
                 train_mode,

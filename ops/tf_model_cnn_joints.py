@@ -99,14 +99,18 @@ def train_and_eval(config):
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
 
-            # Prepare the loss function
-            reg_loss = regression_mse(
-                model.fc8, train_labels)
-            if config.occlusion_dir:
-                occlusion_loss = tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)
-                loss = reg_loss + occlusion_loss  # You can penalize occlusion loss
-            else:
-                loss = reg_loss
+            # Prepare the loss functions:::
+            loss = []
+            # 1. High-res head
+            loss += [tf.nn.l2_loss(self.high_feature_encoder_joints - train_labels)]
+            # 2. Low-res head
+            loss += [tf.nn.l2_loss(self.low_feature_encoder_joints - train_labels)]
+            # 3. Combined head loss -- joints
+            loss += [tf.nn.l2_loss(model.fc8 - train_labels)]
+            # 4. Combined head loss -- occlusions
+            loss += [tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)]
+            loss = tf.add_n(loss)
+
             # Add wd if necessary
             if config.wd_penalty is not None:
                 _, l2_wd_layers = fine_tune_prepare_layers(

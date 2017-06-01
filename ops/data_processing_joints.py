@@ -89,7 +89,7 @@ def create_joint_tf_records(
             depth_image = (misc.imread(depth)[:, :, :3]).astype(np.float32)
 
             # set nans to 0
-            depth_image[np.isnan(depth_image)] = 0
+            depth_image[np.isnan(depth_image)] = 0.
             if depth_image.sum() > 0:  # Because of renders that are all 0
 
                 # resize to config.image_target_size if needed
@@ -98,7 +98,7 @@ def create_joint_tf_records(
                         depth_image, config.image_target_size[:2])
 
                 # rescale to [0, 1] based on the config max value.
-                depth_image /= config.max_depth_image 
+                depth_image /= np.asarray(config.max_depth, dtype=np.float32)  # cast to make sure this is a float 
                 # depth_image = rescale_zo(depth_image).astype(np.float32)
 
                 # encode -> tfrecord

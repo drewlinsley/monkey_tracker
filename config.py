@@ -32,7 +32,7 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train_2mill.tfrecords'  # Decouple the these vars so you can create new records while training 
         self.val_tfrecords = 'val_2mill.tfrecords'
         self.max_train = 50000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 32767  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do.
+        self.max_depth = 32767.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
 
         # Feature extraction settings
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
