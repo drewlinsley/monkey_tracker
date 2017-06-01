@@ -30,6 +30,7 @@ class monkeyConfig(object):
         # Tfrecrods
         self.train_tfrecords = 'train.tfrecords'  # 'train.tfrecords'
         self.val_tfrecords = 'val.tfrecords'  # val_animation.tfrecords
+        self.max_train = 20000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
 
         # Feature extraction settings
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this

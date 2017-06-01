@@ -43,6 +43,8 @@ class model_struct:
         """
         if output_shape is None: 
             output_shape = 1
+        if occlusions is not None:
+            occlusion_shape = output_shape // 3
 
         # rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
 
@@ -157,15 +159,16 @@ class model_struct:
                 self.fc8 = self.batchnorm(self.fc8)
         self.final_regression = tf.identity(self.fc8, name="lrp_output")
 
-        # Occlusion head
-        self.fc8_occlusion = self.fc_layer(
-            self.relu6,
-            4096,
-            output_shape,
-            "fc8_occlusion")
-        if batchnorm is not None:
-            if 'fc8_occlusion' in batchnorm:
-                self.fc8_occlusion = self.batchnorm(self.fc8_occlusion)
+        if occlusions is not None:
+            # Occlusion head
+            self.fc8_occlusion = self.fc_layer(
+                self.relu6,
+                4096,
+                occlusion_shape,
+                "fc8_occlusion")
+            if batchnorm is not None:
+                if 'fc8_occlusion' in batchnorm:
+                    self.fc8_occlusion = self.batchnorm(self.fc8_occlusion)
 
         self.data_dict = None
 

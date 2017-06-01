@@ -101,9 +101,7 @@ def train_and_eval(config):
             reg_loss = regression_mse(
                 model.fc8, train_labels)
             if config.occlusion_dir:
-                occlusion_loss = softmax_cost(
-                    model.fc8_occlusion,
-                    train_occlusions)
+                occlusion_loss = tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)
                 loss = reg_loss + occlusion_loss  # You can penalize occlusion loss
             else:
                 loss = reg_loss
@@ -173,13 +171,14 @@ def train_and_eval(config):
     try:
         while not coord.should_stop():
             start_time = time.time()
-            _, loss_value, train_acc, im, yhat, ytrue = sess.run([
+            _, loss_value, train_acc, im, yhat, ytrue, occ = sess.run([
                 train_op,
                 loss,
                 train_score,
                 train_images,
                 model.fc8,
-                train_labels
+                train_labels,
+                model.fc8_occlusion
             ])
             # import ipdb; ipdb.set_trace()
             # import scipy.misc

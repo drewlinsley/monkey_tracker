@@ -121,7 +121,7 @@ def get_feature_dict(occlusions):
         return {
           'label': tf.FixedLenFeature([], tf.string),
           'image': tf.FixedLenFeature([], tf.string),
-          'occlusions': tf.FixedLenFeature([], tf.string)
+          'occlusion': tf.FixedLenFeature([], tf.string)
                 }
     else:
         return {
@@ -188,7 +188,9 @@ def read_and_decode(
                     [int(label.get_shape()[0]) / len(image_target_size)]),
                 tf.float32)
     if occlusions:
-        return label, image, tf.decode_raw(features['occlusions'], tf.float32)
+        occlusion = tf.decode_raw(features['occlusion'], tf.float32)
+        occlusion.set_shape(label_shape // 3)
+        return label, image, occlusion
     else:
         return label, image
 
@@ -292,7 +294,6 @@ def inputs(
                 maya_conversion=maya_conversion,
                 occlusions=True
                 )
-
             data, labels, occlusions = tf.train.shuffle_batch(
                 [image, label, occlusions],
                 batch_size=batch_size,
