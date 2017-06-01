@@ -79,62 +79,55 @@ def create_joint_tf_records(
         occlusions=None):
 
     """Feature extracts and creates the tfrecords."""
-    im_list = []
+    im_list, num_successful = [], 0
     with tf.python_io.TFRecordWriter(tf_file) as tfrecord_writer:
         for i, (depth, label) in tqdm(
                 enumerate(
                     zip(depth_files, label_files)), total=len(depth_files)):
-            try:
-                open(depth)
-                open(label)
-                if occlusions is not None:
-                    open(occlusions[i])
-            except:
-                continue
 
             # extract depth image
-            depth_image = misc.imread(depth)[:, :, :3]
+            depth_image = (misc.imread(depth)[:, :, :3]).astype(np.float32)
 
             # set nans to 0
             depth_image[np.isnan(depth_image)] = 0
+            if depth_image.sum() > 0:  # Because of renders that are all 0
 
-            # resize to config.image_target_size if needed
-            if config.image_input_size != config.image_target_size:
-                depth_image = misc.imresize(
-                    depth_image, config.image_target_size[:2])
-
-            # rescale to [0, 1]
-            depth_image = rescale_zo(depth_image).astype(np.float32)
-
-            # encode -> tfrecord
-            label_vector = np.load(label).astype(np.float32)
-            if config.use_image_labels:
-                # try:
-                im_label = misc.imread(os.path.join(
-                    config.im_label_dir, re.split(
-                        config.label_extension,
-                        re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image
-                # # If the corresponding label image doesnt exist, skip it
-                # except IOError:
-                #     continue
-                im_label[np.isnan(im_label)] = 0
+                # resize to config.image_target_size if needed
                 if config.image_input_size != config.image_target_size:
-                    im_label = misc.imresize(
-                        im_label, config.image_target_size[:2])
-                im_label = im_label.astype(np.float32)
+                    depth_image = misc.imresize(
+                        depth_image, config.image_target_size[:2])
 
-            im_list.append(np.mean(depth_image))
-            if occlusions is not None:
-                occlusion = np.load(occlusions[i]).astype(np.float32)
-            else:
-                occlusion = None
-            example = encode_example(
-                im=depth_image,
-                label=label_vector,
-                im_label=im_label,
-                occlusion=occlusion)
-            tfrecord_writer.write(example)
-            if config.max_train is not None and i >= config.max_train:
+                # rescale to [0, 1] based on the config max value.
+                depth_image /= config.max_depth_image 
+                # depth_image = rescale_zo(depth_image).astype(np.float32)
+
+                # encode -> tfrecord
+                label_vector = np.load(label).astype(np.float32)
+                if config.use_image_labels:
+                    im_label = misc.imread(os.path.join(
+                        config.im_label_dir, re.split(
+                            config.label_extension,
+                            re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image
+                    im_label[np.isnan(im_label)] = 0
+                    if config.image_input_size != config.image_target_size:
+                        im_label = misc.imresize(
+                            im_label, config.image_target_size[:2])
+                    im_label = im_label.astype(np.float32)
+
+                im_list.append(np.mean(depth_image))
+                if occlusions is not None:
+                    occlusion = np.load(occlusions[i]).astype(np.float32)
+                else:
+                    occlusion = None
+                example = encode_example(
+                    im=depth_image,
+                    label=label_vector,
+                    im_label=im_label,
+                    occlusion=occlusion)
+                tfrecord_writer.write(example)
+                num_successful += 1
+
+            if config.max_train is not None and num_successful >= config.max_train:
                 break
     return im_list
 
@@ -158,7 +151,7 @@ def extract_depth_features_into_tfrecord(
         im_means = create_joint_tf_records(
             depth_files=depth_files[k],
             label_files=label_files[k],
-            tf_file=os.path.join(config.tfrecord_dir, '%s.tfrecords' % k),
+            tf_file=os.path.join(config.tfrecord_dir, config.new_tf_names[k]),
             config=config,
             sample=config.sample[k],
             occlusions=occlusion_files[k])
@@ -196,6 +189,7 @@ def process_data(config):
         occlusion_files=occlusion_files,
         config=config)
     np.savez(
-        config.mean_file,
+        os.path.join(config.tfrecord_dir, config.mean_file),
         data=mean_dict,
         **mean_dict)
+

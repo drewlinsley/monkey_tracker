@@ -45,6 +45,7 @@ def train_and_eval(config):
     config.summary_dir = os.path.join(
         config.train_summaries, config.model_output, dt_dataset)
     results_dir = os.path.join('/media/data_cifs/monkey_tracking/batches/test/', dt_stamp)
+    print 'Saving Dmurphy\'s online updates to: %s' % results_dir
     dir_list = [config.train_checkpoint, config.summary_dir, results_dir]
     [make_dir(d) for d in dir_list]
 
@@ -121,12 +122,15 @@ def train_and_eval(config):
                 tf.trainable_variables(), config.fine_tune_layers)
 
             if config.optimizer == 'adam':
-                train_op, _ = ft_optimizer_list(
-                    loss, [other_opt_vars, ft_opt_vars],
-                    tf.train.AdamOptimizer,
-                    [config.hold_lr, config.lr])
+                optimizer = tf.train.AdamOptimizer
+            elif config.optimizer == 'sgd':
+                optimizer = tf.train.GradientDescentOptimizer
             else:
                 raise 'Unidentified optimizer'
+            train_op, _ = ft_optimizer_list(
+                loss, [other_opt_vars, ft_opt_vars],
+                optimizer,
+                [config.hold_lr, config.lr])
             train_score, _ = correlation(
                 model.fc8, train_labels)  # training accuracy
             tf.summary.scalar("training correlation", train_score)

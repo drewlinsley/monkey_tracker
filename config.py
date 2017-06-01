@@ -27,10 +27,12 @@ class monkeyConfig(object):
             'vgg16.npy')
         self.resume_from_checkpoint = None#'/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2/walk-all-png/model_output/cnn_multiscale_low_high_res_2017_05_22_14_59_44/model_31600.ckpt-31600'
 
-        # Tfrecrods
-        self.train_tfrecords = 'train.tfrecords'  # 'train.tfrecords'
-        self.val_tfrecords = 'val.tfrecords'  # val_animation.tfrecords
+        # Tfrecords
+        self.new_tf_names = {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
+        self.train_tfrecords = 'train_2mill.tfrecords'  # Decouple the these vars so you can create new records while training 
+        self.val_tfrecords = 'val_2mill.tfrecords'
         self.max_train = 50000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
+        self.max_depth = 32767  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do.
 
         # Feature extraction settings
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
@@ -65,10 +67,10 @@ class monkeyConfig(object):
         self.validation_batch = 64
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-2   # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = self.lr / 2
+        self.hold_lr = 1e-2
         self.wd_penalty = 0
         self.keep_checkpoints = 100
-        self.optimizer = 'adam'
+        self.optimizer = 'sgd'
         # for a weighted cost. First entry = background.
 
         # Training settings
@@ -77,7 +79,7 @@ class monkeyConfig(object):
         self.use_training_loss = False  # early stopping based on loss
         self.early_stopping_rounds = 100
         self.test_proprtion = 0.1  # TEST_RATIO
-        self.mean_file = 'mean_file.npy'  # Double check: used in training?
+        self.mean_file = 'mean_file'  # Double check: used in training?
 
         # Labels for the rendered images
         self.labels = {
