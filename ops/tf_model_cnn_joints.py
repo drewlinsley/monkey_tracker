@@ -179,7 +179,6 @@ def train_and_eval(config):
                 train_images,
                 model.fc8,
                 train_labels,
-                occlusion_loss,
                 model.fc8_occlusion,
                 train_occlusions
             ])
