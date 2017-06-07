@@ -169,7 +169,7 @@ class model_struct:
         self.low_feature_encoder_joints = self.fc_layer(
             tf.contrib.layers.flatten(
                 self.low_feature_encoder_1x1_2),
-            4096,
+            401408, # tf.contrib.layers.flatten(self.low_feature_encoder_1x1_2).get_shape()[-1],
             output_shape,
             "lr_fc8") 
 
