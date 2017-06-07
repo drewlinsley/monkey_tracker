@@ -93,7 +93,7 @@ class model_struct:
         # High-res 1x1 X 2
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
+            int(self.high_feature_encoder.get_shape()[-1]),
             128,
             "high_feature_encoder_1x1_1",
             filter_size=1)
@@ -103,7 +103,7 @@ class model_struct:
                 lambda: tf.nn.dropout(self.high_feature_encoder_1x1_1, 0.5), lambda: self.high_feature_encoder_1x1_1)
         self.high_feature_encoder_1x1_2 = self.conv_layer(
             self.high_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
+            int(self.high_feature_encoder.get_shape()[-1]),
             128,
             "high_feature_encoder_1x1_2",
             filter_size=1)
@@ -146,7 +146,7 @@ class model_struct:
         # Low-res 1x1 X 2
         self.low_feature_encoder_1x1_1 = self.conv_layer(
             self.low_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
+            int(self.low_feature_encoder.get_shape()[-1]),
             128,
             "low_feature_encoder_1x1_1",
             filter_size=1)
@@ -156,7 +156,7 @@ class model_struct:
                 lambda: tf.nn.dropout(self.low_feature_encoder_1x1_1, 0.5), lambda: self.low_feature_encoder_1x1_1)
         self.low_feature_encoder_1x1_2 = self.conv_layer(
             self.low_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
+            int(self.low_feature_encoder.get_shape()[-1]),
             128,
             "low_feature_encoder_1x1_2",
             filter_size=1)
