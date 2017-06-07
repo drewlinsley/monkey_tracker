@@ -117,6 +117,8 @@ class model_struct:
             4096,
             output_shape,
             "hr_fc8") 
+        print(tf.contrib.layers.flatten(
+                self.high_feature_encoder_1x1_2).get_shape())
 
         # Head 2 -- Low res
         # (int(x) - 1) // 4 + 1 just makes sure the value is rounded up after division by 4
