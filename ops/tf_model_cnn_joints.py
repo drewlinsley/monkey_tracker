@@ -104,9 +104,9 @@ def train_and_eval(config):
             # Prepare the loss functions:::
             loss = []
             # 1. High-res head
-            loss += [tf.nn.l2_loss(self.high_feature_encoder_joints - train_labels)]
+            loss += [tf.nn.l2_loss(model.high_feature_encoder_joints - train_labels)]
             # 2. Low-res head
-            loss += [tf.nn.l2_loss(self.low_feature_encoder_joints - train_labels)]
+            loss += [tf.nn.l2_loss(model.low_feature_encoder_joints - train_labels)]
             # 3. Combined head loss -- joints
             loss += [tf.nn.l2_loss(model.fc8 - train_labels)]
             # 4. Combined head loss -- occlusions
