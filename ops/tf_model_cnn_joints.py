@@ -30,10 +30,12 @@ def train_and_eval(config):
         from models.cnn_multiscale import model_struct
     elif config.model_type == 'cnn_multiscale_low_high_res':
         from models.cnn_multiscale_low_high_res import model_struct
+    elif config.model_type == 'cnn_multiscale_low_high_res_mid_loss':
+        from models.cnn_multiscale_low_high_res_mid_loss import model_struct
     elif config.model_type == 'test':
         from models.test import model_struct
     else:
-        raise Exception
+        raise RuntimeError('Cannot understand what kind of model you want to run.')
 
     # Prepare model training
     dt_stamp = re.split(
@@ -71,7 +73,7 @@ def train_and_eval(config):
             )
         val_images, val_labels, val_occlusions = inputs(
             tfrecord_file=validation_data,
-            batch_size=1,
+            batch_size=config.validation_batch,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
@@ -100,16 +102,23 @@ def train_and_eval(config):
                 batchnorm=config.batch_norm)
 
             # Prepare the loss functions:::
-            loss = []
+            loss_list, loss_label = [], []
             # 1. High-res head
-            loss += [tf.nn.l2_loss(self.high_feature_encoder_joints - train_labels)]
-            # 2. Low-res head
-            loss += [tf.nn.l2_loss(self.low_feature_encoder_joints - train_labels)]
+            if config.model_type == 'cnn_multiscale_low_high_res_mid_loss':
+                loss_list += [tf.nn.l2_loss(
+                    model.high_feature_encoder_joints - train_labels)]
+                loss_label += ['high-res head']
+                # 2. Low-res head
+                loss_list += [tf.nn.l2_loss(
+                    model.low_feature_encoder_joints - train_labels)]
+                loss_label += ['low-res head']
             # 3. Combined head loss -- joints
-            loss += [tf.nn.l2_loss(model.fc8 - train_labels)]
+            loss_list += [tf.nn.l2_loss(model.fc8 - train_labels)]
+            loss_label += ['combined head']
             # 4. Combined head loss -- occlusions
-            loss += [tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)]
-            loss = tf.add_n(loss)
+            loss_list += [tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)]
+            loss_label += ['occlusion head']
+            loss = tf.add_n(loss_list)
 
             # Add wd if necessary
             if config.wd_penalty is not None:
@@ -122,24 +131,37 @@ def train_and_eval(config):
                     config.wd_penalty * tf.add_n(
                         [tf.nn.l2_loss(x) for x in l2_wd_layers]))
 
-            other_opt_vars, ft_opt_vars = fine_tune_prepare_layers(
-                tf.trainable_variables(), config.fine_tune_layers)
+            # other_opt_vars, ft_opt_vars = fine_tune_prepare_layers(
+            #     tf.trainable_variables(), config.fine_tune_layers)
 
-            if config.optimizer == 'adam':
-                optimizer = tf.train.AdamOptimizer
-            elif config.optimizer == 'sgd':
-                optimizer = tf.train.GradientDescentOptimizer
-            else:
-                raise 'Unidentified optimizer'
-            train_op, _ = ft_optimizer_list(
-                loss, [other_opt_vars, ft_opt_vars],
-                optimizer,
-                [config.hold_lr, config.lr])
+            # if config.optimizer == 'adam':
+            #     optimizer = tf.train.AdamOptimizer
+            # elif config.optimizer == 'sgd':
+            #     optimizer = tf.train.GradientDescentOptimizer
+            # else:
+            #     raise 'Unidentified optimizer'
+            # train_op, _ = ft_optimizer_list(
+            #     loss, [other_opt_vars, ft_opt_vars],
+            #     optimizer,
+            #     [config.hold_lr, config.lr])
+
+            with tf.name_scope('SGD'):
+                # Gradient Descent
+                optimizer = tf.train.GradientDescentOptimizer(config.lr)
+                # Op to calculate every variable gradient
+                grads = optimizer.compute_gradients(loss, tf.trainable_variables())
+                # grads = [(tf.clip_by_norm(g, 8), v) for g, v in grads if g is not None]
+                # Op to update all variables according to their gradient
+                train_op = optimizer.apply_gradients(grads_and_vars=grads)
+
+            # Summarize all gradients and weights
+            [tf.summary.histogram(var.name + '/gradient', grad) for grad, var in grads if grad is not None]
+            # Summarize scores
             train_score, _ = correlation(
                 model.fc8, train_labels)  # training accuracy
             tf.summary.scalar("training correlation", train_score)
-            tf.summary.scalar("loss", loss)
-
+            [tf.summary.scalar(lab, il) for lab, il in zip(
+                loss_label, loss_list)]
             # Setup validation op
             if validation_data is not False:
                 scope.reuse_variables()
@@ -190,7 +212,7 @@ def train_and_eval(config):
                 model.fc8_occlusion,
                 train_occlusions
             ])
-              
+            import ipdb;ipdb.set_trace()
             # import scipy.misc
             # np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
             # np.save('/media/data_cifs/monkey_tracking/batches/test/yhat', yhat)

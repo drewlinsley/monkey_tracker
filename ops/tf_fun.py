@@ -91,7 +91,10 @@ def zscore(x):
 
 
 def correlation(x, y):
-    return tf.contrib.metrics.streaming_pearson_correlation(x, y, name="pearson")
+    return tf.contrib.metrics.streaming_pearson_correlation(
+        predictions=x,
+        labels=y,
+        name="pearson")
 
 
 def mse(pred, targets):

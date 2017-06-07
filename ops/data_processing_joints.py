@@ -5,6 +5,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from ops.utils import get_files
 from scipy import misc
+from skimage.transform import resize
 
 
 def rescale_zo(image):
@@ -80,25 +81,42 @@ def create_joint_tf_records(
 
     """Feature extracts and creates the tfrecords."""
     im_list, num_successful = [], 0
+    if depth_files[0].split('.')[1] == 'npy':
+        use_npy = True
+        print 'Getting depth from npys.'
+    else:
+        use_npy = False
+        print 'Getting depth from images.'
+    if config.max_train is not None:
+        num_files = config.max_train
+    else:
+        num_files = len(depth_files)
     with tf.python_io.TFRecordWriter(tf_file) as tfrecord_writer:
         for i, (depth, label) in tqdm(
                 enumerate(
-                    zip(depth_files, label_files)), total=len(depth_files)):
+                    zip(depth_files, label_files)), total=num_files):
 
             # extract depth image
-            depth_image = (misc.imread(depth)[:, :, :3]).astype(np.float32)
+            if use_npy:
+                depth_image = (np.load(depth)[:, :, :3]).astype(np.float32)
+            else:
+                depth_image = misc.imread(depth, mode='F')[:, :, :3]
+            depth_image[depth_image == depth_image.min()] = 0
 
             # set nans to 0
             depth_image[np.isnan(depth_image)] = 0.
             if depth_image.sum() > 0:  # Because of renders that are all 0
-
                 # resize to config.image_target_size if needed
                 if config.image_input_size != config.image_target_size:
-                    depth_image = misc.imresize(
-                        depth_image, config.image_target_size[:2])
+                    depth_image = resize(
+                        depth_image,
+                        config.image_target_size[:2],
+                        preserve_range=True)
 
                 # rescale to [0, 1] based on the config max value.
-                depth_image /= np.asarray(config.max_depth, dtype=np.float32)  # cast to make sure this is a float 
+                depth_image /= np.asarray(
+                    config.max_depth,
+                    dtype=np.float32)  # cast to make sure this is a float 
                 # depth_image = rescale_zo(depth_image).astype(np.float32)
 
                 # encode -> tfrecord
@@ -113,6 +131,8 @@ def create_joint_tf_records(
                         im_label = misc.imresize(
                             im_label, config.image_target_size[:2])
                     im_label = im_label.astype(np.float32)
+                else:
+                    im_label = np.zeros(1)
 
                 im_list.append(np.mean(depth_image))
                 if occlusions is not None:

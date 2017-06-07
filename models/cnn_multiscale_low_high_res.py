@@ -102,7 +102,7 @@ class model_struct:
         #         lambda: tf.nn.dropout(self.lr_pool3, 0.5), lambda: self.lr_pool3)
 
         # Feature encoder
-        resize_size = [int(x) for x in self[fe_keys[np.argmin(
+        resize_size = [int(x) for x in self[fe_keys[np.argmax(
             [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
 
@@ -115,7 +115,7 @@ class model_struct:
         self.feature_encoder_1x1 = self.conv_layer(
             self.feature_encoder,
             int(self.feature_encoder.get_shape()[-1]),
-            64,
+            128,
             "feature_encoder_1x1",
             filter_size=1)
         if train_mode is not None:
@@ -154,21 +154,18 @@ class model_struct:
 
         # Regression head
         self.fc8 = self.fc_layer(self.relu6, 4096, output_shape, "fc8")
-        if batchnorm is not None:
-            if 'fc8' in batchnorm:
-                self.fc8 = self.batchnorm(self.fc8)
         self.final_regression = tf.identity(self.fc8, name="lrp_output")
 
         if occlusions is not None:
             # Occlusion head
             self.fc8_occlusion = self.fc_layer(
                 self.relu6,
-                4096,
+                int(self.relu6.get_shape()[-1]),
                 occlusion_shape,
-                "fc8_occlusion")
-            if batchnorm is not None:
-                if 'fc8_occlusion' in batchnorm:
-                    self.fc8_occlusion = self.batchnorm(self.fc8_occlusion)
+                "fc8_occlusion_scores")
+            self.fc8_occlusion = tf.sigmoid(
+                self.fc8_occlusion,
+                'fc8_occlusion')
 
         self.data_dict = None
 

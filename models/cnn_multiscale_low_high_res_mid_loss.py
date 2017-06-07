@@ -32,7 +32,8 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4']
+            fe_keys=None,
+            hr_fe_keys=['pool2','pool3','pool4'],
             lr_fe_keys=['lr_pool2', 'lr_pool3']
             ):
         """
@@ -42,6 +43,8 @@ class model_struct:
         :param train_mode: a bool tensor, usually a placeholder:
         :if True, dropout will be turned on
         """
+        if fe_keys is not None:
+            print 'I see you supplied feature extractor keys... These are being ignored.'
         if output_shape is None: 
             output_shape = 1
         if occlusions is not None:
@@ -72,16 +75,16 @@ class model_struct:
         self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2")
         self.pool2 = self.max_pool(self.conv2_2, 'pool2')
 
-        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
-        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
+        self.conv3_1 = self.conv_layer(self.pool2, 128, 128, "conv3_1")
+        self.conv3_2 = self.conv_layer(self.conv3_1, 128, 128, "conv3_2")
         self.pool3 = self.max_pool(self.conv3_2, 'pool3')
 
-        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
-        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
+        self.conv4_1 = self.conv_layer(self.pool3, 128, 256, "conv4_1")
+        self.conv4_2 = self.conv_layer(self.conv4_1, 256, 256, "conv4_2")
         self.pool4 = self.max_pool(self.conv4_2, 'pool4')
 
         # High-res feature encoder
-        resize_size = [int(x) for x in self[hr_fe_keys[np.argmin(
+        resize_size = [int(x) for x in self[hr_fe_keys[np.argmax(
             [int(self[x].get_shape()[0]) for x in hr_fe_keys])]].get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
 
@@ -93,28 +96,30 @@ class model_struct:
         # High-res 1x1 X 2
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
-            128,
+            int(self.high_feature_encoder.get_shape()[-1]),
+            64,
             "high_feature_encoder_1x1_1",
             filter_size=1)
         if train_mode is not None:
             self.high_feature_encoder_1x1_1 = tf.cond(
                 train_mode,
                 lambda: tf.nn.dropout(self.high_feature_encoder_1x1_1, 0.5), lambda: self.high_feature_encoder_1x1_1)
+        self.high_1x1_1_pool = self.max_pool(self.high_feature_encoder_1x1_1, 'high_1x1_1_pool')        
         self.high_feature_encoder_1x1_2 = self.conv_layer(
-            self.high_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
-            128,
+            self.high_1x1_1_pool,
+            int(self.high_1x1_1_pool.get_shape()[-1]),
+            64,
             "high_feature_encoder_1x1_2",
             filter_size=1)
         if train_mode is not None:
             self.high_feature_encoder_1x1_2 = tf.cond(
                 train_mode,
                 lambda: tf.nn.dropout(self.high_feature_encoder_1x1_2, 0.5), lambda: self.high_feature_encoder_1x1_2)
+        self.high_1x1_2_pool = tf.contrib.layers.flatten(
+            self.max_pool(self.high_feature_encoder_1x1_2, 'high_1x1_2_pool'))
         self.high_feature_encoder_joints = self.fc_layer(
-            tf.contrib.layers.flatten(
-                self.high_feature_encoder_1x1_2),
-            4096,
+            self.high_1x1_2_pool,
+            int(self.high_1x1_2_pool.get_shape()[-1]),
             output_shape,
             "hr_fc8") 
 
@@ -146,39 +151,42 @@ class model_struct:
         # Low-res 1x1 X 2
         self.low_feature_encoder_1x1_1 = self.conv_layer(
             self.low_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
-            128,
+            int(self.low_feature_encoder.get_shape()[-1]),
+            32,
             "low_feature_encoder_1x1_1",
             filter_size=1)
         if train_mode is not None:
             self.low_feature_encoder_1x1_1 = tf.cond(
                 train_mode,
                 lambda: tf.nn.dropout(self.low_feature_encoder_1x1_1, 0.5), lambda: self.low_feature_encoder_1x1_1)
+        self.low_1x1_1_pool = self.max_pool(self.low_feature_encoder, 'low_1x1_1_pool')
         self.low_feature_encoder_1x1_2 = self.conv_layer(
-            self.low_feature_encoder,
-            int(self.feature_encoder.get_shape()[-1]),
-            128,
+            self.low_1x1_1_pool,
+            int(self.low_feature_encoder.get_shape()[-1]),
+            32,
             "low_feature_encoder_1x1_2",
             filter_size=1)
         if train_mode is not None:
             self.low_feature_encoder_1x1_2 = tf.cond(
                 train_mode,
                 lambda: tf.nn.dropout(self.low_feature_encoder_1x1_2, 0.5), lambda: self.low_feature_encoder_1x1_2)
+        self.low_1x1_2_pool = tf.contrib.layers.flatten(
+            self.max_pool(self.low_feature_encoder_1x1_2, 'low_1x1_2_pool'))
         self.low_feature_encoder_joints = self.fc_layer(
-            tf.contrib.layers.flatten(
-                self.low_feature_encoder_1x1_2),
-            4096,
+            self.low_1x1_2_pool,
+            int(self.low_1x1_2_pool.get_shape()[-1]), # tf.contrib.layers.flatten(self.low_feature_encoder_1x1_2).get_shape()[-1],
             output_shape,
             "lr_fc8") 
 
         # Combined feature encoder
+        self.pooled_hfe = self.max_pool(self.high_feature_encoder_1x1_2, 'pooled_hfe')
         self.feature_encoder = tf.concat(
-            [self.high_feature_encoder_1x1_2,
+            [self.pooled_hfe,
             self.low_feature_encoder_1x1_2], 3)
         self.feature_encoder_1x1 = self.conv_layer(
             self.feature_encoder,
             int(self.feature_encoder.get_shape()[-1]),
-            128,
+            32,
             "feature_encoder_1x1",
             filter_size=1)
         if train_mode is not None:
@@ -189,47 +197,47 @@ class model_struct:
         self.fc6 = self.fc_layer(
             self.pool5, 
             np.prod([int(x) for x in self.pool5.get_shape()[1:]]),
-            4096,
+            int(self.pool5.get_shape()[-1]),
             "fc6")
         self.relu6 = tf.nn.relu(self.fc6)
         if train_mode is not None:
             self.relu6 = tf.cond(
                 train_mode,
                 lambda: tf.nn.dropout(self.relu6, 0.5), lambda: self.relu6)
-        elif self.trainable:
-            self.relu6 = tf.nn.dropout(self.relu6, 0.5)
-        if batchnorm is not None:
-            if 'fc6' in batchnorm:
-                self.relu6 = self.batchnorm(self.relu6)
-        self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
-        self.relu7 = tf.nn.relu(self.fc7)
-        if train_mode is not None:
-            self.relu7 = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(self.relu7, 0.5), lambda: self.relu7)
-        elif self.trainable:
-            self.relu7 = tf.nn.dropout(self.relu7, 0.5)
-        if batchnorm is not None:
-            if 'fc7' in batchnorm:
-                self.relu7 = self.batchnorm(self.relu7)
+        # elif self.trainable:
+        #     self.relu6 = tf.nn.dropout(self.relu6, 0.5)
+        # if batchnorm is not None:
+        #     if 'fc6' in batchnorm:
+        #         self.relu6 = self.batchnorm(self.relu6)
+        # self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
+        # self.relu7 = tf.nn.relu(self.fc7)
+        # if train_mode is not None:
+        #     self.relu7 = tf.cond(
+        #         train_mode,
+        #         lambda: tf.nn.dropout(self.relu7, 0.5), lambda: self.relu7)
+        # elif self.trainable:
+        #     self.relu7 = tf.nn.dropout(self.relu7, 0.5)
+        # if batchnorm is not None:
+        #     if 'fc7' in batchnorm:
+        #         self.relu7 = self.batchnorm(self.relu7)
 
         # Regression head
-        self.fc8 = self.fc_layer(self.relu6, 4096, output_shape, "fc8")
-        if batchnorm is not None:
-            if 'fc8' in batchnorm:
-                self.fc8 = self.batchnorm(self.fc8)
+        self.fc8 = self.fc_layer(
+            self.relu6,
+            int(self.relu6.get_shape()[-1]),
+            output_shape,
+            "fc8")
         self.final_regression = tf.identity(self.fc8, name="lrp_output")
-
         if occlusions is not None:
             # Occlusion head
             self.fc8_occlusion = self.fc_layer(
                 self.relu6,
-                4096,
+                int(self.relu6.get_shape()[-1]),
                 occlusion_shape,
-                "fc8_occlusion")
-            if batchnorm is not None:
-                if 'fc8_occlusion' in batchnorm:
-                    self.fc8_occlusion = self.batchnorm(self.fc8_occlusion)
+                "fc8_occlusion_scores")
+            self.fc8_occlusion = tf.sigmoid(
+                self.fc8_occlusion,
+                'fc8_occlusion')
 
         self.data_dict = None
 
