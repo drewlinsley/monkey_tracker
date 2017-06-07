@@ -49,7 +49,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 100
-        self.model_type = 'cnn_resnet_low_high'  # 'vgg_regression_model' 
+        self.model_type = 'cnn_multiscale_low_high_res_mid_loss'  # 'vgg_regression_model' 
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
