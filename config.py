@@ -28,9 +28,10 @@ class monkeyConfig(object):
         self.resume_from_checkpoint = None#'/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2/walk-all-png/model_output/cnn_multiscale_low_high_res_2017_05_22_14_59_44/model_31600.ckpt-31600'
 
         # Tfrecords
-        self.new_tf_names = {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
-        self.train_tfrecords = 'train_2mill.tfrecords'  # Decouple the these vars so you can create new records while training 
-        self.val_tfrecords = 'val_2mill.tfrecords'
+        self.new_tf_names = {'train': 'train.tfrecords', 'val': 'val.tfrecords'}# {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
+        self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
+        self.val_tfrecords = 'val.tfrecords'# 'val_2mill.tfrecords'
+        
         self.max_train = 50000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
         self.max_depth = 32767.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
 
