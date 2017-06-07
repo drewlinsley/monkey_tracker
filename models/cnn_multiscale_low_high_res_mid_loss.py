@@ -114,7 +114,7 @@ class model_struct:
         self.high_feature_encoder_joints = self.fc_layer(
             tf.contrib.layers.flatten(
                 self.high_feature_encoder_1x1_2),
-            4096,
+            401408, # tf.contrib.layers.flatten(self.high_feature_encoder_1x1_2).get_shape()[-1],
             output_shape,
             "hr_fc8") 
         print(tf.contrib.layers.flatten(
