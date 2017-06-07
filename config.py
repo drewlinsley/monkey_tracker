@@ -7,7 +7,7 @@ class monkeyConfig(object):
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGrad100kStore' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGradTest' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.results_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGradTestResnet' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.image_dir = self.base_dir #pjoin(self.base_dir, 'walk-all-png') 
         self.depth_dir = pjoin(self.image_dir, 'depth', 'adjusted_depth')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
