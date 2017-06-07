@@ -5,6 +5,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from ops.utils import get_files
 from scipy import misc
+from tifffile import TiffFile
 
 
 def rescale_zo(image):
@@ -88,12 +89,12 @@ def create_joint_tf_records(
                 open(depth)
                 open(label)
                 if occlusions is not None:
-                    open(occlusions[i])
+                    open(occlusions[i]) 
             except:
                 continue
 
             # extract depth image
-            depth_image = misc.imread(depth)[:, :, :3]
+            depth_image = np.load(depth)[:, :, :3]#misc.imread(depth)[:, :, :3] ############!!!!!!!!!!!!change to np.load, and read adjusted depth. later you should also change rendering script to save a file of the zoom levels it used
 
             # set nans to 0
             depth_image[np.isnan(depth_image)] = 0
@@ -108,12 +109,12 @@ def create_joint_tf_records(
 
             # encode -> tfrecord
             label_vector = np.load(label).astype(np.float32)
-            if config.use_image_labels:
+            if config.use_image_labels:  ##########!!!!!!!!!!I set this to false for now bc reading Tifs is very slow, until we can save the image labels as .npys in the maya_to_pixel_coords script
                 # try:
-                im_label = misc.imread(os.path.join(
+                im_label = TiffFile(os.path.join(
                     config.im_label_dir, re.split(
                         config.label_extension,
-                        re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image
+                        re.split('/', label)[-1])[0] + '.tif')).asarray()[:, :, :3] # label image  ############!!!!!!change to TiffFile
                 # # If the corresponding label image doesnt exist, skip it
                 # except IOError:
                 #     continue
@@ -122,6 +123,8 @@ def create_joint_tf_records(
                     im_label = misc.imresize(
                         im_label, config.image_target_size[:2])
                 im_label = im_label.astype(np.float32)
+            else :
+                im_label = None
 
             im_list.append(np.mean(depth_image))
             if occlusions is not None:

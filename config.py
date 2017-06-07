@@ -3,19 +3,19 @@ from os.path import join as pjoin
 
 #  Main configuration file for monkey tracking
 class monkeyConfig(object):
-    def __init__(self):
+    def __init__(self): 
 
         # Directory settings
-        self.base_dir = '/media/data_cifs/monkey_tracking/batches/FixedZoom2MilStore' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = '/media/data_cifs/monkey_tracking/batches/CnnResnetLowHigh' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.base_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGrad100kStore' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.results_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGradTest' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.image_dir = self.base_dir #pjoin(self.base_dir, 'walk-all-png') 
-        self.depth_dir = pjoin(self.image_dir, 'depth', 'layer1')
+        self.depth_dir = pjoin(self.image_dir, 'depth', 'adjusted_depth')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
         self.occlusion_dir = pjoin(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
         self.im_label_dir = pjoin(self.image_dir, 'labels', 'layer2')
-        self.depth_regex = '*[0-9].png'
-        self.image_extension = '.png'
-        self.label_extension = '.npy'
+        self.depth_regex = '*[0-9].npy'
+        self.image_extension = '.npy'
+        self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
         self.model_output = pjoin(self.results_dir, 'model_output') 
         self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords')
@@ -43,11 +43,11 @@ class monkeyConfig(object):
         self.image_target_size = [240, 320, 3]  # Resize before tfrecords
         self.maya_conversion = 640.0 / 500.0  # pixels / maya units
         self.sample = {'train': True, 'val': False}  # random sample of feats
-        self.use_image_labels = True  # if true, extract  color-labeled images
+        self.use_image_labels = False  # if true, extract  color-labeled images
 
         # Model settings
         self.epochs = 100
-        self.model_type = 'cnn_multiscale_low_high_res'  # 'vgg_regression_model' 
+        self.model_type = 'cnn_resnet_low_high'  # 'vgg_regression_model' 
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']

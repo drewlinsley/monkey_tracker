@@ -1,10 +1,21 @@
+## This script creates (approximate) occlusion maps, converts maya coordinates to (approximate) pixel coordinates 
+## and adds an (approximate) overall depth value to the pixels of the monkey
+
+
+## TODO also save the label image as a .npy version so its faster to read
+
+
+
+
 import numpy as np 
 import os
 import argparse
 from tqdm import tqdm
 from multiprocessing import Pool
-import scipy.misc as misc
+from tifffile import TiffFile
 from scipy.spatial.distance import cdist
+import scipy.misc as misc
+from PIL import Image
 import sys, inspect
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
 sys.path.insert(0,parentdir) 
@@ -55,19 +66,30 @@ imDir = []
 coordDir = []
 pixelDir = []
 occlusionDir = []
+depthDir = []
+adjDepthDir = []
+
+depthAdjustment = []
+
+im_ext = '.tif'
 
 def process(filename):
 	coordFile = os.path.join(coordDir[0], filename)
-	imFile = os.path.join(imDir[0], filename[:-4]+'.png')
+	imFile = os.path.join(imDir[0], filename[:-4]+im_ext)
+	depthFile = os.path.join(depthDir[0], filename[:-4]+im_ext)
 	try:
 		open(coordFile, 'r+')
 		open(imFile, 'r+')
+		open(depthFile, 'r+')
 	except:
 		return
-	coords = np.load(os.path.join(coordDir[0], filename))
-	image = misc.imread(os.path.join(imDir[0], filename[:-4]+'.png'))
+	coords = np.load(coordFile)
+	image = TiffFile(imFile).asarray() / 255
+	depth = TiffFile(depthFile).asarray().astype(np.float32)
+
 	pixel_coords = (coords[:, :2]*np.asarray([-620.0, -620.0])/coords[:, 2].reshape([23, 1]) + 
 		np.asarray([320.0, 240.0])).astype(np.int32)
+
 	# select all pixel coordinates that are in the bounds of the image
 	in_bound_bool = (pixel_coords[:, 0] < 640) * (pixel_coords[:, 0] > -1) * (pixel_coords[:, 1] < 480) * (pixel_coords[:, 1] > -1)
 	# labels is the value of the image at each pixel coordinate, when that coordinate is in range. It
@@ -76,16 +98,29 @@ def process(filename):
 	labels = np.asarray([image[x[1], x[0]] if in_bounds else [0, 0, 0, 0] for (x, in_bounds) in zip(pixel_coords, in_bound_bool)])
 	labels = np.argmin(cdist(labels, values, 'euclidean'), axis=1)
 	visible = [label in occlusion_map[joints[i]] for i, label in enumerate(labels)]
-	np.save(os.path.join(pixelDir[0], filename), pixel_coords)
-	np.save(os.path.join(occlusionDir[0], filename), visible)
+	
+	# rescale the depth image so that it only occupies the upper half of the range of 2**16 (about 62,000) possible valid depth values
+	# so that when we subtract 10 times the depth values (range 3,000 to 10,000) we dont go negative
+	depth = depth * 0.5 + 2.0**15 
+	depth[depth[:, :, 3] != 0] -= int(depthAdjustment[0][filename[:-11]+'.ma'] * 10)
 
-def main(labelDir):
+	np.save(os.path.join(pixelDir[0], filename), pixel_coords) 
+	np.save(os.path.join(occlusionDir[0], filename), visible) 
+	np.save(os.path.join(adjDepthDir[0], filename), depth)
+
+def main(labelDir, depthAdjustmentFile):
 	imDir.append(os.path.join(labelDir, 'layer2'))
 	coordDir.append(os.path.join(labelDir, 'joint_coords'))
 	pixelDir.append(os.path.join(labelDir, 'pixel_joint_coords'))
 	occlusionDir.append(os.path.join(labelDir, 'occlusions'))
+	depthDir.append(os.path.join(labelDir, '..', 'depth', 'layer1'))
+	adjDepthDir.append(os.path.join(labelDir, '..', 'depth', 'adjusted_depth'))
+
+	depthAdjustment.append(np.load(depthAdjustmentFile).item())
+
 	os.system("mkdir -p %s" % pixelDir[0]) 
 	os.system("mkdir -p %s" % occlusionDir[0])
+	os.system("mkdir -p %s" % adjDepthDir[0])
 	# go through each 3D coordinate file and save its pixel coordinates and whether
 	# each joint is visible
 	p = Pool(10)
@@ -97,5 +132,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('labelDir',type=str,
         help='Directory containing a folder of label images and a folder of 3D coordinates')
+    parser.add_argument('depthAdjustmentFile',type=str,
+        help='a .npy file that maps file names (of the tmp animations) to the zoom level they used')
     args = parser.parse_args()
     main(**vars(args))
