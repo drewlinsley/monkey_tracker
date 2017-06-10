@@ -73,7 +73,7 @@ def train_and_eval(config):
             )
         val_images, val_labels, val_occlusions = inputs(
             tfrecord_file=validation_data,
-            batch_size=1,
+            batch_size=config.validation_batch,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
@@ -99,18 +99,19 @@ def train_and_eval(config):
                 rgb=train_images,
                 output_shape=config.num_classes,
                 train_mode=train_mode,
+                fe_keys=config.fe_keys,
                 batchnorm=config.batch_norm)
 
             # Prepare the loss functions:::
             loss = []
             # 1. High-res head
-            loss += [tf.nn.l2_loss(model.high_feature_encoder_joints - train_labels)]
+            # loss += [tf.nn.l2_loss(model.high_feature_encoder_joints - train_labels)]
             # 2. Low-res head
-            loss += [tf.nn.l2_loss(model.low_feature_encoder_joints - train_labels)]
+            # loss += [tf.nn.l2_loss(model.low_feature_encoder_joints - train_labels)]
             # 3. Combined head loss -- joints
             loss += [tf.nn.l2_loss(model.fc8 - train_labels)]
             # 4. Combined head loss -- occlusions
-            loss += [tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)]
+            # loss += [tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)]
             loss = tf.add_n(loss)
 
             # Add wd if necessary
@@ -149,6 +150,7 @@ def train_and_eval(config):
                 val_model = model_struct()
                 val_model.build(
                     rgb=val_images,
+                    fe_keys=config.fe_keys,
                     output_shape=config.num_classes),
 
                 # Calculate validation accuracy

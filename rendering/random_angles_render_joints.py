@@ -113,6 +113,7 @@ def main(infile, numFrames, prefix, folderName):
 						cmds.move(yshift, hip, y=True, a=True, ws=True)
 						cmds.setKeyframe('hip', ott="step") 
 						coordArray = np.zeros((len(labels), 3))
+                                                # import ipdb;ipdb.set_trace()
 						update(coordArray)
 						np.save(pathPrefix+outdir+'/labels/joint_coords/tmp' + str(prefix) + '_'+str(currentTime).zfill(6), coordArray)
 						currentTime += 1

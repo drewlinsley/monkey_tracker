@@ -114,7 +114,7 @@ def main(labelDir, depthAdjustmentFile):
 	pixelDir.append(os.path.join(labelDir, 'pixel_joint_coords'))
 	occlusionDir.append(os.path.join(labelDir, 'occlusions'))
 	depthDir.append(os.path.join(labelDir, '..', 'depth', 'layer1'))
-	adjDepthDir.append(os.path.join(labelDir, '..', 'depth', 'adjusted_depth'))
+	adjDepthDir.append(os.path.join(labelDir, '..', 'depth', 'true_depth'))
 
 	depthAdjustment.append(np.load(depthAdjustmentFile).item())
 
