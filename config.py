@@ -32,8 +32,8 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'# 'val_2mill.tfrecords'
         
-        self.max_train = 50000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 32767.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.max_train = 10000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
+        self.max_depth = 32767. * 2  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
 
         # Feature extraction settings
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
@@ -64,7 +64,7 @@ class monkeyConfig(object):
         ]
         # ['left_right, up_down, random_crop,
         # random_brightness, random_contrast, rotate']
-        self.train_batch = 32
+        self.train_batch = 16
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-2   # Tune this -- also try SGD instead of ADAm
@@ -111,7 +111,7 @@ class monkeyConfig(object):
             'tail':            (100, 180, 249, 254)
         }
         self.joint_order = [
-            'lEye', 
+            'lEye',
             'neck', 
             'abdomen', 
             'lShldr', 

@@ -33,7 +33,7 @@ class model_struct:
             train_mode=None,
             batchnorm=None,
             fe_keys=None,
-            hr_fe_keys=['pool3', 'pool4'],
+            hr_fe_keys=['pool2','pool3','pool4'],
             lr_fe_keys=['lr_pool2', 'lr_pool3']
             ):
         """
@@ -84,7 +84,7 @@ class model_struct:
         self.pool4 = self.max_pool(self.conv4_2, 'pool4')
 
         # High-res feature encoder
-        resize_size = [int(x) for x in self[hr_fe_keys[np.argmin(
+        resize_size = [int(x) for x in self[hr_fe_keys[np.argmax(
             [int(self[x].get_shape()[0]) for x in hr_fe_keys])]].get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
 
@@ -234,7 +234,10 @@ class model_struct:
                 self.relu6,
                 int(self.relu6.get_shape()[-1]),
                 occlusion_shape,
-                "fc8_occlusion")
+                "fc8_occlusion_scores")
+            self.fc8_occlusion = tf.sigmoid(
+                self.fc8_occlusion,
+                'fc8_occlusion')
 
         self.data_dict = None
 
