@@ -203,6 +203,7 @@ def train_and_eval(config):
         saver.restore(sess, config.resume_from_checkpoint)
     try:
         while not coord.should_stop():
+            print('blah')
             start_time = time.time()
             _, loss_value, train_acc, im, yhat, ytrue, occhat, occtrue = sess.run([
                 train_op,
