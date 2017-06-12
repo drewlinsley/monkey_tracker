@@ -16,9 +16,9 @@ class monkeyConfig(object):
         self.depth_regex = '*[0-9].npy'
         self.image_extension = '.npy'
         self.label_extension = '.npy' 
-        self.occlusion_extension = '.npy'
+        self.occlusion_extension = '.npy' 
         self.model_output = pjoin(self.results_dir, 'model_output')  
-        self.tfrecord_dir = pjoin(self.image_dir, 'pixel_tfrecords')
+        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
         self.vgg16_weight_path = pjoin(

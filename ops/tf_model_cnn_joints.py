@@ -203,7 +203,6 @@ def train_and_eval(config):
         saver.restore(sess, config.resume_from_checkpoint)
     try:
         while not coord.should_stop():
-            print('blah')
             start_time = time.time()
             _, loss_value, train_acc, im, yhat, ytrue, occhat, occtrue = sess.run([
                 train_op,
@@ -215,8 +214,7 @@ def train_and_eval(config):
                 model.fc8_occlusion,
                 train_occlusions
             ])
-            print('poop')
-            import ipdb;ipdb.set_trace()
+            # import ipdb;ipdb.set_trace()
             # import scipy.misc
             # np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
             # np.save('/media/data_cifs/monkey_tracking/batches/test/yhat', yhat)
