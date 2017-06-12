@@ -156,6 +156,7 @@ def read_and_decode(
  
     # Need to reconstruct channels first then transpose channels
     image = tf.reshape(image, np.asarray(target_size))
+    image = tf.cast(image, tf.float32)
 
     # Insert augmentation and preprocessing here
     image, crop_coors = augment_data(image, model_input_shape, im_size, train)
