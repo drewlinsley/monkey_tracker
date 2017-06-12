@@ -160,7 +160,9 @@ def read_and_decode(
 
     # Insert augmentation and preprocessing here
     image, crop_coors = augment_data(image, model_input_shape, im_size, train)
+    print('blah')
     label.set_shape(label_shape)
+    print(label.get_shape())
     if 'convert_labels_to_pixel_space' in train:
         # 1) Resize to config.image_target_size
         # 2) Crop to image size
