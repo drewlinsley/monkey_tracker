@@ -154,11 +154,11 @@ def train_and_eval(config):
                 # grads = [(tf.clip_by_norm(g, 8), v) for g, v in grads if g is not None]
                 # Op to update all variables according to their gradient
                 train_op = optimizer.apply_gradients(grads_and_vars=grads)
-
+ 
             # Summarize all gradients and weights
-            [tf.summary.histogram(var.name + '/gradient', grad) for grad, var in grads if (grad is not None and not np.isnan(grad))]
+            [tf.summary.histogram(var.name + '/gradient', grad) for grad, var in grads if grad is not None]
             # Summarize scores
-            train_score, _ = correlation(
+            train_score, _ = correlation( 
                 model.fc8, train_labels)  # training accuracy
             tf.summary.scalar("training correlation", train_score)
             [tf.summary.scalar(lab, il) for lab, il in zip(
