@@ -79,7 +79,7 @@ def read_and_decode_single_example(
     # Insert augmentation and preprocessing here
     image = augment_data(image, model_input_shape, im_size, train)
     label.set_shape(label_shape)
-    return label, image
+    return label, image[0]
 
 
 def convert_maya_to_pixel(labels, maya_conversion, hw, num_dims=3):
@@ -139,6 +139,7 @@ def read_and_decode(
         image_target_size,
         image_input_size,
         maya_conversion,
+        max_value,
         label_shape=22,
         occlusions=False):
 
@@ -150,12 +151,15 @@ def read_and_decode(
         features=feature_dict
         )
 
+    if max_value is None:
+        raise RuntimeError('You must pass a max value')
     # Convert from a scalar string tensor (whose single string has
     label = tf.decode_raw(features['label'], tf.float32)
     image = tf.decode_raw(features['image'], tf.float32)
 
     # Need to reconstruct channels first then transpose channels
     image = tf.reshape(image, np.asarray(target_size))
+    # image = tf.cast(image, tf.float32)
 
     # Insert augmentation and preprocessing here
     image, crop_coors = augment_data(image, model_input_shape, im_size, train)
@@ -187,6 +191,7 @@ def read_and_decode(
                     adjust,
                     [int(label.get_shape()[0]) / len(image_target_size)]),
                 tf.float32)
+    image /= max_value
     if occlusions:
         occlusion = tf.decode_raw(features['occlusion'], tf.float32)
         occlusion.set_shape(label_shape // 3)
@@ -274,6 +279,7 @@ def inputs(
         maya_conversion,
         return_occlusions=None,
         train=None,
+        max_value=None,
         num_epochs=None):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
@@ -292,6 +298,7 @@ def inputs(
                 image_target_size=image_target_size,
                 image_input_size=image_input_size,
                 maya_conversion=maya_conversion,
+                max_value=max_value,
                 occlusions=True
                 )
             data, labels, occlusions = tf.train.shuffle_batch(

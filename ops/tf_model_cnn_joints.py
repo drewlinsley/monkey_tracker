@@ -69,6 +69,7 @@ def train_and_eval(config):
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
+            max_value=config.max_depth,
             return_occlusions=config.occlusion_dir
             )
         val_images, val_labels, val_occlusions = inputs(
@@ -83,6 +84,7 @@ def train_and_eval(config):
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
+            max_value=config.max_depth,
             return_occlusions=config.occlusion_dir
             )
         tf.summary.image('train images', tf.cast(train_images, tf.float32))

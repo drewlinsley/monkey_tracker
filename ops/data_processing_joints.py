@@ -55,6 +55,7 @@ def cv_files(
         df,
         lf,
         of=None,
+        pf=None,
         val_prop=0.1):
     """Creates training/validation indices and outputs a dict with
     split depth/label files."""
@@ -68,16 +69,21 @@ def cv_files(
         occlusion_files = {'train': of[train_idx], 'val': of[val_idx]}
     else:
         occlusion_files = {'train': None, 'val': None}
-    return depth_files, label_files, occlusion_files
+    if pf is not None:
+        pixel_label_files = {'train': pf[train_idx], 'val': pf[val_idx]}
+    else:
+        pixel_label_files = {'train': None, 'val': None}
+    return depth_files, label_files, occlusion_files, pixel_label_files
 
 
 def create_joint_tf_records(
         depth_files,
         label_files,
+        pixel_label_files,
         tf_file,
         config,
-        sample=True,
-        occlusions=None):
+        occlusions=None,
+        im_label=None):
 
     """Feature extracts and creates the tfrecords."""
     im_list, num_successful = [], 0
@@ -91,10 +97,14 @@ def create_joint_tf_records(
         num_files = config.max_train
     else:
         num_files = len(depth_files)
+        tf_dir = '/'.join(tf_file.split('/')[:-1])
+    if not os.path.exists(tf_dir):
+        os.makedirs(tf_dir)
     with tf.python_io.TFRecordWriter(tf_file) as tfrecord_writer:
         for i, (depth, label) in tqdm(
                 enumerate(
-                    zip(depth_files, label_files)), total=num_files):
+                    zip(depth_files, label_files)),
+                total=num_files):
 
             # extract depth image
             if use_npy:
@@ -111,16 +121,20 @@ def create_joint_tf_records(
                     depth_image = resize(
                         depth_image,
                         config.image_target_size[:2],
-                        preserve_range=True)
-
+                        preserve_range=True,
+                        order=0)
                 # rescale to [0, 1] based on the config max value.
-                depth_image /= np.asarray(
-                    config.max_depth,
-                    dtype=np.float32)  # cast to make sure this is a float 
+                # depth_image /= np.asarray(
+                #     config.max_depth,
+                #     dtype=np.float32)  # cast to make sure this is a float 
                 # depth_image = rescale_zo(depth_image).astype(np.float32)
 
                 # encode -> tfrecord
                 label_vector = np.load(label).astype(np.float32)
+                if config.use_pixel_xy:
+                    pixel_label_vector = np.load(
+                        pixel_label_files[i]).astype(np.float32)
+                    label_vector[:, :2] = pixel_label_vector
                 if config.use_image_labels:
                     im_label = misc.imread(os.path.join(
                         config.im_label_dir, re.split(
@@ -131,8 +145,6 @@ def create_joint_tf_records(
                         im_label = misc.imresize(
                             im_label, config.image_target_size[:2])
                     im_label = im_label.astype(np.float32)
-                else:
-                    im_label = np.zeros(1)
 
                 im_list.append(np.mean(depth_image))
                 if occlusions is not None:
@@ -140,14 +152,14 @@ def create_joint_tf_records(
                 else:
                     occlusion = None
                 example = encode_example(
-                    im=depth_image,
+                    im=depth_image.astype(np.float32),
                     label=label_vector,
                     im_label=im_label,
                     occlusion=occlusion)
                 tfrecord_writer.write(example)
                 num_successful += 1
 
-            if config.max_train is not None and num_successful >= config.max_train:
+            if config.max_train is not None and num_successful > config.max_train:
                 break
     return im_list
 
@@ -155,25 +167,27 @@ def create_joint_tf_records(
 def extract_depth_features_into_tfrecord(
         depth_files,
         label_files,
+        pixel_label_files,
         occlusion_files,
         config):
     """Prepares the tf op for nearest neighbor depth features and runs op to
     make tfrecords from them."""
 
     # Crossvalidate and create tfrecords
-    depth_files, label_files, occlusion_files = cv_files(
+    depth_files, label_files, occlusion_files, pixel_label_files = cv_files(
         depth_files,
         label_files,
-        occlusion_files)
+        occlusion_files,
+        pixel_label_files)
     mean_dict = {}
     for k in depth_files.keys():
         print 'Getting depth features: %s' % k
         im_means = create_joint_tf_records(
             depth_files=depth_files[k],
             label_files=label_files[k],
+            pixel_label_files=pixel_label_files[k],
             tf_file=os.path.join(config.tfrecord_dir, config.new_tf_names[k]),
             config=config,
-            sample=config.sample[k],
             occlusions=occlusion_files[k])
         mean_dict[k + '_image'] = im_means
     print 'Finished'
@@ -193,6 +207,13 @@ def process_data(config):
                 config.image_extension,
                 re.split('/', x)[-1])[0] + config.label_extension)
         for x in depth_files])
+    pixel_label_files = np.asarray([  # replace the depth dir with label dir
+        os.path.join(
+            config.pixel_label_dir,
+            re.split(
+                config.image_extension,
+                re.split('/', x)[-1])[0] + config.label_extension)
+        for x in depth_files])
     occlusion_files = np.asarray([  # replace the depth dir with label dir
         os.path.join(
             config.occlusion_dir,
@@ -206,6 +227,7 @@ def process_data(config):
     mean_dict = extract_depth_features_into_tfrecord(
         depth_files=depth_files,
         label_files=label_files,
+        pixel_label_files=pixel_label_files,
         occlusion_files=occlusion_files,
         config=config)
     np.savez(

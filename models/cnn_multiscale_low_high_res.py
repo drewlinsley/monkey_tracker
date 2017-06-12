@@ -82,8 +82,8 @@ class model_struct:
         # Head 2 -- Super low res
         # (int(x) - 1) // 4 + 1 just makes sure the value is rounded up after division by 4
         low_res = [(int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
-        res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
-        self.lr_conv1_1 = self.conv_layer(res_input_bgr, int(bgr.get_shape()[-1]), 64, "lr_conv1_1")
+        self.res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
+        self.lr_conv1_1 = self.conv_layer(self.res_input_bgr, int(bgr.get_shape()[-1]), 64, "lr_conv1_1")
         self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2")
         self.lr_pool1 = self.max_pool(self.lr_conv1_2, 'lr_pool1')
 
@@ -102,7 +102,7 @@ class model_struct:
         #         lambda: tf.nn.dropout(self.lr_pool3, 0.5), lambda: self.lr_pool3)
 
         # Feature encoder
-        resize_size = [int(x) for x in self[fe_keys[np.argmax(
+        resize_size = [int(x) for x in self[fe_keys[np.argmin(
             [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
 
@@ -121,7 +121,8 @@ class model_struct:
         if train_mode is not None:
             self.feature_encoder_1x1 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(self.feature_encoder_1x1, 0.5), lambda: self.feature_encoder_1x1)
+                lambda: tf.nn.dropout(
+                    self.feature_encoder_1x1, 0.5), lambda: self.feature_encoder_1x1)
 
         self.pool5 = self.max_pool(self.feature_encoder_1x1, 'pool5')
         self.fc6 = self.fc_layer(
