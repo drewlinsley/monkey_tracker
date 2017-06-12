@@ -6,19 +6,19 @@ class monkeyConfig(object):
     def __init__(self): 
 
         # Directory settings
-        self.base_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGrad100kStore' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.base_dir = '/media/data_cifs/monkey_tracking/batches/TrueDepth100kStore' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.results_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGradTestResnet' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.image_dir = self.base_dir #pjoin(self.base_dir, 'walk-all-png') 
-        self.depth_dir = pjoin(self.image_dir, 'depth', 'adjusted_depth')
-        self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
+        self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
+        self.label_dir = pjoin(self.image_dir, 'labels', 'pixel_joint_coords')
         self.occlusion_dir = pjoin(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
-        self.im_label_dir = pjoin(self.image_dir, 'labels', 'layer2')
+        self.im_label_dir = pjoin(self.image_dir, 'labels', 'npyLabels')
         self.depth_regex = '*[0-9].npy'
         self.image_extension = '.npy'
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
         self.model_output = pjoin(self.results_dir, 'model_output') 
-        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords')
+        self.tfrecord_dir = pjoin(self.image_dir, 'fixed_pixel_tfrecords')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
         self.vgg16_weight_path = pjoin(
@@ -32,8 +32,8 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'# 'val_2mill.tfrecords'
         
-        self.max_train = 10000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 32767. * 2  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.max_train = None #10000  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
+        self.max_depth = 1300.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
 
         # Feature extraction settings
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this

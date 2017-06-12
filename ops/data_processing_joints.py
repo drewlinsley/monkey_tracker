@@ -122,7 +122,7 @@ def create_joint_tf_records(
                 # encode -> tfrecord
                 label_vector = np.load(label).astype(np.float32)
                 if config.use_image_labels:
-                    im_label = misc.imread(os.path.join(
+                    im_label = np.load(os.path.join(
                         config.im_label_dir, re.split(
                             config.label_extension,
                             re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image
