@@ -59,7 +59,7 @@ def read_and_decode_single_example(
     # serialized_example is a Tensor of type string.
     _, serialized_example = reader.read(filename_queue)
     # The serialized example is converted back to actual values.
-    # One needs to describe the format of the objects to be returned
+    # One needs to describe the format of the objects to be returned 
     features = tf.parse_single_example(
         serialized_example,
         features={
@@ -191,7 +191,6 @@ def read_and_decode(
     if occlusions:
         occlusion = tf.decode_raw(features['occlusion'], tf.float32)
         occlusion.set_shape(label_shape // 3)
-        print(label.get_shape())
         return label, image, occlusion
     else:
         return label, image
