@@ -215,6 +215,7 @@ def train_and_eval(config):
                 model.fc8_occlusion,
                 train_occlusions
             ])
+            print('poop')
             import ipdb;ipdb.set_trace()
             # import scipy.misc
             # np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
