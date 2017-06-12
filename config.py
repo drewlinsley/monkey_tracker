@@ -7,18 +7,18 @@ class monkeyConfig(object):
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/batches/TrueDepth100kStore' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = '/media/data_cifs/monkey_tracking/batches/RescaleGradTestResnet' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.results_dir = '/media/data_cifs/monkey_tracking/batches/TrueDepthTestLowHighMid' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.image_dir = self.base_dir #pjoin(self.base_dir, 'walk-all-png') 
         self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
-        self.label_dir = pjoin(self.image_dir, 'labels', 'pixel_joint_coords')
+        self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
         self.occlusion_dir = pjoin(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
         self.im_label_dir = pjoin(self.image_dir, 'labels', 'npyLabels')
         self.depth_regex = '*[0-9].npy'
         self.image_extension = '.npy'
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
-        self.model_output = pjoin(self.results_dir, 'model_output') 
-        self.tfrecord_dir = pjoin(self.image_dir, 'fixed_pixel_tfrecords')
+        self.model_output = pjoin(self.results_dir, 'model_output')  
+        self.tfrecord_dir = pjoin(self.image_dir, 'pixel_tfrecords')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
         self.vgg16_weight_path = pjoin(

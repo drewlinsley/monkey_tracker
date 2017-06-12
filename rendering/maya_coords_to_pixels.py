@@ -15,6 +15,7 @@ from multiprocessing import Pool
 from tifffile import TiffFile
 from scipy.spatial.distance import cdist
 import scipy.misc as misc
+import scipy.stats.mode as mode
 from PIL import Image
 import sys, inspect
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
@@ -66,10 +67,9 @@ imDir = []
 coordDir = []
 pixelDir = []
 occlusionDir = []
+npyLabelDir = []
 depthDir = []
 adjDepthDir = []
-
-depthAdjustment = []
 
 im_ext = '.tif'
 
@@ -99,27 +99,31 @@ def process(filename):
 	labels = np.argmin(cdist(labels, values, 'euclidean'), axis=1)
 	visible = [label in occlusion_map[joints[i]] for i, label in enumerate(labels)]
 	
-	# rescale the depth image so that it only occupies the upper half of the range of 2**16 (about 62,000) possible valid depth values
-	# so that when we subtract 10 times the depth values (range 3,000 to 10,000) we dont go negative
-	depth = depth * 0.5 + 2.0**15 
-	depth[depth[:, :, 3] != 0] -= int(depthAdjustment[0][filename[:-11]+'.ma'] * 10)
+	# These were set in the maya animation
+	nClip = 1.0; fClip = 1300.0;
+	# take out any noise values in the image
+	monkeyVal = mode(depth[depth[:, :, 3] != 0][3], axis=None)
+	depth[depth[:, :, 3] > monkeyVal+1. || depth[:, :, 3] < monkeyVal-1.] = [0., 0., 0., 0.]
+	# convert pixel intensity to depth
+	depth[depth[:, :, 3] != 0] = depth[depth[:, :, 3] != 0] * -(fClip - nClip) / 2.0**16 + fClip
 
 	np.save(os.path.join(pixelDir[0], filename), pixel_coords) 
 	np.save(os.path.join(occlusionDir[0], filename), visible) 
+	np.save(os.path.join(npyLabelDir[0], filename), image)
 	np.save(os.path.join(adjDepthDir[0], filename), depth)
 
-def main(labelDir, depthAdjustmentFile):
+def main(labelDir):
 	imDir.append(os.path.join(labelDir, 'layer2'))
 	coordDir.append(os.path.join(labelDir, 'joint_coords'))
 	pixelDir.append(os.path.join(labelDir, 'pixel_joint_coords'))
 	occlusionDir.append(os.path.join(labelDir, 'occlusions'))
+	npyLabelDir.append(os.path.join(labelDir, 'npyLabels'))
 	depthDir.append(os.path.join(labelDir, '..', 'depth', 'layer1'))
 	adjDepthDir.append(os.path.join(labelDir, '..', 'depth', 'true_depth'))
 
-	depthAdjustment.append(np.load(depthAdjustmentFile).item())
-
 	os.system("mkdir -p %s" % pixelDir[0]) 
 	os.system("mkdir -p %s" % occlusionDir[0])
+	os.system("mkdir -p %s" % npyLabelDir[0])
 	os.system("mkdir -p %s" % adjDepthDir[0])
 	# go through each 3D coordinate file and save its pixel coordinates and whether
 	# each joint is visible
@@ -132,7 +136,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('labelDir',type=str,
         help='Directory containing a folder of label images and a folder of 3D coordinates')
-    parser.add_argument('depthAdjustmentFile',type=str,
-        help='a .npy file that maps file names (of the tmp animations) to the zoom level they used')
     args = parser.parse_args()
     main(**vars(args))

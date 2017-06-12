@@ -101,7 +101,7 @@ def create_joint_tf_records(
                 depth_image = (np.load(depth)[:, :, :3]).astype(np.float32)
             else:
                 depth_image = misc.imread(depth, mode='F')[:, :, :3]
-            depth_image[depth_image == depth_image.min()] = 0
+            depth_image[depth_image == depth_image.min()] = 0.
 
             # set nans to 0
             depth_image[np.isnan(depth_image)] = 0.
@@ -122,7 +122,7 @@ def create_joint_tf_records(
                 # encode -> tfrecord
                 label_vector = np.load(label).astype(np.float32)
                 if config.use_image_labels:
-                    im_label = np.load(os.path.join(
+                    im_label = misc.imread(os.path.join(
                         config.im_label_dir, re.split(
                             config.label_extension,
                             re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image
@@ -134,16 +134,16 @@ def create_joint_tf_records(
                 else:
                     im_label = np.zeros(1)
 
-                im_list.append(np.mean(depth_image))
+                im_list.append(np.mean(depth_image)) 
                 if occlusions is not None:
                     occlusion = np.load(occlusions[i]).astype(np.float32)
                 else:
                     occlusion = None
                 example = encode_example(
-                    im=depth_image,
-                    label=label_vector,
-                    im_label=im_label,
-                    occlusion=occlusion)
+                    im=depth_image.astype(np.float32),
+                    label=label_vector.astype(np.float32),
+                    im_label=im_label.astype(np.float32),
+                    occlusion=occlusion.astype(np.float32))
                 tfrecord_writer.write(example)
                 num_successful += 1
 
