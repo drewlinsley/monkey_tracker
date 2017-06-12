@@ -153,7 +153,6 @@ def read_and_decode(
     # Convert from a scalar string tensor (whose single string has
     label = tf.decode_raw(features['label'], tf.float64)
     image = tf.decode_raw(features['image'], tf.float32)
-    print(image.get_shape())
  
     # Need to reconstruct channels first then transpose channels
     image = tf.reshape(image, np.asarray(target_size))
