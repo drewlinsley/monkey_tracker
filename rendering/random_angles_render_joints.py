@@ -96,14 +96,14 @@ def main(infile, numFrames, prefix, folderName):
 			for z in range(numZooms):					
 				## ideally, we would zoom anywhere between 50 and 450, but this cuts off the monkey for being too far away,
 				## so we zoom from just 0 to 25 
-				rzoom = 300 + rand.uniform(0.0, 700.0 / numZooms)*z 
+				rzoom = 300 + rand.uniform(0.0, 700.0 / numZooms) + z*(700.0 / numZooms) 
 				for s in range(numShifts): 
 					# I calculated that the view expands out on the x axis with a slope of .5 as you go back, with a threshhold of 2.3 at depth 5
 					# also the view expands on the y axis with a slope of .35 as you go back, with a threshhold of 1.75 at depth 5
 					# we want it to be well within these ranges
-					xlim = 0.5*rzoom - 50
-					ylim = 0.35*rzoom - 50
-					xshift = rand.uniform(-xlim, xlim) 
+					xlim = 0.5*rzoom - 100.0
+					ylim = 0.35*rzoom - 75.0
+					xshift = rand.uniform(-xlim, xlim)  
 					yshift = rand.uniform(-ylim, ylim)
 					print("pitch "+str(i)+", angle "+str(j)+", zoom "+str(z)+", shift "+str(s))
 					for k in range(numFrames):
@@ -113,7 +113,6 @@ def main(infile, numFrames, prefix, folderName):
 						cmds.move(yshift, hip, y=True, a=True, ws=True)
 						cmds.setKeyframe('hip', ott="step") 
 						coordArray = np.zeros((len(labels), 3))
-                                                # import ipdb;ipdb.set_trace()
 						update(coordArray)
 						np.save(pathPrefix+outdir+'/labels/joint_coords/tmp' + str(prefix) + '_'+str(currentTime).zfill(6), coordArray)
 						currentTime += 1
@@ -129,12 +128,12 @@ def main(infile, numFrames, prefix, folderName):
 	## again using the software renderer because the colors are different, and the hardware renderer either doesn't render cerain colors or it show
 	## a symbol representing a light that shouldn't be in there
 	##this step is fast
-	os.system("/usr/autodesk/maya2017/bin/Render -r sw -rd %s -rl layer2 -fnc name_#.ext -of png -s 1 -e %s -b 1 -pad 6 %s &" % 
+	os.system("/usr/autodesk/maya2017/bin/Render -r sw -rd %s -rl layer2 -fnc name_#.ext -s 1 -e %s -b 1 -pad 6 %s &" % 
 		(os.path.join(pathPrefix, outdir, 'labels'), str(numFrames*numPitches*numAngles*numZooms*numShifts), newName))
 
 	##rendering for depth maps (doesn't seem to work with hardware)
 	##this step is slow
-	os.system("/usr/autodesk/maya2017/bin/Render -r sw -rd %s -rl layer1 -fnc name_#.ext -of png -s 1 -e %s -b 1 -pad 6 %s &" % 
+	os.system("/usr/autodesk/maya2017/bin/Render -r sw -rd %s -rl layer1 -fnc name_#.ext -s 1 -e %s -b 1 -pad 6 %s &" % 
 		(os.path.join(pathPrefix, outdir, 'depth'), str(numFrames*numPitches*numAngles*numZooms*numShifts), newName))
 
 
