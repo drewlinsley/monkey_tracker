@@ -53,9 +53,9 @@ class model_struct:
             output_shape = 1
 
         # Split off a single channel from our "rgb" depth image
-        bgr = tf.split(rgb, 3, 3)[0]
-        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
-        input_bgr = tf.identity(bgr, name="lrp_input")
+        # bgr = tf.split(rgb, 3, 3)[0]
+        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        input_bgr = tf.identity(rgb, name="lrp_input")
 
         # Architecture
         # 1. Joint regression head: res-net style structure (need to match this more closely)
@@ -65,7 +65,7 @@ class model_struct:
         # That we drive our joint predictions towards the monkey body.
 
         # 1st head:: Feature extraction and image compression
-        self.conv1_1 = self.conv_layer(input_bgr, int(bgr.get_shape()[-1]), 64, "conv1_1")
+        self.conv1_1 = self.conv_layer(input_bgr, int(rgb.get_shape()[-1]), 64, "conv1_1")
         self.pool1 = self.max_pool(self.conv1_1, 'pool1')
         self.block_1 = self.resnet_block(
                 in_layer=self.pool1,

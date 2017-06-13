@@ -140,8 +140,12 @@ def read_and_decode(
         image_input_size,
         maya_conversion,
         max_value,
+        normalize_labels,
         label_shape=22,
-        occlusions=False):
+        occlusions=False,
+        background_multiplier=1.01,
+        num_dims = 3,
+        clip_z=False):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -194,20 +198,89 @@ def read_and_decode(
         #             adjust,
         #             [int(label.get_shape()[0]) / len(image_target_size)]),
         #         tf.float32)
+    # Take off first slice of the image
+    image = tf.expand_dims(image[:, :, 0], axis=-1)
+
+    # Convert background values
+    background_mask = tf.cast(tf.equal(image, 0), tf.float32)
+    background_constant = (background_multiplier * max_value)
+    background_mask *= background_constant
+    image += background_mask
+
     # Normalize: must apply max value to image and every 3rd label
-    normalize = False
-    if normalize:
-        image /= max_value
+    if normalize_labels:
+        tile_size = [int(label.get_shape()[0]) / len(image_target_size)]
+
+        # Normalize x coor
         lab_adjust = tf.cast(
-            tf.tile([1, 1, max_value], [int(label.get_shape()[0]) / len(image_target_size)]), tf.float32)
+            tf.tile([image_target_size[0], 1, 1], tile_size), tf.float32)
         label /= lab_adjust
+
+        # Normalize y coor
+        lab_adjust = tf.cast(
+            tf.tile([1, image_target_size[1], 1], tile_size), tf.float32)
+        label /= lab_adjust
+
+        # Normalize intensity
+        image /= background_constant
+
+        # Normalize z coor
+        lab_adjust = tf.cast(
+            tf.tile([1, 1, max_value], tile_size), tf.float32)
+        label /= lab_adjust
+
+    if clip_z:
+        # Reshape labels into 2d matrix
+        res_size = label_shape // num_dims
+        label = tf.reshape(label, [res_size, num_dims])
+        split_label = tf.split(label, 3, axis=1)
+        label = tf.squeeze(tf.reshape(tf.stack([split_label[0], split_label[1]], axis=1), [-1, 1]))
+
+    # Try just the first 3 elements in the array
+    # tf.slice(label, 0, 3)
+
+    # # Create scatter plot for labels
+    # label_scatter = draw_label_coords(
+    #     label=label,
+    #     canvas_size=[int(x) for x in image.get_shape()[:2]])
 
     if occlusions:
         occlusion = tf.decode_raw(features['occlusion'], tf.float32)
         occlusion.set_shape(label_shape // 3)
-        return label, image, occlusion
+        return label, image, occlusion  # , label_scatter
     else:
-        return label, image
+        return label, image  # , label_scatter
+
+
+def draw_label_coords(label, canvas_size, dims=3):
+    ls = int(label.get_shape()[0])
+    num_el = ls // dims
+    label_scatter_coors = tf.reshape(label, [num_el, dims])
+    xyzs = tf.split(label_scatter_coors, num_el, axis=0)
+    canvas = tf.Variable(tf.zeros(canvas_size))
+    canvas_size_tensor = tf.constant(canvas_size)
+    uni_off = tf.constant(1)
+    for subs in xyzs:
+        h = tf.cast(
+                tf.reduce_sum(
+                    subs * tf.constant([1, 0, 0], dtype=tf.float32)),
+                tf.int32)
+        w = tf.cast(
+                tf.reduce_sum(
+                    subs * tf.constant([0, 1, 0], dtype=tf.float32)),
+                tf.int32)
+        z = tf.reduce_sum(
+            subs * tf.constant([0, 0, 1], dtype=tf.float32))
+        pre_row_shape = [h - uni_off, canvas_size_tensor[1]]
+        post_row_shape = [canvas_size_tensor[0] - (
+            h + uni_off), canvas_size_tensor[1]]
+        pre_rows = tf.get_variable(pre_row_shape)
+        post_rows = tf.zeros(post_row_shape)
+        it_row = tf.expand_dims(
+            tf.scatter_nd([[w]], [z], [canvas_size[1]]), axis=0)
+        new_mat = tf.concat([pre_rows, it_row, post_rows], 0)
+        canvas += new_mat
+    return canvas
 
 
 def get_crop_coors(image_size, target_size):
@@ -290,7 +363,8 @@ def inputs(
         return_occlusions=None,
         train=None,
         max_value=None,
-        num_epochs=None):
+        num_epochs=None,
+        normalize_labels=True):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -309,7 +383,8 @@ def inputs(
                 image_input_size=image_input_size,
                 maya_conversion=maya_conversion,
                 max_value=max_value,
-                occlusions=True
+                occlusions=True,
+                normalize_labels=normalize_labels
                 )
             data, labels, occlusions = tf.train.shuffle_batch(
                 [image, label, occlusions],
@@ -329,7 +404,8 @@ def inputs(
                 train=train,
                 image_target_size=image_target_size,
                 image_input_size=image_input_size,
-                maya_conversion=maya_conversion
+                maya_conversion=maya_conversion,
+                normalize_labels=normalize_labels
                 )
 
             data, labels = tf.train.shuffle_batch(

@@ -62,12 +62,12 @@ class model_struct:
         #     green - self.VGG_MEAN[1],
         #     red - self.VGG_MEAN[2],
         # ], 3, name='bgr')
-        bgr = tf.split(rgb, 3, 3)[0]
+        # bgr = tf.split(rgb, 3, 3)[0]
 
         # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
-        input_bgr = tf.identity(bgr, name="lrp_input")
+        input_bgr = tf.identity(rgb, name="lrp_input")
         # Main Head
-        self.conv1_1 = self.conv_layer(input_bgr, int(bgr.get_shape()[-1]), 64, "conv1_1")
+        self.conv1_1 = self.conv_layer(input_bgr, int(input_bgr.get_shape()[-1]), 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
         self.pool1 = self.max_pool(self.conv1_2, 'pool1')
 
@@ -127,7 +127,7 @@ class model_struct:
         # (int(x) - 1) // 4 + 1 just makes sure the value is rounded up after division by 4
         low_res = [(int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
         res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
-        self.lr_conv1_1 = self.conv_layer(res_input_bgr, int(bgr.get_shape()[-1]), 64, "lr_conv1_1")
+        self.lr_conv1_1 = self.conv_layer(res_input_bgr, int(input_bgr.get_shape()[-1]), 64, "lr_conv1_1")
         self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2")
         self.lr_pool1 = self.max_pool(self.lr_conv1_2, 'lr_pool1')
 

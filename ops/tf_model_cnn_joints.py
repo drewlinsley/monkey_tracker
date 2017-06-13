@@ -45,8 +45,8 @@ def train_and_eval(config):
     config.train_checkpoint = os.path.join(
         config.model_output, dt_dataset)  # timestamp this run
     config.summary_dir = os.path.join(
-        config.train_summaries, config.model_output, dt_dataset)
-    results_dir = os.path.join('/media/data_cifs/monkey_tracking/batches/test/', dt_stamp)
+        config.train_summaries, dt_dataset)
+    results_dir = os.path.join(config.npy_dir, dt_stamp)
     print 'Saving Dmurphy\'s online updates to: %s' % results_dir
     dir_list = [config.train_checkpoint, config.summary_dir, results_dir]
     [make_dir(d) for d in dir_list]
@@ -70,7 +70,8 @@ def train_and_eval(config):
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
             max_value=config.max_depth,
-            return_occlusions=config.occlusion_dir
+            return_occlusions=config.occlusion_dir,
+            normalize_labels=config.normalize_labels
             )
         val_images, val_labels, val_occlusions = inputs(
             tfrecord_file=validation_data,
@@ -85,10 +86,13 @@ def train_and_eval(config):
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
             max_value=config.max_depth,
-            return_occlusions=config.occlusion_dir
+            return_occlusions=config.occlusion_dir,
+            normalize_labels=config.normalize_labels
             )
-        tf.summary.image('train images', tf.cast(train_images, tf.float32))
-        tf.summary.image('validation images', tf.cast(val_images, tf.float32))
+        tf.summary.image(
+            'train images', tf.cast(train_images, tf.float32))
+        tf.summary.image(
+            'validation images', tf.cast(val_images, tf.float32))
 
     with tf.device('/gpu:0'):
         with tf.variable_scope('cnn') as scope:
@@ -115,12 +119,18 @@ def train_and_eval(config):
                     model.low_feature_encoder_joints - train_labels)]
                 loss_label += ['low-res head']
             # 3. Combined head loss -- joints
-            loss_list += [tf.nn.l2_loss(model.fc8 - train_labels)]
+            loss_list += [tf.nn.l2_loss(
+                model.fc8 - train_labels)]
             loss_label += ['combined head']
             # 4. Combined head loss -- occlusions
-            loss_list += [tf.nn.l2_loss(model.fc8_occlusion - train_occlusions)]
+            # loss_list += [tf.nn.l2_loss(
+            #     model.fc8_occlusion - train_occlusions)]
+            loss_list += [tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    labels=train_occlusions,
+                    logits=model.fc8_occlusion))]
             loss_label += ['occlusion head']
-            loss = tf.add_n(loss_list)
+            loss = tf.add_n([loss_list[0]])
 
             # Add wd if necessary
             if config.wd_penalty is not None:
@@ -136,28 +146,38 @@ def train_and_eval(config):
             # other_opt_vars, ft_opt_vars = fine_tune_prepare_layers(
             #     tf.trainable_variables(), config.fine_tune_layers)
 
-            # if config.optimizer == 'adam':
-            #     optimizer = tf.train.AdamOptimizer
-            # elif config.optimizer == 'sgd':
-            #     optimizer = tf.train.GradientDescentOptimizer
-            # else:
-            #     raise 'Unidentified optimizer'
             # train_op, _ = ft_optimizer_list(
             #     loss, [other_opt_vars, ft_opt_vars],
             #     optimizer,
             #     [config.hold_lr, config.lr])
 
-            with tf.name_scope('SGD'):
-                # Gradient Descent
-                optimizer = tf.train.GradientDescentOptimizer(config.lr)
-                # Op to calculate every variable gradient
-                grads = optimizer.compute_gradients(loss, tf.trainable_variables())
-                # grads = [(tf.clip_by_norm(g, 8), v) for g, v in grads if g is not None]
-                # Op to update all variables according to their gradient
-                train_op = optimizer.apply_gradients(grads_and_vars=grads)
+            if config.optimizer == 'adam':
+                optimizer = tf.train.AdamOptimizer
+            elif config.optimizer == 'sgd':
+                optimizer = tf.train.GradientDescentOptimizer
+            elif config.optimizer == 'rms':
+                optimizer = tf.train.RMSPropOptimizer
+            else:
+                raise 'Unidentified optimizer'
+
+            # Gradient Descent
+            optimizer = optimizer(
+                config.lr)
+            # Op to calculate every variable gradient
+            # grads = optimizer.compute_gradients(
+            #     loss, tf.trainable_variables())
+            # grads = [(tf.clip_by_norm(
+            #     g, 8), v) for g, v in grads if g is not None]
+            # Op to update all variables according to their gradient
+            # train_op = optimizer.apply_gradients(
+            #     grads_and_vars=grads)
 
             # Summarize all gradients and weights
-            # [tf.summary.histogram(var.name + '/gradient', grad) for grad, var in grads if grad is not None]
+            # [tf.summary.histogram(
+            #     var.name + '/gradient', grad)
+            #     for grad, var in grads if grad is not None]
+            train_op = optimizer.minimize(loss)
+
             # Summarize scores
             train_score, _ = correlation(
                 model.fc8, train_labels)  # training accuracy
@@ -199,7 +219,7 @@ def train_and_eval(config):
     step, losses = 0, []
     train_acc = 0
     if config.resume_from_checkpoint is not None:
-        print "Resuming training from checkpoint: %s" % config.resume_from_checkpoint
+        print 'Resuming training from checkpoint: %s' % config.resume_from_checkpoint
         saver.restore(sess, config.resume_from_checkpoint)
     try:
         while not coord.should_stop():
@@ -250,6 +270,13 @@ def train_and_eval(config):
                     train_acc, val_acc, config.summary_dir))
 
                 # Save the model checkpoint if it's the best yet
+                if config.normalize_labels:
+                    normalize_vec = np.asarray(
+                        config.image_target_size[:2] + [config.max_depth]).repeat(
+                        len(config.joint_order))
+                    yhat *= normalize_vec
+                    ytrue *= normalize_vec
+
                 if step % 1000 == 0:
                     np.save(
                         os.path.join(results_dir, 'im_%s' % step), im)

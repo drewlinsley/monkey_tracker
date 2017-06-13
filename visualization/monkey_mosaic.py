@@ -4,6 +4,7 @@ import numpy as np
 from glob import glob
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
+from config import monkeyConfig
 
 
 def save_mosaic(ims, yhats, ys, output):
@@ -18,6 +19,7 @@ def save_mosaic(ims, yhats, ys, output):
         ax1.set_yticklabels([])
         ax1.set_aspect('equal')
         ax1.imshow(im)
+        import ipdb;ipdb.set_trace()
         plot_coordinates(ax1, y, 'r')
         plot_coordinates(ax1, yhat, 'b')
     plt.savefig(output)
@@ -40,22 +42,33 @@ def plot_coordinates(ax, vector, color):
 
 
 def main(
-        num_files=4,
-        output_file='monkey_mosaic.png'
+        num_files=1,
+        output_file='monkey_mosaic.png',
+        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_13_18_14_22',
+        normalize=True
         ):
-    monkey_dir = '/media/data_cifs/monkey_tracking/batches/predictions/New folder'
-    ims = sorted(glob(os.path.join(monkey_dir, 'im_*')))[:num_files]
+
+    if normalize:
+        config = monkeyConfig()
+        normalize_vec = np.asarray(
+            config.image_target_size[:2] + [config.max_depth]).repeat(
+            len(config.joint_order))
+    ims = sorted(glob(os.path.join(monkey_dir, 'im_*')))[::-1][:num_files]
     im_list = []
     yhat_list = []
     ytrue_list = []
     for im in ims:
-        file_name = re.search('\d+', im).group()
-        images = np.load(im)
+        file_name = re.search('\d+', im.split('/')[-1]).group()
+        images = np.squeeze(np.load(im))
         yhats = np.load(os.path.join(monkey_dir, 'yhat_%s.npy' % file_name))
         ytrues = np.load(os.path.join(monkey_dir, 'ytrue_%s.npy' % file_name))
+        if normalize:
+            yhats *= normalize_vec
+            ytrues *= normalize_vec
         [im_list.append(x) for x in images]
         [yhat_list.append(x) for x in yhats]
         [ytrue_list.append(x) for x in ytrues]
+
     save_mosaic(
         ims=im_list,
         yhats=yhat_list,
