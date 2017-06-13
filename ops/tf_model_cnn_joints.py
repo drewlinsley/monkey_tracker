@@ -157,7 +157,7 @@ def train_and_eval(config):
                 train_op = optimizer.apply_gradients(grads_and_vars=grads)
 
             # Summarize all gradients and weights
-            [tf.summary.histogram(var.name + '/gradient', grad) for grad, var in grads if grad is not None]
+            # [tf.summary.histogram(var.name + '/gradient', grad) for grad, var in grads if grad is not None]
             # Summarize scores
             train_score, _ = correlation(
                 model.fc8, train_labels)  # training accuracy
@@ -214,7 +214,6 @@ def train_and_eval(config):
                 model.fc8_occlusion,
                 train_occlusions
             ])
-            import ipdb;ipdb.set_trace()
             # import scipy.misc
             # np.save('/media/data_cifs/monkey_tracking/batches/test/im', im)
             # np.save('/media/data_cifs/monkey_tracking/batches/test/yhat', yhat)

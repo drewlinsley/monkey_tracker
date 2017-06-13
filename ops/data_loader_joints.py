@@ -162,17 +162,20 @@ def read_and_decode(
     # image = tf.cast(image, tf.float32)
 
     # Insert augmentation and preprocessing here
-    image, crop_coors = augment_data(image, model_input_shape, im_size, train)
+    # image, crop_coors = augment_data(image, model_input_shape, im_size, train)
+    crop_coors = None
     label.set_shape(label_shape)
+    # import ipdb;ipdb.set_trace()
     if 'convert_labels_to_pixel_space' in train:
         # 1) Resize to config.image_target_size
         # 2) Crop to image size
         label = resize_label_coordinates(
-                    convert_maya_to_pixel(
-                        label,
-                        maya_conversion,
-                        image_input_size
-                        ),
+                    # convert_maya_to_pixel(
+                    #     label,
+                    #     maya_conversion,
+                    #     image_input_size
+                    #     ),
+                    label,
                     image_target_size,
                     image_input_size
                     )
@@ -181,17 +184,24 @@ def read_and_decode(
                 label,
                 crop_coors
                 )
-        elif train is not None:
-            adjust = (
-                np.asarray(
-                    model_input_shape) - np.asarray(
-                    image_target_size)) / 2.0
-            label = label + tf.cast(
-                tf.tile(
-                    adjust,
-                    [int(label.get_shape()[0]) / len(image_target_size)]),
-                tf.float32)
-    image /= max_value
+        # elif train is not None:
+        #     adjust = (
+        #         np.asarray(
+        #             model_input_shape) - np.asarray(
+        #             image_target_size)) / 2.0
+        #     label = label + tf.cast(
+        #         tf.tile(
+        #             adjust,
+        #             [int(label.get_shape()[0]) / len(image_target_size)]),
+        #         tf.float32)
+    # Normalize: must apply max value to image and every 3rd label
+    normalize = False
+    if normalize:
+        image /= max_value
+        lab_adjust = tf.cast(
+            tf.tile([1, 1, max_value], [int(label.get_shape()[0]) / len(image_target_size)]), tf.float32)
+        label /= lab_adjust
+
     if occlusions:
         occlusion = tf.decode_raw(features['occlusion'], tf.float32)
         occlusion.set_shape(label_shape // 3)

@@ -29,7 +29,7 @@ class monkeyConfig(object):
         self.resume_from_checkpoint = None  # '/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2/walk-all-png/model_output/cnn_multiscale_low_high_res_2017_05_22_14_59_44/model_31600.ckpt-31600'
 
         # Tfrecords
-        self.new_tf_names = {'train': 'train.tfrecords'}  # , 'val': 'val100k.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
+        self.new_tf_names = {'train': 'train.tfrecords' , 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'
         
@@ -48,7 +48,7 @@ class monkeyConfig(object):
         self.maya_conversion = 640.0 / 500.0  # pixels / maya units
         self.sample = {'train': True, 'val': False}  # random sample of feats
         self.use_image_labels = False  # if true, extract  color-labeled images
-        self.use_pixel_xy = False
+        self.use_pixel_xy = True
 
         # Model settings
         self.epochs = 100
@@ -60,7 +60,7 @@ class monkeyConfig(object):
         self.wd_layers = ['fc6', 'fc7', 'pre_fc8']
         self.fe_keys = ['pool2', 'pool3', 'pool4', 'lr_pool2', 'lr_pool3']  # ['conv2_1', 'conv3_1', 'conv4_1', 'conv5_1']
         self.data_augmentations = [
-            # 'convert_labels_to_pixel_space', #commented out bc we want to train the model on the 3D coordinates, not pixel positions
+            'convert_labels_to_pixel_space', #commented out bc we want to train the model on the 3D coordinates, not pixel positions
             # 'random_crop'
             # 'left_right' 
         ]
