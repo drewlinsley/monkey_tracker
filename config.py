@@ -52,7 +52,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 100
-        self.model_type = 'cnn_multiscale_low_high_res'  # 'cnn_multiscale_low_high_res_mid_loss'  # 'vgg_regression_model' 
+        self.model_type = 'cnn_multiscale_low_high_res_mid_loss'  # 'vgg_regression_model' 
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
@@ -69,11 +69,11 @@ class monkeyConfig(object):
         self.train_batch = 16
         self.validation_batch = 16
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 5e-5   # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 5e-5
+        self.lr = 5e-4   # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 5e-4
         self.wd_penalty = None
         self.keep_checkpoints = 100
-        self.optimizer = 'sgd'
+        self.optimizer = 'adam'
         self.steps_before_validation = 1000
         # for a weighted cost. First entry = background.
 
