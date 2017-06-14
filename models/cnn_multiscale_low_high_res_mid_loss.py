@@ -85,7 +85,7 @@ class model_struct:
 
         # High-res feature encoder
         resize_size = [int(x) for x in self[hr_fe_keys[np.argmax(
-            [int(self[x].get_shape()[0]) for x in hr_fe_keys])]].get_shape()]
+            [int(self[x].get_shape()[-1]) for x in hr_fe_keys])]].get_shape()]
         new_size = np.asarray([resize_size[1], resize_size[2]])
 
         high_fe_layers = [self.batchnorm(

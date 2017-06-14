@@ -85,6 +85,11 @@ class monkeyConfig(object):
         self.mean_file = 'mean_file'  # Double check: used in training?
         self.normalize_labels = True
 
+        # Kinect file settings
+        self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')
+        self.kinect_project = 'Xef2Mat_Output_Trial02_np_conversion'
+        self.kinect_ext = '.npy'
+
         # Labels for the rendered images
         self.labels = {
             'back_torso':      (99,  130,   0, 254),

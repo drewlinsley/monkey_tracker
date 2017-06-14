@@ -22,7 +22,7 @@ def save_mosaic(ims, yhats, ys, output):
         plot_coordinates(ax1, y, 'r')
         plot_coordinates(ax1, yhat, 'b')
     plt.subplots_adjust(top=1)
-    plt.suptitle('Blue = True Joint Position\nBlack = Predicted Joint Position.')
+    plt.suptitle('Red = True Joint Position\nBlue = Predicted Joint Position.')
     plt.savefig(output)
 
 
