@@ -155,6 +155,9 @@ def train_and_eval(config):
                 optimizer = tf.train.AdamOptimizer
             elif config.optimizer == 'sgd':
                 optimizer = tf.train.GradientDescentOptimizer
+            elif config.optimizer == 'momentum':
+                #  momentum_var = tf.placeholder(tf.float32, shape=(1))  # Adjust momentum during learning
+                optimizer = lambda x: tf.train.MomentumOptimizer(x, momentum=0.1)
             elif config.optimizer == 'rms':
                 optimizer = tf.train.RMSPropOptimizer
             else:

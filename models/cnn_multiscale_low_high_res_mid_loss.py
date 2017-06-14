@@ -33,7 +33,7 @@ class model_struct:
             train_mode=None,
             batchnorm=None,
             fe_keys=None,
-            hr_fe_keys=['pool2','pool3','pool4'],
+            hr_fe_keys=['pool2', 'pool3', 'pool4'],
             lr_fe_keys=['lr_pool2', 'lr_pool3']
             ):
         """
@@ -127,7 +127,7 @@ class model_struct:
         # (int(x) - 1) // 4 + 1 just makes sure the value is rounded up after division by 4
         low_res = [(int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
         res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
-        self.lr_conv1_1 = self.conv_layer(res_input_bgr, int(input_bgr.get_shape()[-1]), 64, "lr_conv1_1")
+        self.lr_conv1_1 = self.conv_layer(res_input_bgr, int(res_input_bgr.get_shape()[-1]), 64, "lr_conv1_1")
         self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2")
         self.lr_pool1 = self.max_pool(self.lr_conv1_2, 'lr_pool1')
 
@@ -152,7 +152,7 @@ class model_struct:
         self.low_feature_encoder_1x1_1 = self.conv_layer(
             self.low_feature_encoder,
             int(self.low_feature_encoder.get_shape()[-1]),
-            32,
+            64,
             "low_feature_encoder_1x1_1",
             filter_size=1)
         if train_mode is not None:
@@ -163,7 +163,7 @@ class model_struct:
         self.low_feature_encoder_1x1_2 = self.conv_layer(
             self.low_1x1_1_pool,
             int(self.low_feature_encoder.get_shape()[-1]),
-            32,
+            64,
             "low_feature_encoder_1x1_2",
             filter_size=1)
         if train_mode is not None:
@@ -186,7 +186,7 @@ class model_struct:
         self.feature_encoder_1x1 = self.conv_layer(
             self.feature_encoder,
             int(self.feature_encoder.get_shape()[-1]),
-            32,
+            64,
             "feature_encoder_1x1",
             filter_size=1)
         if train_mode is not None:
@@ -235,10 +235,6 @@ class model_struct:
                 int(self.relu6.get_shape()[-1]),
                 occlusion_shape,
                 "fc8_occlusion_scores")
-            self.fc8_occlusion = tf.sigmoid(
-                self.fc8_occlusion,
-                'fc8_occlusion')
-
         self.data_dict = None
 
     def batchnorm(self, layer):
