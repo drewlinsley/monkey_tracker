@@ -130,7 +130,7 @@ class model_struct:
         if occlusions is not None:
             # Occlusion head
             self.fc8_occlusion = self.fc_layer(
-                self.high_feature_encoder_joints,
+                self.high_1x1_2_pool,
                 int(self.high_feature_encoder_joints.get_shape()[-1]),
                 occlusion_shape,
                 "fc8_occlusion_scores")
