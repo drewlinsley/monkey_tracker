@@ -227,12 +227,14 @@ def train_and_eval(config):
     try:
         while not coord.should_stop():
             start_time = time.time()
-            _, loss_value, train_acc, im, yhat, ytrue, occhat, occtrue = sess.run([
+            _, loss_value, train_acc, im, yhat, yhrhat, ylrhat, ytrue, occhat, occtrue = sess.run([
                 train_op,
                 loss,
                 train_score,
                 train_images,
                 model.fc8,
+                model.high_feature_encoder_joints,
+                model.low_feature_encoder_joints,
                 train_labels,
                 model.fc8_occlusion,
                 train_occlusions
@@ -283,6 +285,10 @@ def train_and_eval(config):
                     os.path.join(results_dir, 'im_%s' % step), im)
                 np.save(
                     os.path.join(results_dir, 'yhat_%s' % step), yhat)
+                np.save(
+                    os.path.join(results_dir, 'yhrhat_%s' % step), yhat)
+                np.save(
+                    os.path.join(results_dir, 'ylrhat_%s' % step), yhat)
                 np.save(
                     os.path.join(results_dir, 'ytrue_%s' % step), ytrue)
                 np.save(
