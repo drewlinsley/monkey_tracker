@@ -18,10 +18,11 @@ def save_mosaic(ims, yhats, ys, output):
         ax1.set_xticklabels([])
         ax1.set_yticklabels([])
         ax1.set_aspect('equal')
-        ax1.imshow(im)
-        import ipdb;ipdb.set_trace()
+        ax1.imshow(np.log10(im), cmap='Greys_r')
         plot_coordinates(ax1, y, 'r')
         plot_coordinates(ax1, yhat, 'b')
+    plt.subplots_adjust(top=1)
+    plt.suptitle('Blue = True Joint Position\nBlack = Predicted Joint Position.')
     plt.savefig(output)
 
 
@@ -44,16 +45,28 @@ def plot_coordinates(ax, vector, color):
 def main(
         num_files=1,
         output_file='monkey_mosaic.png',
-        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_13_18_14_22',
-        normalize=True
+        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_13_21_55_30',
+        normalize=False,
+        unnormalize=True
         ):
 
+    if unnormalize:
+        # Because normalization was fucked up in the training script
+        config = monkeyConfig()
+        unnormalize_vec = np.asarray(
+            config.image_target_size[:2] + [config.max_depth]).repeat(
+            len(config.joint_order))
+        normalize_vec = np.asarray(
+            config.image_target_size[:2] + [config.max_depth]).reshape(
+            1, -1).repeat(23, axis=0).reshape(1, -1)
     if normalize:
         config = monkeyConfig()
         normalize_vec = np.asarray(
-            config.image_target_size[:2] + [config.max_depth]).repeat(
-            len(config.joint_order))
-    ims = sorted(glob(os.path.join(monkey_dir, 'im_*')))[::-1][:num_files]
+            config.image_target_size[:2] + [config.max_depth]).reshape(
+            1, -1).repeat(23, axis=0).reshape(1, -1)
+    ims = glob(os.path.join(monkey_dir, 'im_*'))
+    ims.sort(key=os.path.getmtime)
+    ims = ims[::-1][:num_files]
     im_list = []
     yhat_list = []
     ytrue_list = []
@@ -63,6 +76,11 @@ def main(
         yhats = np.load(os.path.join(monkey_dir, 'yhat_%s.npy' % file_name))
         ytrues = np.load(os.path.join(monkey_dir, 'ytrue_%s.npy' % file_name))
         if normalize:
+            yhats *= normalize_vec
+            ytrues *= normalize_vec
+        if unnormalize:
+            yhats /= unnormalize_vec
+            ytrues /= unnormalize_vec
             yhats *= normalize_vec
             ytrues *= normalize_vec
         [im_list.append(x) for x in images]

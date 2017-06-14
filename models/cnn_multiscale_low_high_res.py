@@ -32,7 +32,7 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
-            fe_keys=['pool2', 'pool3', 'pool4', 'lr_pool2', 'lr_pool3']
+            fe_keys=['pool2', 'pool3', 'pool4', 'lr_pool3']
             ):
         """
         load variable from npy to build the VGG

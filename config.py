@@ -7,7 +7,7 @@ class monkeyConfig(object):
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = pjoin('results', 'TrueDepth100kStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth100kStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth100kStore') #pjoin(self.base_dir, 'walk-all-png') 
         self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
@@ -57,7 +57,7 @@ class monkeyConfig(object):
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
-        self.wd_layers = ['fc6', 'fc7', 'pre_fc8']
+        self.wd_layers = None  # ['fc6', 'fc7', 'pre_fc8']
         self.fe_keys = ['pool2', 'pool3', 'pool4']  # , 'lr_pool2', 'lr_pool3']  # ['conv2_1', 'conv3_1', 'conv4_1', 'conv5_1']
         self.data_augmentations = [
             'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
@@ -69,11 +69,12 @@ class monkeyConfig(object):
         self.train_batch = 16
         self.validation_batch = 16
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-4   # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-4
+        self.lr = 5e-5   # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 5e-5
         self.wd_penalty = None
         self.keep_checkpoints = 100
         self.optimizer = 'sgd'
+        self.steps_before_validation = 1000
         # for a weighted cost. First entry = background.
 
         # Training settings

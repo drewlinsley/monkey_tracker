@@ -130,7 +130,7 @@ def train_and_eval(config):
                     labels=train_occlusions,
                     logits=model.fc8_occlusion))]
             loss_label += ['occlusion head']
-            loss = tf.add_n([loss_list[0]])
+            loss = tf.add_n(loss_list)
 
             # Add wd if necessary
             if config.wd_penalty is not None:
@@ -243,7 +243,7 @@ def train_and_eval(config):
             duration = time.time() - start_time
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
-            if step % 100 == 0 and step % 10 == 0:
+            if step % config.steps_before_validation == 0:
                 if validation_data is not False:
                     val_acc, val_pred, val_ims = sess.run(
                         [val_score, val_model.fc8, val_images])
@@ -272,30 +272,24 @@ def train_and_eval(config):
                 # Save the model checkpoint if it's the best yet
                 if config.normalize_labels:
                     normalize_vec = np.asarray(
-                        config.image_target_size[:2] + [config.max_depth]).repeat(
-                        len(config.joint_order))
+                        config.image_target_size[:2] + [config.max_depth]).reshape(
+                        1, -1).repeat(23, axis=0).reshape(1, -1)
                     yhat *= normalize_vec
                     ytrue *= normalize_vec
-
-                if step % 1000 == 0:
-                    np.save(
-                        os.path.join(results_dir, 'im_%s' % step), im)
-                    np.save(
-                        os.path.join(results_dir, 'yhat_%s' % step), yhat)
-                    np.save(
-                        os.path.join(results_dir, 'ytrue_%s' % step), ytrue)
-                    np.save(
-                        os.path.join(results_dir, 'occhat_%s' % step), occhat)
-                    np.save(
-                        os.path.join(results_dir, 'occtrue_%s' % step), occtrue)
-                    saver.save(
-                        sess, os.path.join(
-                            config.train_checkpoint,
-                            'model_' + str(step) + '.ckpt'), global_step=step)
-                    # model.save_npy(sess, npy_path=os.path.join(config.train_checkpoint, 'backup' + str(step)))
-
-                    # Store the new max validation accuracy
-                    # val_max = val_acc
+                np.save(
+                    os.path.join(results_dir, 'im_%s' % step), im)
+                np.save(
+                    os.path.join(results_dir, 'yhat_%s' % step), yhat)
+                np.save(
+                    os.path.join(results_dir, 'ytrue_%s' % step), ytrue)
+                np.save(
+                    os.path.join(results_dir, 'occhat_%s' % step), occhat)
+                np.save(
+                    os.path.join(results_dir, 'occtrue_%s' % step), occtrue)
+                saver.save(
+                    sess, os.path.join(
+                        config.train_checkpoint,
+                        'model_' + str(step) + '.ckpt'), global_step=step)
 
             else:
                 # Training status
