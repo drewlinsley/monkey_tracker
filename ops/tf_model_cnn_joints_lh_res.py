@@ -109,10 +109,22 @@ def train_and_eval(config):
 
             # Prepare the loss functions:::
             loss_list, loss_label = [], []
+            # 1. High-res head
+            if config.model_type == 'cnn_multiscale_low_high_res_mid_loss':
+                loss_list += [tf.nn.l2_loss(
+                    model.high_feature_encoder_joints - train_labels)]
+                loss_label += ['high-res head']
+                # 2. Low-res head
+                loss_list += [tf.nn.l2_loss(
+                    model.low_feature_encoder_joints - train_labels)]
+                loss_label += ['low-res head']
+            # 3. Combined head loss -- joints
             loss_list += [tf.nn.l2_loss(
                 model.fc8 - train_labels)]
             loss_label += ['combined head']
             # 4. Combined head loss -- occlusions
+            # loss_list += [tf.nn.l2_loss(
+            #     model.fc8_occlusion - train_occlusions)]
             loss_list += [tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     labels=train_occlusions,
@@ -215,12 +227,14 @@ def train_and_eval(config):
     try:
         while not coord.should_stop():
             start_time = time.time()
-            _, loss_value, train_acc, im, yhat, ytrue, occhat, occtrue = sess.run([
+            _, loss_value, train_acc, im, yhat, yhrhat, ylrhat, ytrue, occhat, occtrue = sess.run([
                 train_op,
                 loss,
                 train_score,
                 train_images,
                 model.fc8,
+                model.high_feature_encoder_joints,
+                model.low_feature_encoder_joints,
                 train_labels,
                 model.fc8_occlusion,
                 train_occlusions
@@ -271,6 +285,10 @@ def train_and_eval(config):
                     os.path.join(results_dir, 'im_%s' % step), im)
                 np.save(
                     os.path.join(results_dir, 'yhat_%s' % step), yhat)
+                np.save(
+                    os.path.join(results_dir, 'yhrhat_%s' % step), yhat)
+                np.save(
+                    os.path.join(results_dir, 'ylrhat_%s' % step), yhat)
                 np.save(
                     os.path.join(results_dir, 'ytrue_%s' % step), ytrue)
                 np.save(

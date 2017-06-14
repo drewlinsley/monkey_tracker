@@ -45,9 +45,9 @@ def plot_coordinates(ax, vector, color):
 def main(
         num_files=1,
         output_file='monkey_mosaic.png',
-        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_14_12_02_13',
+        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_14_14_48_44',
         normalize=False,
-        unnormalize=True
+        unnormalize=False
         ):
 
     if unnormalize:
