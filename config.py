@@ -69,8 +69,8 @@ class monkeyConfig(object):
         self.train_batch = 16
         self.validation_batch = 16
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3   # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-3
+        self.lr = 5e-4   # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 5e-4
         self.wd_penalty = None
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -88,7 +88,8 @@ class monkeyConfig(object):
         # Kinect file settings
         self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')
         self.kinect_project = 'Xef2Mat_Output_Trial02_np_conversion'
-        self.kinect_ext = '.npy'
+        self.kinect_file_ext = '.npy'
+        self.kinect_video = 'video.mp4'
 
         # Labels for the rendered images
         self.labels = {

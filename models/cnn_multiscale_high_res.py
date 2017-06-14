@@ -67,31 +67,80 @@ class model_struct:
         # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
         input_bgr = tf.identity(rgb, name="lrp_input")
         # Main Head
-        self.conv1_1 = self.conv_layer(input_bgr, int(input_bgr.get_shape()[-1]), 64, "conv1_1")
-        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
-        self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+        self.conv1_1 = self.conv_layer(
+            input_bgr,
+            int(input_bgr.get_shape()[-1]),
+            64,
+            "conv1_1")
+        self.conv1_2 = self.conv_layer(
+            self.conv1_1,
+            self.conv1_1.get_shape()[-1],
+            64,
+            "conv1_2")
+        self.pool1 = self.max_pool(
+            self.conv1_2,
+            'pool1')
 
-        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1")
-        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2")
-        self.pool2 = self.max_pool(self.conv2_2, 'pool2')
+        self.conv2_1 = self.conv_layer(
+            self.pool1,
+            self.pool1.get_shape()[-1],
+            128,
+            "conv2_1")
+        self.conv2_2 = self.conv_layer(
+            self.conv2_1,
+            self.conv2_1.get_shape()[-1],
+            128,
+            "conv2_2")
+        self.pool2 = self.max_pool(
+            self.conv2_2,
+            'pool2')
 
-        self.conv3_1 = self.conv_layer(self.pool2, 128, 128, "conv3_1")
-        self.conv3_2 = self.conv_layer(self.conv3_1, 128, 128, "conv3_2")
-        self.pool3 = self.max_pool(self.conv3_2, 'pool3')
+        self.conv3_1 = self.conv_layer(
+            self.pool2,
+            self.pool2.get_shape()[-1],
+            128,
+            "conv3_1")
+        self.conv3_2 = self.conv_layer(
+            self.conv3_1,
+            self.conv3_1.get_shape()[-1],
+            128,
+            "conv3_2")
+        self.pool3 = self.max_pool(
+            self.conv3_2,
+            'pool3')
 
-        self.conv4_1 = self.conv_layer(self.pool3, 128, 256, "conv4_1")
-        self.conv4_2 = self.conv_layer(self.conv4_1, 256, 256, "conv4_2")
-        self.pool4 = self.max_pool(self.conv4_2, 'pool4')
+        self.conv4_1 = self.conv_layer(
+            self.pool3,
+            self.pool3.get_shape()[-1],
+            256,
+            "conv4_1")
+        self.conv4_2 = self.conv_layer(
+            self.conv4_1,
+            self.conv4_1.get_shape()[-1],
+            256,
+            "conv4_2")
+        self.pool4 = self.max_pool(
+            self.conv4_2,
+            'pool4')
 
-        self.conv5_1 = self.conv_layer(self.pool4, int(self.pool4.get_shape()[-1]), 256, "conv5_1")
-        self.conv5_2 = self.conv_layer(self.conv5_1, int(self.conv5_1.get_shape()[-1]), 256, "conv5_2")
-        self.pool5 = self.max_pool(self.conv5_2, 'pool5')
+        self.conv5_1 = self.conv_layer(
+            self.pool4,
+            int(self.pool4.get_shape()[-1]),
+            256,
+            "conv5_1")
+        self.conv5_2 = self.conv_layer(
+            self.conv5_1,
+            int(self.conv5_1.get_shape()[-1]),
+            256,
+            "conv5_2")
+        self.pool5 = self.max_pool(
+            self.conv5_2,
+            'pool5')
 
-        # High-res feature encoder
-        resize_size = [int(x) for x in self[hr_fe_keys[np.argmax(
-            [int(self[x].get_shape()[-1]) for x in hr_fe_keys])]].get_shape()]
-        new_size = np.asarray([resize_size[1], resize_size[2]])
-
+        # Rescale feature maps to the largest in the hr_fe_keys
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
         high_fe_layers = [self.batchnorm(
             tf.image.resize_bilinear(
                 self[x], new_size)) for x in hr_fe_keys]
@@ -108,7 +157,7 @@ class model_struct:
             self.high_feature_encoder_1x1_0 = tf.cond(
                 train_mode,
                 lambda: tf.nn.dropout(self.high_feature_encoder_1x1_0, 0.5), lambda: self.high_feature_encoder_1x1_0)
-        self.high_1x1_0_pool = self.max_pool(self.high_feature_encoder_1x1_1, 'high_1x1_0_pool')
+        self.high_1x1_0_pool = self.max_pool(self.high_feature_encoder_1x1_0, 'high_1x1_0_pool')
 
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_1x1_0_pool,

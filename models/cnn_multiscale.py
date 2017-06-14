@@ -76,9 +76,9 @@ class model_struct:
         self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
         self.pool4 = self.max_pool(self.conv4_2, 'pool4')
 
-        resize_size = [int(x) for x in self[fe_keys[np.argmin(
-            [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
-        new_size = np.asarray([resize_size[1], resize_size[2]])
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
         fe_layers = [tf.image.resize_bilinear(
             self[x], new_size) for x in fe_keys]
         self.feature_encoder = tf.concat(fe_layers, 3)

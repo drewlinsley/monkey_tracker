@@ -84,9 +84,9 @@ class model_struct:
         self.pool4 = self.max_pool(self.conv4_2, 'pool4')
 
         # High-res feature encoder
-        resize_size = [int(x) for x in self[hr_fe_keys[np.argmax(
-            [int(self[x].get_shape()[-1]) for x in hr_fe_keys])]].get_shape()]
-        new_size = np.asarray([resize_size[1], resize_size[2]])
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
 
         high_fe_layers = [self.batchnorm(
             tf.image.resize_bilinear(

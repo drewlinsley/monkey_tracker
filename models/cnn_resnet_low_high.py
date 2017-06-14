@@ -97,9 +97,9 @@ class model_struct:
 
 
         # Feature encoder
-        resize_size = [int(x) for x in self[fe_keys[np.argmax(
-            [int(self[x].get_shape()[-1]) for x in fe_keys])]].get_shape()]
-        new_size = np.asarray([resize_size[1], resize_size[2]])
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
         fe_layers = [self.batchnorm(
             tf.image.resize_bilinear(
                 self[x], new_size)) for x in fe_keys]
