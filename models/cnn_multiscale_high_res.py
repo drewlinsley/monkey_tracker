@@ -83,8 +83,8 @@ class model_struct:
         self.conv4_2 = self.conv_layer(self.conv4_1, 256, 256, "conv4_2")
         self.pool4 = self.max_pool(self.conv4_2, 'pool4')
 
-        self.conv5_1 = self.conv_layer(self.pool3, int(self.pool4.get_shape()[-1]), 256, "conv5_1")
-        self.conv5_2 = self.conv_layer(self.conv4_1, int(self.conv5_1.get_shape()[-1]), 256, "conv5_2")
+        self.conv5_1 = self.conv_layer(self.pool4, int(self.pool4.get_shape()[-1]), 256, "conv5_1")
+        self.conv5_2 = self.conv_layer(self.conv5_1, int(self.conv5_1.get_shape()[-1]), 256, "conv5_2")
         self.pool5 = self.max_pool(self.conv5_2, 'pool5')
 
         # High-res feature encoder
