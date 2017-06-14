@@ -98,10 +98,22 @@ class model_struct:
         self.high_feature_encoder = tf.concat(high_fe_layers, 3)
 
         # High-res 1x1 X 2
-        self.high_feature_encoder_1x1_1 = self.conv_layer(
+        self.high_feature_encoder_1x1_0 = self.conv_layer(
             self.high_feature_encoder,
             int(self.high_feature_encoder.get_shape()[-1]),
-            256,
+            512,
+            "high_feature_encoder_1x1_0",
+            filter_size=1)
+        if train_mode is not None:
+            self.high_feature_encoder_1x1_0 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_0, 0.5), lambda: self.high_feature_encoder_1x1_0)
+        self.high_1x1_0_pool = self.max_pool(self.high_feature_encoder_1x1_1, 'high_1x1_0_pool')
+
+        self.high_feature_encoder_1x1_1 = self.conv_layer(
+            self.high_1x1_0_pool,
+            int(self.high_1x1_0_pool.get_shape()[-1]),
+            512,
             "high_feature_encoder_1x1_1",
             filter_size=1)
         if train_mode is not None:
@@ -109,6 +121,7 @@ class model_struct:
                 train_mode,
                 lambda: tf.nn.dropout(self.high_feature_encoder_1x1_1, 0.5), lambda: self.high_feature_encoder_1x1_1)
         self.high_1x1_1_pool = self.max_pool(self.high_feature_encoder_1x1_1, 'high_1x1_1_pool')        
+
         self.high_feature_encoder_1x1_2 = self.conv_layer(
             self.high_1x1_1_pool,
             int(self.high_1x1_1_pool.get_shape()[-1]),
