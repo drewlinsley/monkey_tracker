@@ -36,6 +36,8 @@ def train_and_eval(config):
         from models.cnn_multiscale_high_res import model_struct
     elif config.model_type == 'cnn_multiscale_high_res_low_new':
         from models.cnn_multiscale_high_res_low_new import model_struct
+    elif config.model_type == 'resnet':
+        from models.resnet import model_struct
     elif config.model_type == 'test':
         from models.test import model_struct
     else:

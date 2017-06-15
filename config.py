@@ -42,7 +42,7 @@ class monkeyConfig(object):
         self.n_features = 400  # Tune this 
         self.max_pixels_per_image = 800  # Tune this
         self.cte_depth = 2  # ?? 
-        self.resize = [224, 224, 3]  # CNN input (don't change)
+        self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_input_size = [480, 640]  # Maya render output
         self.image_target_size = [240, 320, 3]  # Resize before tfrecords
         self.maya_conversion = 640.0 / 500.0  # pixels / maya units
@@ -52,13 +52,13 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 100
-        self.model_type = 'cnn_multiscale_high_res'  # 'vgg_regression_model' 
+        self.model_type = 'cnn_multiscale_high_res'  # 'resnet'  # 'vgg_regression_model' 
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.wd_layers = None  # ['fc6', 'fc7', 'pre_fc8']
-        self.fe_keys = ['pool2', 'pool3', 'pool4']  # , 'lr_pool2', 'lr_pool3']  # ['conv2_1', 'conv3_1', 'conv4_1', 'conv5_1']
+        self.fe_keys = ['pool2', 'pool3', 'pool4', 'pool5', 'lr_conv3_3']  # , 'lr_pool2', 'lr_pool3']  # ['conv2_1', 'conv3_1', 'conv4_1', 'conv5_1']
         self.data_augmentations = [
             'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
             # 'random_crop'
@@ -67,10 +67,10 @@ class monkeyConfig(object):
         # ['left_right, up_down, random_crop,
         # random_brightness, random_contrast, rotate']
         self.train_batch = 16
-        self.validation_batch = 16
+        self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 5e-4   # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 5e-4
+        self.lr = 1e-3   # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 1e-3
         self.wd_penalty = None
         self.keep_checkpoints = 100
         self.optimizer = 'adam'

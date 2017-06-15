@@ -5,7 +5,6 @@ import gc
 
 class model_struct:
     """
-    A trainable version VGG16.
     """
 
     def __init__(
@@ -32,7 +31,8 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
-            fe_keys=['pool2', 'pool3', 'pool4', 'pool5', 'lr_conv3_3']
+            fe_keys=None,
+            hr_fe_keys=['pool_2', 'pool_3', 'pool_4', 'pool_5'],
             ):
         """
         load variable from npy to build the VGG
@@ -48,125 +48,81 @@ class model_struct:
         if occlusions is not None:
             occlusion_shape = output_shape // 3
 
-        # rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
-
-        # # Convert RGB to BGR
-        # red, green, blue = tf.split(rgb_scaled, 3, 3)
-        # assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        # assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
-        # bgr = tf.concat([
-        #     blue - self.VGG_MEAN[0],
-        #     green - self.VGG_MEAN[1],
-        #     red - self.VGG_MEAN[2],
-        # ], 3, name='bgr')
-        # bgr = tf.split(rgb, 3, 3)[0]
-
-        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
         input_bgr = tf.identity(rgb, name="lrp_input")
         # Main Head
         self.conv1_1 = self.conv_layer(
             input_bgr,
             int(input_bgr.get_shape()[-1]),
             64,
-            "conv1_1")
+            filter_size=7,
+            name="conv1_1")
         self.conv1_2 = self.conv_layer(
             self.conv1_1,
             self.conv1_1.get_shape()[-1],
             64,
-            "conv1_2")
-        self.pool1 = self.max_pool(
+            filter_size=5,
+            name="conv1_2")
+        self.pool_1 = self.max_pool(
             self.conv1_2,
-            'pool1')
-
-        self.conv2_1 = self.conv_layer(
-            self.pool1,
-            self.pool1.get_shape()[-1],
-            128,
-            "conv2_1")
-        self.conv2_2 = self.conv_layer(
-            self.conv2_1,
-            self.conv2_1.get_shape()[-1],
-            128,
-            "conv2_2")
-        self.pool2 = self.max_pool(
-            self.conv2_2,
-            'pool2')
-
-        self.conv3_1 = self.conv_layer(
-            self.pool2,
-            self.pool2.get_shape()[-1],
-            128,
-            "conv3_1")
-        self.conv3_2 = self.conv_layer(
-            self.conv3_1,
-            self.conv3_1.get_shape()[-1],
-            128,
-            "conv3_2")
-        self.pool3 = self.max_pool(
-            self.conv3_2,
-            'pool3')
-
-        self.conv4_1 = self.conv_layer(
-            self.pool3,
-            self.pool3.get_shape()[-1],
-            256,
-            "conv4_1")
-        self.conv4_2 = self.conv_layer(
-            self.conv4_1,
-            self.conv4_1.get_shape()[-1],
-            256,
-            "conv4_2")
-        self.pool4 = self.max_pool(
-            self.conv4_2,
-            'pool4')
-
-        self.conv5_1 = self.conv_layer(
-            self.pool4,
-            int(self.pool4.get_shape()[-1]),
-            256,
-            "conv5_1")
-        self.conv5_2 = self.conv_layer(
-            self.conv5_1,
-            int(self.conv5_1.get_shape()[-1]),
-            256,
-            "conv5_2")
-        self.pool5 = self.max_pool(
-            self.conv5_2,
-            'pool5')
-
-        # Head 2 -- Super low res
-        # (int(x) - 1) // 4 + 1 just makes sure the value is rounded up after division by 4
-        low_res = [(int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
-        self.res_input_bgr = tf.image.resize_bilinear(input_bgr, low_res)
-        self.lr_conv1_1 = self.conv_layer(self.res_input_bgr, int(input_bgr.get_shape()[-1]), 64, "lr_conv1_1")
-        self.lr_conv1_2 = self.conv_layer(self.lr_conv1_1, 64, 64, "lr_conv1_2")
-        self.lr_pool1 = self.max_pool(self.lr_conv1_2, 'lr_pool1')
-
-        self.lr_conv2_1 = self.conv_layer(self.lr_pool1, 64, 64, "lr_conv2_1")
-        self.lr_conv2_2 = self.conv_layer(self.lr_conv2_1, 64, 64, "lr_conv2_2")
-        self.lr_pool2 = self.max_pool(self.lr_conv2_2, 'lr_pool2')
-
-        self.lr_conv3_1 = self.conv_layer(self.lr_pool2, 64, 128, "lr_conv3_1", filter_size=3, stride=[1, 2, 2, 1])
-        self.lr_conv3_2 = self.conv_layer(self.lr_conv3_1, 128, 128, "lr_conv3_2", filter_size=3, stride=[1, 2, 2, 1])
-        self.lr_conv3_3 = self.conv_layer(self.lr_conv3_2, 128, 128, "lr_conv3_3", filter_size=3, stride=[1, 2, 2, 1])
-        # self.lr_pool3 = self.max_pool(self.lr_conv3_3, 'lr_pool3')
-
-
+            'pool_1')
+        self.res_2_1 = self.resnet_layer(
+            bottom=self.pool_1,
+            layer_weights=[128, 128],
+            layer_name='res_2_1')
+        self.res_2_2 = self.resnet_layer(
+            bottom=self.res_2_1,
+            layer_weights=[128, 128],
+            layer_name='res_2_2')
+        self.pool_2 = self.max_pool(
+            self.res_2_2,
+            'pool_2')
+        self.res_3_1 = self.resnet_layer(
+            bottom=self.pool_2,
+            layer_weights=[256, 256],
+            layer_name='res_3_1')
+        self.res_3_2 = self.resnet_layer(
+            bottom=self.res_3_1,
+            layer_weights=[256, 256],
+            layer_name='res_3_2')
+        self.pool_3 = self.max_pool(
+            self.res_3_2,
+            'pool_3')
+        self.res_4_1 = self.resnet_layer(
+            bottom=self.pool_3,
+            layer_weights=[512, 512],
+            layer_name='res_4_1')
+        self.res_4_2 = self.resnet_layer(
+            bottom=self.res_4_1,
+            layer_weights=[512, 512],
+            layer_name='res_4_2')
+        self.pool_4 = self.max_pool(
+            self.res_4_2,
+            'pool_4')
+        self.res_5_1 = self.resnet_layer(
+            bottom=self.pool_4,
+            layer_weights=[512, 512],
+            layer_name='res_5_1')
+        self.res_5_2 = self.resnet_layer(
+            bottom=self.res_5_1,
+            layer_weights=[512, 512],
+            layer_name='res_5_2')
+        self.pool_5 = self.max_pool(
+            self.res_5_2,
+            'pool_5')
         # Rescale feature maps to the largest in the hr_fe_keys
-        resize_h = np.max([int(self[k].get_shape()[1]) for k in fe_keys])
-        resize_w = np.max([int(self[k].get_shape()[2]) for k in fe_keys])
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
         new_size = np.asarray([resize_h, resize_w])
         high_fe_layers = [self.batchnorm(
             tf.image.resize_bilinear(
-                self[x], new_size)) for x in fe_keys]
+                self[x], new_size)) for x in hr_fe_keys]
         self.high_feature_encoder = tf.concat(high_fe_layers, 3)
 
         # High-res 1x1 X 2
         self.high_feature_encoder_1x1_0 = self.conv_layer(
             self.high_feature_encoder,
             int(self.high_feature_encoder.get_shape()[-1]),
-            256,
+            512,
             "high_feature_encoder_1x1_0",
             filter_size=1)
         if train_mode is not None:
@@ -178,7 +134,7 @@ class model_struct:
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_1x1_0_pool,
             int(self.high_1x1_0_pool.get_shape()[-1]),
-            256,
+            512,
             "high_feature_encoder_1x1_1",
             filter_size=1)
         if train_mode is not None:
@@ -190,7 +146,7 @@ class model_struct:
         self.high_feature_encoder_1x1_2 = self.conv_layer(
             self.high_1x1_1_pool,
             int(self.high_1x1_1_pool.get_shape()[-1]),
-            256,
+            512,
             "high_feature_encoder_1x1_2",
             filter_size=1)
         if train_mode is not None:
@@ -228,16 +184,45 @@ class model_struct:
             bottom, ksize=[1, 2, 2, 1],
             strides=[1, 2, 2, 1], padding='SAME', name=name)
 
+    def resnet_layer(
+            self,
+            bottom,
+            layer_weights,
+            layer_name):
+        ln = '%s_branch' % layer_name
+        in_layer = self.conv_layer(
+                bottom,
+                int(bottom.get_shape()[-1]),
+                layer_weights[0],
+                batchnorm=[ln],
+                name=ln)
+        branch_conv = tf.identity(in_layer)
+        for idx, lw in enumerate(layer_weights):
+            ln = '%s_%s' % (layer_name, idx)
+            in_layer = self.conv_layer(
+                in_layer,
+                int(in_layer.get_shape()[-1]),
+                lw,
+                batchnorm=[ln],
+                name=ln)
+        return branch_conv + in_layer
+
     def conv_layer(
-                    self, bottom, in_channels,
-                    out_channels, name, filter_size=3, batchnorm=None, stride=[1, 1, 1, 1]):
+                    self,
+                    bottom,
+                    in_channels,
+                    out_channels,
+                    name,
+                    filter_size=3,
+                    batchnorm=None,
+                    stride=[1, 1, 1, 1]):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
                 filter_size, in_channels, out_channels, name)
 
             conv = tf.nn.conv2d(bottom, filt, stride, padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
-            relu = tf.nn.relu(bias)
+            relu = tf.nn.crelu(bias)
 
             if batchnorm is not None:
                 if name in batchnorm:
