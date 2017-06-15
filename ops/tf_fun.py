@@ -97,15 +97,6 @@ def correlation(x, y):
         name="pearson")
 
 
-def mse(pred, targets):
-    predicted = tf.cast(tf.argmax(pred, axis=1), tf.int32)
-    return tf.reduce_mean(tf.square(predicted - targets))
-
-
-def regression_mse(pred, targets):
-    return tf.reduce_mean(tf.square(pred - targets))
-
-
 def tf_confusion_matrix(pred, targets):
     return tf.contrib.metrics.confusion_matrix(pred, targets)
 
@@ -135,7 +126,8 @@ def softmax_cost(logits, labels, ratio=None, label_reshape=None):
         # logits, labels, weight=ratio))
     else:
         return tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels))
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits=logits, labels=labels))
 
 
 def find_ckpts(config, dirs=None):

@@ -4,7 +4,7 @@ from ops.data_processing_joints import process_data
 from config import monkeyConfig
 
 
-def main(extract_features=False):
+def main(extract_features=False, which_joint=None):
     config = monkeyConfig()
 
     # Encodes files into tfrecords
@@ -14,7 +14,8 @@ def main(extract_features=False):
         print '-'*60
         process_data(config)
 
-    # Trains a random forest model
+    if which_joint is not None:
+        config.selected_joints += which_joint
     train_and_eval(config)
 
 
@@ -25,5 +26,10 @@ if __name__ == '__main__':
         dest="extract_features",
         action='store_true',
         help='Extract features -> tfrecords or reuse existing.')
+    parser.add_argument(
+        "--which_joint",
+        dest="which_joint",
+        type=str,
+        help='Specify a joint to target with the model.')
     args = parser.parse_args()
     main(**vars(args))
