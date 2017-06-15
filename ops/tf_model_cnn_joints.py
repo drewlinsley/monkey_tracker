@@ -127,6 +127,11 @@ def train_and_eval(config):
                 loss_list += [tf.nn.l2_loss(
                     train_data_dict['pose'] - model.pose)]
                 loss_label += ['pose head']
+            if 'deconv' in train_data_dict.keys():
+                # c. Pose
+                loss_list += [tf.nn.l2_loss(
+                    train_data_dict['deconv'] - train_data_dict['image'])]
+                loss_label += ['pose head']
             loss = tf.add_n(loss_list)
 
             # Add wd if necessary
