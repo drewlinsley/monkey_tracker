@@ -152,7 +152,6 @@ def read_and_decode(
         serialized_example,
         features=feature_dict
         )
-
     if max_value is None:
         raise RuntimeError('You must pass a max value')
     # Convert from a scalar string tensor (whose single string has
@@ -243,6 +242,7 @@ def read_and_decode(
         output_data['pose'] = tf.acos((
             tf.reduce_sum(neck * abdomen)) / (norm_neck * norm_abdomen))
     if selected_joints is not None:
+        assert len(selected_joints) > 0
         res_size = label_shape // num_dims
         split_joints = tf.split(
             tf.reshape(label, [res_size, num_dims]), res_size)

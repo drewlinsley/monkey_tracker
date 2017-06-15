@@ -5,7 +5,6 @@ import gc
 
 class model_struct:
     """
-    A trainable version VGG16.
     """
 
     def __init__(
@@ -28,12 +27,12 @@ class model_struct:
     def build(
             self,
             rgb,
-            target_variables=None,
+            occlusions=True,
+            output_shape=None,
             train_mode=None,
             batchnorm=None,
             fe_keys=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4'],
-            lr_fe_keys=['lr_pool2', 'lr_pool3']
+            hr_fe_keys=['pool_2', 'pool_3', 'pool_4', 'pool_5'],
             ):
         """
         load variable from npy to build the VGG
@@ -43,61 +42,73 @@ class model_struct:
         :if True, dropout will be turned on
         """
         if fe_keys is not None:
-            print 'You supplied feature extractor keys... These are ignored.'
-
-        if 'label' in target_variables.keys():
-            if len(target_variables['label'].get_shape()) == 1:
-                output_shape = 1
-            else:
-                output_shape = int(
-                    target_variables['label'].get_shape()[-1])
-
-        if 'occlusion' in target_variables.keys():
-            if len(target_variables['occlusion'].get_shape()) == 1:
-                occlusion_shape = 1
-            else:
-                occlusion_shape = int(
-                    target_variables['occlusion'].get_shape()[-1])
-
-        if 'pose' in target_variables.keys():
-            if len(target_variables['pose'].get_shape()) == 1:
-                pose_shape = 1
-            else:
-                pose_shape = int(
-                    target_variables['pose'].get_shape()[-1])
+            print 'I see you supplied feature extractor keys... These are being ignored.'
+        if output_shape is None: 
+            output_shape = 1
+        if occlusions is not None:
+            occlusion_shape = output_shape // 3
 
         input_bgr = tf.identity(rgb, name="lrp_input")
-        layer_structure = [
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [64, 64, None],
-                'names': ['conv1_1', 'conv1_2', 'pool1'],
-                'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
-                'names': ['conv2_1', 'conv2_2', 'pool2'],
-                'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
-                'names': ['conv3_1', 'conv3_2', 'pool3'],
-                'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
-                'names': ['conv4_1', 'conv4_2', 'pool4'],
-                'filter_size': [3, 3, None]
-            }]
-
-        self.create_conv_tower(
+        # Main Head
+        self.conv1_1 = self.conv_layer(
             input_bgr,
-            layer_structure,
-            tower_name='highres_conv')
-
+            int(input_bgr.get_shape()[-1]),
+            64,
+            filter_size=7,
+            name="conv1_1")
+        self.conv1_2 = self.conv_layer(
+            self.conv1_1,
+            self.conv1_1.get_shape()[-1],
+            64,
+            filter_size=5,
+            name="conv1_2")
+        self.pool_1 = self.max_pool(
+            self.conv1_2,
+            'pool_1')
+        self.res_2_1 = self.resnet_layer(
+            bottom=self.pool_1,
+            layer_weights=[128, 128],
+            layer_name='res_2_1')
+        self.res_2_2 = self.resnet_layer(
+            bottom=self.res_2_1,
+            layer_weights=[128, 128],
+            layer_name='res_2_2')
+        self.pool_2 = self.max_pool(
+            self.res_2_2,
+            'pool_2')
+        self.res_3_1 = self.resnet_layer(
+            bottom=self.pool_2,
+            layer_weights=[256, 256],
+            layer_name='res_3_1')
+        self.res_3_2 = self.resnet_layer(
+            bottom=self.res_3_1,
+            layer_weights=[256, 256],
+            layer_name='res_3_2')
+        self.pool_3 = self.max_pool(
+            self.res_3_2,
+            'pool_3')
+        self.res_4_1 = self.resnet_layer(
+            bottom=self.pool_3,
+            layer_weights=[512, 512],
+            layer_name='res_4_1')
+        self.res_4_2 = self.resnet_layer(
+            bottom=self.res_4_1,
+            layer_weights=[512, 512],
+            layer_name='res_4_2')
+        self.pool_4 = self.max_pool(
+            self.res_4_2,
+            'pool_4')
+        self.res_5_1 = self.resnet_layer(
+            bottom=self.pool_4,
+            layer_weights=[512, 512],
+            layer_name='res_5_1')
+        self.res_5_2 = self.resnet_layer(
+            bottom=self.res_5_1,
+            layer_weights=[512, 512],
+            layer_name='res_5_2')
+        self.pool_5 = self.max_pool(
+            self.res_5_2,
+            'pool_5')
         # Rescale feature maps to the largest in the hr_fe_keys
         resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
         resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
@@ -111,73 +122,67 @@ class model_struct:
         self.high_feature_encoder_1x1_0 = self.conv_layer(
             self.high_feature_encoder,
             int(self.high_feature_encoder.get_shape()[-1]),
-            256,
+            512,
             "high_feature_encoder_1x1_0",
             filter_size=1)
         if train_mode is not None:
             self.high_feature_encoder_1x1_0 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(
-                    self.high_feature_encoder_1x1_0, 0.5),
-                lambda: self.high_feature_encoder_1x1_0)
-        self.high_1x1_0_pool = self.max_pool(
-            self.high_feature_encoder_1x1_0,
-            'high_1x1_0_pool')
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_0, 0.5), lambda: self.high_feature_encoder_1x1_0)
+        self.high_1x1_0_pool = self.max_pool(self.high_feature_encoder_1x1_0, 'high_1x1_0_pool')
 
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_1x1_0_pool,
             int(self.high_1x1_0_pool.get_shape()[-1]),
-            256,
+            512,
             "high_feature_encoder_1x1_1",
             filter_size=1)
         if train_mode is not None:
             self.high_feature_encoder_1x1_1 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(
-                    self.high_feature_encoder_1x1_1, 0.5),
-                lambda: self.high_feature_encoder_1x1_1)
-        self.high_1x1_1_pool = self.max_pool(
-            self.high_feature_encoder_1x1_1,
-            'high_1x1_1_pool')
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_1, 0.5), lambda: self.high_feature_encoder_1x1_1)
+        self.high_1x1_1_pool = self.max_pool(self.high_feature_encoder_1x1_1, 'high_1x1_1_pool')        
 
         self.high_feature_encoder_1x1_2 = self.conv_layer(
             self.high_1x1_1_pool,
             int(self.high_1x1_1_pool.get_shape()[-1]),
-            256,
+            512,
             "high_feature_encoder_1x1_2",
             filter_size=1)
         if train_mode is not None:
             self.high_feature_encoder_1x1_2 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_2, 0.5),
-                lambda: self.high_feature_encoder_1x1_2)
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_2, 0.5), lambda: self.high_feature_encoder_1x1_2)
         self.high_1x1_2_pool = tf.contrib.layers.flatten(
             self.max_pool(self.high_feature_encoder_1x1_2, 'high_1x1_2_pool'))
+        self.fc8 = self.fc_layer(
+            self.high_1x1_2_pool,
+            int(self.high_1x1_2_pool.get_shape()[-1]),
+            output_shape,
+            "fc8") 
 
-        if 'label' in target_variables.keys():
-            self.output = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
-                output_shape,
-                "output")
-
-        if 'occlusion' in target_variables.keys():
+        if occlusions is not None:
             # Occlusion head
-            self.occlusion = self.fc_layer(
+            self.fc8_occlusion = self.fc_layer(
                 self.high_1x1_2_pool,
                 int(self.high_1x1_2_pool.get_shape()[-1]),
                 occlusion_shape,
-                "occlusion")
+                "fc8_occlusion_scores")
         self.data_dict = None
 
-        if 'pose' in target_variables.keys():
-            # Occlusion head
-            self.pose = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
-                pose_shape,
-                "pose")
-        self.data_dict = None
+    def batchnorm(self, layer):
+        m, v = tf.nn.moments(layer, [0])
+        return tf.nn.batch_normalization(layer, m, v, None, None, 1e-3)
+
+    def avg_pool(self, bottom, name):
+        return tf.nn.avg_pool(
+            bottom, ksize=[1, 2, 2, 1],
+            strides=[1, 2, 2, 1], padding='SAME', name=name)
+
+    def max_pool(self, bottom, name):
+        return tf.nn.max_pool(
+            bottom, ksize=[1, 2, 2, 1],
+            strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def resnet_layer(
             self,
@@ -202,61 +207,22 @@ class model_struct:
                 name=ln)
         return branch_conv + in_layer
 
-    def create_conv_tower(self, act, layer_structure, tower_name):
-        print 'Creating tower: %s' % tower_name
-        with tf.variable_scope(tower_name):
-            for layer in layer_structure:
-                for la, we, na, fs in zip(
-                        layer['layers'],
-                        layer['weights'],
-                        layer['names'],
-                        layer['filter_size']):
-                    if la == 'pool':
-                        act = self.max_pool(
-                            bottom=act,
-                            name=na)
-                    elif la == 'conv':
-                        act = self.conv_layer(
-                            bottom=act,
-                            in_channels=int(act.get_shape()[-1]),
-                            out_channels=we,
-                            name=na,
-                            filter_size=fs
-
-                        )
-                    elif la == 'res':
-                        act = self.resnet_layer(
-                            bottom=act,
-                            layer_weights=we,
-                            layer_name=na)
-                    setattr(self, na, act)
-                    print 'Added layer: %s' % na
-        return act
-
-    def batchnorm(self, layer):
-        m, v = tf.nn.moments(layer, [0])
-        return tf.nn.batch_normalization(layer, m, v, None, None, 1e-3)
-
-    def avg_pool(self, bottom, name):
-        return tf.nn.avg_pool(
-            bottom, ksize=[1, 2, 2, 1],
-            strides=[1, 2, 2, 1], padding='SAME', name=name)
-
-    def max_pool(self, bottom, name):
-        return tf.nn.max_pool(
-            bottom, ksize=[1, 2, 2, 1],
-            strides=[1, 2, 2, 1], padding='SAME', name=name)
-
     def conv_layer(
-                    self, bottom, in_channels,
-                    out_channels, name, filter_size=3, batchnorm=None, stride=[1, 1, 1, 1]):
+                    self,
+                    bottom,
+                    in_channels,
+                    out_channels,
+                    name,
+                    filter_size=3,
+                    batchnorm=None,
+                    stride=[1, 1, 1, 1]):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
                 filter_size, in_channels, out_channels, name)
 
             conv = tf.nn.conv2d(bottom, filt, stride, padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
-            relu = tf.nn.relu(bias)
+            relu = tf.nn.crelu(bias)
 
             if batchnorm is not None:
                 if name in batchnorm:

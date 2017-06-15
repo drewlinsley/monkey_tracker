@@ -83,7 +83,7 @@ class monkeyConfig(object):
         self.test_proprtion = 0.1  # TEST_RATIO
         self.mean_file = 'mean_file'  # Double check: used in training?
         self.normalize_labels = True
-        self.aux_losses = [None]  # ['occlusion']  # , 'pose']  # 'occlusion', 'pose' (i.e. angle between neck and abdomen)
+        self.aux_losses = ['occlusion', 'pose']  # 'occlusion', 'pose' (i.e. angle between neck and abdomen)
 
         # Kinect file settings
         self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')
@@ -145,6 +145,6 @@ class monkeyConfig(object):
             'lToeMid3', 
             'rToeMid3'
         ]
-        self.selected_joints = []  # ['lEye']
+        self.selected_joints = None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
         self.num_classes = len(self.joint_order) * self.num_dims

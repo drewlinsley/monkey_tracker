@@ -228,17 +228,17 @@ def train_and_eval(config):
 
     if 'occlusions' in train_data_dict.keys():
         key = 'occhat'
-        train_data_dict[key] = model.occlusion,
+        train_session_vars[key] = model.occlusion,
         save_training_vars += [key]
         key = 'occtrue'
-        train_data_dict[key] = train_data_dict['occlusion'],
+        train_session_vars[key] = train_data_dict['occlusion'],
         save_training_vars += [key]
     if 'pose' in train_data_dict.keys():
         key = 'posehat'
-        train_data_dict[key] = model.pose,
+        train_session_vars[key] = model.pose,
         save_training_vars += [key]
         key = 'posetrue'
-        train_data_dict[key] = train_data_dict['pose']
+        train_session_vars[key] = train_data_dict['pose']
         save_training_vars += [key]
 
     # Start training loop
