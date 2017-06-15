@@ -15,7 +15,7 @@ def main(extract_features=False, which_joint=None):
         process_data(config)
 
     if which_joint is not None:
-        config.selected_joints += which_joint
+        config.selected_joints += [which_joint]
     train_and_eval(config)
 
 
