@@ -11,18 +11,18 @@ class model_struct:
     def __init__(
                 self, vgg16_npy_path=None, trainable=True,
                 fine_tune_layers=None):
-        if vgg16_npy_path is not None: 
+        if vgg16_npy_path is not None:
             print 'Ignoring vgg16_npy_path (not using a vgg!).'
         self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
- 
+
     def __getitem__(self, name):
         return getattr(self, name)
 
-    def __contains__(self, name): 
+    def __contains__(self, name):
         return hasattr(self, name)
 
     def build(
@@ -32,8 +32,7 @@ class model_struct:
             train_mode=None,
             batchnorm=None,
             fe_keys=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4'],
-            lr_fe_keys=['lr_pool2', 'lr_pool3']
+            hr_fe_keys=['pool2', 'pool3', 'pool4', 'lrpool2', 'lrpool3'],
             ):
         """
         load variable from npy to build the VGG
@@ -72,7 +71,7 @@ class model_struct:
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
-                'filter_size': [3, 3, None]
+                'filter_size': [5, 5, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -107,7 +106,7 @@ class model_struct:
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['lrconv1_1', 'lrconv1_2', 'lrpool1'],
-                'filter_size': [3, 3, None]
+                'filter_size': [5, 5, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -128,7 +127,6 @@ class model_struct:
             tower_name='lowres_conv')
 
         # Rescale feature maps to the largest in the hr_fe_keys
-        hr_fe_keys += lr_fe_keys
         resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
         resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
         new_size = np.asarray([resize_h, resize_w])
