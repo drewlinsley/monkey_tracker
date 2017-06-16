@@ -52,7 +52,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'vgg_deconv'  #    # 'resnet'  # 'vgg_regression_model' 
+        self.model_type = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
@@ -68,7 +68,7 @@ class monkeyConfig(object):
         self.train_batch = 16
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3   # Tune this -- also try SGD instead of ADAm
+        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-3
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -84,7 +84,7 @@ class monkeyConfig(object):
         self.aux_losses = ['occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
         self.calculate_per_joint_loss = True
         self.wd_type = 'l1'
-        self.wd_penalty = 5e-4
+        self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
 
         # Kinect file settings

@@ -163,20 +163,24 @@ class model_struct:
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
-            self.occlusion = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
-                occlusion_shape,
-                "occlusion")
+            self.occlusion = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_2_pool,
+                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        occlusion_shape,
+                        "occlusion")
+                    )
         self.data_dict = None
 
         if 'pose' in target_variables.keys():
             # Occlusion head
-            self.pose = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
-                pose_shape,
-                "pose")
+            self.pose = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_2_pool,
+                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        pose_shape,
+                        "pose")
+                )
         self.data_dict = None
 
     def resnet_layer(
