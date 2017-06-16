@@ -52,7 +52,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model' 
+        self.model_type = 'vgg_deconv'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model' 
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
@@ -82,8 +82,8 @@ class monkeyConfig(object):
         self.early_stopping_rounds = 100
         self.test_proprtion = 0.1  # TEST_RATIO
         self.mean_file = 'mean_file'  # Double check: used in training?
-        self.normalize_labels = True
-        self.aux_losses = ['occlusion', 'pose']  # 'occlusion', 'pose' (i.e. angle between neck and abdomen)
+        self.normalize_labels = True  # True
+        self.aux_losses = ['occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
 
         # Kinect file settings
         self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')
@@ -145,6 +145,6 @@ class monkeyConfig(object):
             'lToeMid3', 
             'rToeMid3'
         ]
-        self.selected_joints = None  # ['lEye']  # Set to None to ignore
+        self.selected_joints = ['lEye', 'neck']  # Set to None to ignore
         self.num_dims = 3
         self.num_classes = len(self.joint_order) * self.num_dims

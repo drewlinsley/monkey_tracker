@@ -247,9 +247,11 @@ def read_and_decode(
         split_joints = tf.split(
             tf.reshape(label, [res_size, num_dims]), res_size)
         output_data['label'] = tf.squeeze(
-            tf.concat(
-                [split_joints[joint_names.index(j)] for j in selected_joints],
-                axis=0)
+            tf.reshape(
+                tf.concat(
+                    [split_joints[joint_names.index(j)] for j in selected_joints],
+                    axis=0), 
+                [-1, 1])
             )
         if 'occlusion' in aux_losses:
             split_occlusions = tf.split(
