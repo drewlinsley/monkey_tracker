@@ -168,7 +168,7 @@ def train_and_eval(config):
                     x for x in l2_wd_layers if 'biases' not in x.name]
                 if config.wd_type == 'l1':
                     loss += (config.wd_penalty * tf.add_n(
-                            [tf.nn.l1_loss(x) for x in l2_wd_layers]))
+                            [tf.reduce_sum(tf.abs(x)) for x in l2_wd_layers]))
                 elif config.wd_type == 'l2':    
                     loss += (config.wd_penalty * tf.add_n(
                             [tf.nn.l2_loss(x) for x in l2_wd_layers]))

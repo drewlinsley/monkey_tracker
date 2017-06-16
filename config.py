@@ -52,12 +52,11 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'vgg_deconv'  #  'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model' 
+        self.model_type = 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'vgg_deconv'  #    # 'resnet'  # 'vgg_regression_model' 
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
-        self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
         self.fe_keys = ['pool2', 'pool3', 'pool4', 'pool5', 'lr_conv3_3']  # , 'lr_pool2', 'lr_pool3']  # ['conv2_1', 'conv3_1', 'conv4_1', 'conv5_1']
         self.data_augmentations = [
             'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
@@ -71,7 +70,6 @@ class monkeyConfig(object):
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-3   # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-3
-        self.wd_penalty = 5e-4
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
@@ -85,7 +83,9 @@ class monkeyConfig(object):
         self.normalize_labels = True  # True
         self.aux_losses = ['occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
         self.calculate_per_joint_loss = True
-        self.wd_penalty = 'l1'
+        self.wd_type = 'l1'
+        self.wd_penalty = 5e-4
+        self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
 
         # Kinect file settings
         self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')
