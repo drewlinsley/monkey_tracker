@@ -133,8 +133,8 @@ class model_struct:
         if 'pose' in target_variables.keys():
             # Occlusion head
             self.pose = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
+                self.flat_output_2,
+                int(self.flat_output_2.get_shape()[-1]),
                 pose_shape,
                 "pose")
 
@@ -143,8 +143,8 @@ class model_struct:
             {
                 'layers': ['conv', 'deconv'],
                 'weights': [256, 256],
-                'names': ['up-conv1_1', 'up-conv1_2'],
-                'filter_size': [3, 3]
+                'names': ['up-conv3_1', 'up-conv3_2'],
+                'filter_size': [3, 3],
             },
             {
                 'layers': ['conv', 'deconv'],
@@ -155,7 +155,7 @@ class model_struct:
             {
                 'layers': ['conv', 'deconv'],
                 'weights': [1, 1],
-                'names': ['up-conv3_1', 'up-conv3_2'],
+                'names': ['up-conv1_1', 'up-conv1_2'],
                 'filter_size': [3, 3]
             }
             ]
@@ -216,7 +216,7 @@ class model_struct:
                             bottom=act,
                             layer_weights=we,
                             layer_name=na
-                    )
+                        )
                     elif la == 'deconv':
                         act = self.deconv_layer(
                             bottom=act,
@@ -224,7 +224,7 @@ class model_struct:
                             out_channels=we,
                             layer_name=na,
                             filter_size=fs
-                    )
+                        )
                     setattr(self, na, act)
                     print 'Added layer: %s' % na
         return act
@@ -272,78 +272,54 @@ class model_struct:
             out_channels,
             filter_size,
             layer_name,
-            stride=[1, 1, 1, 1],
+            strides=[1, 2, 2, 1],
+            shape=None,
             padding='SAME'):
-        conv_name = layer_name.split('-')[-1]
-        # argmax_name = conv_name + '_argmax'
+
         with tf.variable_scope(layer_name):
-            act = self.deconv(
+            if shape is None:
+                # Compute shape out of Bottom
+                in_shape = tf.shape(bottom)
+
+                h = ((in_shape[1] - 1) * strides) + 1
+                w = ((in_shape[2] - 1) * strides) + 1
+                new_shape = [in_shape[0], h, w, in_channels]
+            else:
+                new_shape = [shape[0], shape[1], shape[2], in_channels]
+            output_shape = tf.stack(new_shape)
+            f_shape = [filter_size, filter_size, in_channels, out_channels]
+
+            # create
+            # num_input = filter_size * filter_size * in_channels / strides
+            # stddev = (2 / num_input)**0.5
+
+            weights = self.get_deconv_filter(f_shape)
+            deconv = tf.nn.conv2d_transpose(
                 bottom,
-                filter_size,
-                in_channels,
-                out_channels,
-                layer_name)
-            return self.unpool_layer2x2(
-                act,
-                self[conv_name],
-                tf.shape(self[conv_name]))
+                weights,
+                output_shape,
+                strides=strides,
+                padding='SAME')
+        return deconv
 
-    def deconv(
-            self,
-            bottom,
-            filter_size,
-            in_channels,
-            out_channels,
-            name,
-            strides=[1, 1, 1, 1],
-            padding='SAME'):
-        W, b = self.get_conv_var(
-            filter_size,
-            in_channels,
-            out_channels,
-            name)
+    def get_deconv_filter(self, f_shape):
+        width = f_shape[0]
+        heigh = f_shape[0]
+        f = tf.ceil(width/2.0)
+        c = (2 * f - 1 - f % 2) / (2.0 * f)
+        bilinear = np.zeros([f_shape[0], f_shape[1]])
+        for x in range(width):
+            for y in range(heigh):
+                value = (1 - abs(x / f - c)) * (1 - abs(y / f - c))
+                bilinear[x, y] = value
+        weights = np.zeros(f_shape)
+        for i in range(f_shape[2]):
+            weights[:, :, i, i] = bilinear
 
-        bottom_shape = tf.shape(bottom)
-        out_shape = tf.stack(
-            [bottom_shape[0], bottom_shape[1], bottom_shape[2], out_channels])
-
-        return tf.nn.conv2d_transpose(
-            bottom,
-            W,
-            out_shape,
-            strides=strides,
-            padding=padding) + b
-
-    def unpool_layer2x2(self, x, raveled_argmax, out_shape):
-        argmax = self.unravel_argmax(raveled_argmax, tf.to_int64(out_shape))
-        output = tf.zeros([out_shape[1], out_shape[2], out_shape[3]])
-
-        height = tf.shape(output)[0]
-        width = tf.shape(output)[1]
-        channels = tf.shape(output)[2]
-
-        t1 = tf.to_int64(tf.range(channels))
-        t1 = tf.tile(t1, [((width + 1) // 2) * ((height + 1) // 2)])
-        t1 = tf.reshape(t1, [-1, channels])
-        t1 = tf.transpose(t1, perm=[1, 0])
-        t1 = tf.reshape(t1, [channels, (height + 1) // 2, (width + 1) // 2, 1])
-
-        t2 = tf.squeeze(argmax)
-        t2 = tf.stack((t2[0], t2[1]), axis=0)
-        t2 = tf.transpose(t2, perm=[3, 1, 2, 0])
-
-        t = tf.concat([t2, t1], 3)
-        indices = tf.reshape(
-            t, [((height + 1) // 2) * ((width + 1) // 2) * channels, 3])
-
-        x1 = tf.squeeze(x)
-        x1 = tf.reshape(x1, [-1, channels])
-        x1 = tf.transpose(x1, perm=[1, 0])
-        values = tf.reshape(x1, [-1])
-
-        delta = tf.SparseTensor(indices, values, tf.to_int64(tf.shape(output)))
-        return tf.expand_dims(
-            tf.sparse_tensor_to_dense(tf.sparse_reorder(delta)), 0)
+        init = tf.constant_initializer(value=weights,
+                                       dtype=tf.float32)
+        return tf.get_variable(name="up_filter", initializer=init,
+                               shape=weights.shape)
 
     def fc_layer(self, bottom, in_size, out_size, name):
         with tf.variable_scope(name):
@@ -353,6 +329,19 @@ class model_struct:
             fc = tf.nn.bias_add(tf.matmul(x, weights), biases)
 
             return fc
+
+    def upsample_filt(size):
+        """
+        Make a 2D bilinear kernel suitable for upsampling of the given (h, w) size.
+        """
+        factor = (size + 1) // 2
+        if size % 2 == 1:
+            center = factor - 1
+        else:
+            center = factor - 0.5
+        og = np.ogrid[:size, :size]
+        return (1 - abs(og[0] - center) / factor) * \
+               (1 - abs(og[1] - center) / factor)
 
     def get_conv_var(
             self,
@@ -365,6 +354,15 @@ class model_struct:
             weight_init = [
                 [filter_size, filter_size, in_channels, out_channels],
                 tf.contrib.layers.xavier_initializer_conv2d(uniform=False)]
+        elif init_type == 'bilinear':
+            weight_init = np.zeros((
+                filter_size,
+                filter_size,
+                in_channels,
+                out_channels), dtype=np.float32)
+            upsample_kernel = self.upsample_filt(filter_size)
+            for i in xrange(out_channels):
+                weight_init[:, :, i, i] = upsample_kernel
         else:
             weight_init = tf.truncated_normal(
                 [filter_size, filter_size, in_channels, out_channels],

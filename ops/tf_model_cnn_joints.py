@@ -107,14 +107,39 @@ def train_and_eval(config):
 
             if 'label' in train_data_dict.keys():
                 # 1. Joint localization loss
-                loss_list += [tf.nn.l2_loss(
-                    model.output - train_data_dict['label'])]
+                if config.calculate_per_joint_loss:
+                    if config.selected_joints is None:
+                        use_joints = config.joint_order
+                    else:
+                        use_joints = config.selected_joints
+                    res_pred = tf.reshape(
+                        model.output,
+                        [config.train_batch, len(use_joints), config.num_dims])
+                    res_gt = tf.reshape(
+                        train_data_dict['label'],
+                        [config.train_batch, len(use_joints), config.num_dims])
+                    label_loss = tf.reduce_sum(
+                        tf.abs(res_pred - res_gt), axis=-1)
+                    loss_x_batch = tf.reduce_sum(label_loss, axis=0)
+                    _, joint_variance = tf.nn.moments(loss_x_batch, [0])
+
+                    # Summarize joint loss (X batch): some easier than others?
+                    # import ipdb;ipdb.set_trace()
+                    [tf.summary.scalar(
+                        '%s' % la, lo[0]) for la, lo in zip(
+                        use_joints, tf.split(loss_x_batch, len(use_joints)))]
+                    # Track variance across losses
+                    tf.summary.scalar('Joint variance', joint_variance)
+                    loss_list += [tf.reduce_mean(label_loss)]
+                else:
+                    loss_list += [tf.nn.l2_loss(
+                        model.output - train_data_dict['label'])]
                 loss_label += ['combined head']
                 train_score, _ = correlation(
                     model.output, train_data_dict['label'])
-                tf.summary.scalar("training correlation", train_score)
+                tf.summary.scalar('training correlation', train_score)
 
-            if 'occlusions' in train_data_dict.keys():
+            if 'occlusion' in train_data_dict.keys():
                 # 2. Auxillary losses
                 # a. Occlusion
                 loss_list += [tf.reduce_mean(
@@ -127,6 +152,7 @@ def train_and_eval(config):
                 loss_list += [tf.nn.l2_loss(
                     train_data_dict['pose'] - model.pose)]
                 loss_label += ['pose head']
+                tf.summary.scalar()
             if 'deconv' in train_data_dict.keys():
                 # c. Pose
                 loss_list += [tf.nn.l2_loss(
@@ -140,8 +166,12 @@ def train_and_eval(config):
                     tf.trainable_variables(), config.wd_layers)
                 l2_wd_layers = [
                     x for x in l2_wd_layers if 'biases' not in x.name]
-                loss += (config.wd_penalty * tf.add_n(
-                        [tf.nn.l2_loss(x) for x in l2_wd_layers]))
+                if config.wd_type == 'l1':
+                    loss += (config.wd_penalty * tf.add_n(
+                            [tf.nn.l1_loss(x) for x in l2_wd_layers]))
+                elif config.wd_type == 'l2':    
+                    loss += (config.wd_penalty * tf.add_n(
+                            [tf.nn.l2_loss(x) for x in l2_wd_layers]))
 
             if config.optimizer == 'adam':
                 optimizer = tf.train.AdamOptimizer
@@ -209,7 +239,7 @@ def train_and_eval(config):
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-    # Create list of variables to run through the model
+    # Create list of variables to run through training model
     train_session_vars = {
         'train_op': train_op,
         'loss_value': loss,
@@ -219,17 +249,20 @@ def train_and_eval(config):
         'ytrue': train_data_dict['label'],
     }
 
+    # Create list of variables to run through validation model
     val_session_vars = {
         'val_acc': val_score,
         'val_pred': val_model.output,
         'val_ims': val_data_dict['image']
     }
 
+    # Create list of variables to save to numpys
     save_training_vars = [
         'im',
         'yhat',
         'ytrue',
-        'yhat']
+        'yhat'
+        ]
 
     if 'occlusions' in train_data_dict.keys():
         key = 'occhat'
