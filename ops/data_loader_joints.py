@@ -277,8 +277,8 @@ def read_and_decode(
     if keep_dims < num_dims:
         print 'Reducing labels from %s to %s dimensions' % (num_dims, keep_dims)
         res_size = label_shape // num_dims
-        split_joints = tf.split(tf.transpose(tf.reshape(label, [res_size, num_dims])), num_dims)
-        output_data['label'] = tf.reshape(tf.transpose(tf.concat(split_joints[:keep_dims], axis=0)), [-1])
+        split_joints = tf.split(tf.reshape(label, [res_size, num_dims]), num_dims, axis=1)[:keep_dims]
+        output_data['label'] = tf.reshape(tf.concat(split_joints, axis=1), [-1])
 
     return output_data  # , label_scatter
 
