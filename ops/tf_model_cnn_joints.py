@@ -358,7 +358,7 @@ def train_and_eval(config):
                 if config.normalize_labels:
                     normalize_values = np.asarray(
                         config.image_target_size[:2] + [
-                            config.max_depth])[:config.keep_joints]
+                            config.max_depth])[:config.keep_dims]
                     normalize_vec = normalize_values.reshape(
                         1, -1).repeat(num_joints, axis=0).reshape(1, -1)
                     train_out_dict['yhat'] *= normalize_vec
