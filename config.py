@@ -87,7 +87,7 @@ class monkeyConfig(object):
         self.wd_type = 'l1'
         self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
-        self.fc_lambda = 0.0001
+        self.fc_lambda = 0.01
 
         # Kinect file settings
         self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')

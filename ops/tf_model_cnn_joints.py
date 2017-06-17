@@ -166,10 +166,10 @@ def train_and_eval(config):
                 # turn background to 0s
                 background_mask_value = tf.cast(
                     tf.less(res_images, config.max_depth), tf.float32)
-                # masked_fc = model.final_fc * background_mask_value
+                masked_fc = model.final_fc * background_mask_value
                 masked_images = res_images * background_mask_value
                 loss_list += [config.fc_lambda * tf.nn.l2_loss(
-                    model.final_fc - masked_images)]
+                    masked_fc - masked_images)]
                 loss_label += ['pose head']
                 tf.summary.image('FC training activations', model.final_fc)
 
