@@ -143,8 +143,9 @@ def read_and_decode(
         selected_joints=None,
         background_multiplier=1.01,
         num_dims=3,
+        keep_dims=3,
         clip_z=False,
-        mask_occluded_joints=True):
+        mask_occluded_joints=False):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -267,7 +268,17 @@ def read_and_decode(
 
     if mask_occluded_joints:
         print 'Masking occluded joints'
-        output_data['label'] = output_data['label'] * tf.cast(tf.equal(tf.tile(output_data['occlusion'], [num_dims]), 0), tf.float32)  # find non-occluded joints
+        occlusion_masks = tf.reshape(output_data['occlusion'], [-1,1])
+        occlusion_masks = tf.concat([occlusion_masks for x in range(num_dims)], axis=-1)
+        occlusion_masks = tf.reshape(occlusion_masks, [1, -1])
+        output_data['label'] = tf.squeeze(output_data['label'] * tf.cast(
+            tf.equal(occlusion_masks, 0), tf.float32))  # find non-occluded joints
+
+    if keep_dims < num_dims:
+        print 'Reducing labels from %s to %s dimensions' % (num_dims, keep_dims)
+        res_size = label_shape // num_dims
+        split_joints = tf.split(tf.transpose(tf.reshape(label, [res_size, num_dims])), num_dims)
+        output_data['label'] = tf.transpose(tf.concat(split_joints[:keep_dims], axis=0))
 
     return output_data  # , label_scatter
 
@@ -406,7 +417,10 @@ def inputs(
         normalize_labels=True,
         aux_losses=None,
         selected_joints=None,
-        joint_names=None):
+        joint_names=None,
+        mask_occluded_joints=False,
+        num_dims=3,
+        keep_dims=3):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -427,7 +441,10 @@ def inputs(
             aux_losses=aux_losses,
             normalize_labels=normalize_labels,
             selected_joints=selected_joints,
-            joint_names=joint_names
+            joint_names=joint_names,
+            mask_occluded_joints=mask_occluded_joints,
+            num_dims=num_dims,
+            keep_dims=keep_dims
             )
         keys = []
         var_list = []

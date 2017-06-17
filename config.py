@@ -88,6 +88,7 @@ class monkeyConfig(object):
         self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
         self.fc_lambda = 0.01
+        self.mask_occluded_joints = True
 
         # Kinect file settings
         self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')
@@ -151,4 +152,5 @@ class monkeyConfig(object):
         ]
         self.selected_joints = None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
+        self.keep_dims = 3
         self.num_classes = len(self.joint_order) * self.num_dims
