@@ -270,15 +270,15 @@ def read_and_decode(
         print 'Masking occluded joints'
         occlusion_masks = tf.reshape(output_data['occlusion'], [-1,1])
         occlusion_masks = tf.concat([occlusion_masks for x in range(num_dims)], axis=-1)
-        occlusion_masks = tf.reshape(occlusion_masks, [1, -1])
-        output_data['label'] = tf.squeeze(output_data['label'] * tf.cast(
-            tf.equal(occlusion_masks, 0), tf.float32))  # find non-occluded joints
+        occlusion_masks = tf.reshape(occlusion_masks, [-1])
+        output_data['label'] = output_data['label'] * tf.cast(
+            tf.equal(occlusion_masks, 0), tf.float32)  # find non-occluded joints
 
     if keep_dims < num_dims:
         print 'Reducing labels from %s to %s dimensions' % (num_dims, keep_dims)
         res_size = label_shape // num_dims
         split_joints = tf.split(tf.transpose(tf.reshape(label, [res_size, num_dims])), num_dims)
-        output_data['label'] = tf.transpose(tf.concat(split_joints[:keep_dims], axis=0))
+        output_data['label'] = tf.reshape(tf.transpose(tf.concat(split_joints[:keep_dims], axis=0)), [-1])
 
     return output_data  # , label_scatter
 

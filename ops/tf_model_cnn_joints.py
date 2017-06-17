@@ -87,8 +87,8 @@ def train_and_eval(config):
         # Check output_shape
         if config.selected_joints is not None:
             print 'Targeting joint: %s' % config.selected_joints
-            joint_shape = len(config.selected_joints) * config.num_dims
-            if (config.num_classes // config.num_dims) > (joint_shape):
+            joint_shape = len(config.selected_joints) * config.keep_dims
+            if (config.num_classes // config.keep_dims) > (joint_shape):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
 
@@ -124,10 +124,10 @@ def train_and_eval(config):
                         use_joints = config.selected_joints
                     res_pred = tf.reshape(
                         model.output,
-                        [config.train_batch, len(use_joints), config.num_dims])
+                        [config.train_batch, len(use_joints), config.keep_dims])
                     res_gt = tf.reshape(
                         train_data_dict['label'],
-                        [config.train_batch, len(use_joints), config.num_dims])
+                        [config.train_batch, len(use_joints), config.keep_dims])
                     label_loss = tf.reduce_sum(
                         tf.abs(res_pred - res_gt), axis=-1)
                     loss_x_batch = tf.reduce_sum(label_loss, axis=0)
@@ -312,7 +312,7 @@ def train_and_eval(config):
     np.save(config.train_checkpoint, config)
     step, losses = 0, []
     num_joints = int(
-        train_data_dict['label'].get_shape()[-1]) // config.num_dims
+        train_data_dict['label'].get_shape()[-1]) // config.keep_dims
     if config.resume_from_checkpoint is not None:
         print 'Resuming training from checkpoint: %s' % config.resume_from_checkpoint
         saver.restore(sess, config.resume_from_checkpoint)
