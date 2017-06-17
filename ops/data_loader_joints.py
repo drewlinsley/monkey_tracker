@@ -143,7 +143,8 @@ def read_and_decode(
         selected_joints=None,
         background_multiplier=1.01,
         num_dims=3,
-        clip_z=False):
+        clip_z=False,
+        mask_occluded_joints=True):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -212,6 +213,7 @@ def read_and_decode(
         label /= lab_adjust
 
     if clip_z:
+        print 'Clipping z dimension'
         # Reshape labels into 2d matrix
         res_size = label_shape // num_dims
         label = tf.reshape(label, [res_size, num_dims])
@@ -262,6 +264,10 @@ def read_and_decode(
                         j)] for j in selected_joints],
                     axis=0)
                 )
+
+    if mask_occluded_joints:
+        print 'Masking occluded joints'
+        output_data['label'] = output_data['label'] * tf.cast(tf.equal(tf.tile(output_data['occlusion'], [num_dims]), 0), tf.float32)  # find non-occluded joints
 
     return output_data  # , label_scatter
 
