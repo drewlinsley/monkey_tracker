@@ -356,9 +356,10 @@ def train_and_eval(config):
 
                 # Save the model checkpoint if it's the best yet
                 if config.normalize_labels:
-                    normalize_vec = np.asarray(
+                    normalize_values = np.asarray(
                         config.image_target_size[:2] + [
-                            config.max_depth]).reshape(
+                            config.max_depth])[:config.keep_joints]
+                    normalize_vec = normalize_values.reshape(
                         1, -1).repeat(num_joints, axis=0).reshape(1, -1)
                     train_out_dict['yhat'] *= normalize_vec
                     train_out_dict['ytrue'] *= normalize_vec
