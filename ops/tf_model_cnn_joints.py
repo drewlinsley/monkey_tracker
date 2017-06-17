@@ -35,7 +35,10 @@ def train_and_eval(config):
 
     # Prepare model inputs
     train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
-    validation_data = os.path.join(config.tfrecord_dir, config.val_tfrecords)
+    if config.include_validation:
+        validation_data = os.path.join(config.tfrecord_dir, config.val_tfrecords)
+    else:
+        validation_data = None
 
     # Prepare data on CPU
     with tf.device('/cpu:0'):
@@ -124,7 +127,6 @@ def train_and_eval(config):
                     _, joint_variance = tf.nn.moments(loss_x_batch, [0])
 
                     # Summarize joint loss (X batch): some easier than others?
-                    # import ipdb;ipdb.set_trace()
                     [tf.summary.scalar(
                         '%s' % la, lo[0]) for la, lo in zip(
                         use_joints, tf.split(loss_x_batch, len(use_joints)))]
@@ -138,7 +140,6 @@ def train_and_eval(config):
                 train_score, _ = correlation(
                     model.output, train_data_dict['label'])
                 tf.summary.scalar('training correlation', train_score)
-
             if 'occlusion' in train_data_dict.keys():
                 # 2. Auxillary losses
                 # a. Occlusion
@@ -153,11 +154,25 @@ def train_and_eval(config):
                     train_data_dict['pose'] - model.pose)]
                 loss_label += ['pose head']
                 tf.summary.scalar()
-            if 'deconv' in train_data_dict.keys():
-                # c. Pose
+            if 'deconv' in config.aux_losses:
+                # d. deconvolved image
                 loss_list += [tf.nn.l2_loss(
-                    train_data_dict['deconv'] - train_data_dict['image'])]
+                    model.deconv - train_data_dict['image'])]
                 loss_label += ['pose head']
+            if 'fc' in config.aux_losses:
+                # e. fully convolutional
+                fc_shape = [int(x) for x in model.final_fc.get_shape()[1:3]]
+                res_images = tf.image.resize_bilinear(train_data_dict['image'], fc_shape)
+                # turn background to 0s
+                background_mask_value = tf.cast(
+                    tf.less(res_images, config.max_depth), tf.float32)
+                masked_fc = model.final_fc * background_mask_value
+                masked_images = res_images * background_mask_value
+                loss_list += [config.fc_lambda * tf.nn.l2_loss(
+                    masked_fc - masked_images)]
+                loss_label += ['pose head']
+                tf.summary.image('FC training activations', model.final_fc)
+
             loss = tf.add_n(loss_list)
 
             # Add wd if necessary
@@ -221,6 +236,9 @@ def train_and_eval(config):
                     val_score = tf.nn.l2_loss(
                         val_model.output - val_data_dict['label'])
                     tf.summary.scalar("validation mse", val_score)
+                if 'fc' in config.aux_losses:
+                    tf.summary.image('FC val activations', val_model.final_fc)
+
 
     # Set up summaries and saver
     saver = tf.train.Saver(
@@ -250,6 +268,8 @@ def train_and_eval(config):
     }
     if hasattr(model, 'deconv'):
         train_session_vars['deconv'] = model.deconv
+    if hasattr(model, 'final_fc'):
+        train_session_vars['fc'] = model.final_fc
 
     # Create list of variables to run through validation model
     val_session_vars = {

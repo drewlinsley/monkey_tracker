@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import gc
-import re
 
 
 class model_struct:
@@ -12,18 +11,18 @@ class model_struct:
     def __init__(
                 self, vgg16_npy_path=None, trainable=True,
                 fine_tune_layers=None):
-        if vgg16_npy_path is not None: 
+        if vgg16_npy_path is not None:
             print 'Ignoring vgg16_npy_path (not using a vgg!).'
         self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
- 
+
     def __getitem__(self, name):
         return getattr(self, name)
 
-    def __contains__(self, name): 
+    def __contains__(self, name):
         return hasattr(self, name)
 
     def build(
@@ -33,8 +32,7 @@ class model_struct:
             train_mode=None,
             batchnorm=None,
             fe_keys=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4'],
-            lr_fe_keys=['lr_pool2', 'lr_pool3']
+            hr_fe_keys=['pool2', 'pool3', 'pool4', 'pool5'],
             ):
         """
         load variable from npy to build the VGG
@@ -68,8 +66,6 @@ class model_struct:
                     target_variables['pose'].get_shape()[-1])
 
         input_bgr = tf.identity(rgb, name="lrp_input")
-
-        # Initial convolutional
         layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -85,81 +81,114 @@ class model_struct:
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
+                'weights': [128, 128, None],
                 'names': ['conv3_1', 'conv3_2', 'pool3'],
                 'filter_size': [3, 3, None]
+            },
+            {
+                'layers': ['conv', 'conv', 'pool'],
+                'weights': [256, 256, None],
+                'names': ['conv4_1', 'conv4_2', 'pool4'],
+                'filter_size': [3, 3, None]
+            },
+            {
+                'layers': ['conv', 'conv', 'pool'],
+                'weights': [512, 512, None],
+                'names': ['conv5_1', 'conv5_2', 'pool5'],
+                'filter_size': [3, 3, None]
             }]
-        output_layer = self.create_conv_tower(
+
+        self.create_conv_tower(
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
+
+        # Rescale feature maps to the largest in the hr_fe_keys
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
+        high_fe_layers = [self.batchnorm(
+            tf.image.resize_bilinear(
+                self[x], new_size)) for x in hr_fe_keys]
+        self.high_feature_encoder = tf.concat(high_fe_layers, 3)
+
+        # FC layers
+        self.fc1 = self.conv_layer(
+            self.high_feature_encoder,
+            int(self.high_feature_encoder.get_shape()[-1]),
+            256,
+            "fc1",
+            filter_size=1)
         if train_mode is not None:
-            output_layer = tf.cond(
+            self.fc1 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(output_layer, 0.5),
-                lambda: output_layer)
-        flat_output_layer = tf.contrib.layers.flatten(
-            output_layer, 'output_layer')
-        self.flat_output_1 = self.fc_layer(
-            flat_output_layer,
-            int(flat_output_layer.get_shape()[-1]),
-            4096,
-            'flat_output_1')
+                lambda: tf.nn.dropout(
+                    self.fc1, 0.5),
+                lambda: self.fc1)
+
+        self.fc2 = self.conv_layer(
+            self.fc1,
+            int(self.fc1.get_shape()[-1]),
+            256,
+            "fc2",
+            filter_size=1)
         if train_mode is not None:
-            flat_output_layer = tf.cond(
+            self.fc2 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(flat_output_layer, 0.5),
-                lambda: output_layer)
-        self.flat_output_2 = self.fc_layer(
-            self.flat_output_1,
-            int(self.flat_output_1.get_shape()[-1]),
-            4096,
-            'flat_output_2')
+                lambda: tf.nn.dropout(
+                    self.fc2, 0.5),
+                lambda: self.fc2)
+
+        self.fc3 = self.conv_layer(
+            self.fc2,
+            int(self.fc2.get_shape()[-1]),
+            256,
+            "fc3",
+            filter_size=1)
+        if train_mode is not None:
+            self.fc3 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.fc3, 0.5),
+                lambda: self.fc3)
+        # FC for full image loss
+        self.final_fc = self.conv_layer(
+            self.fc3,
+            int(self.fc3.get_shape()[-1]),
+            1,
+            "final_fc",
+            filter_size=1)
+
+        # FC for other losses
+        self.flat_fc = tf.contrib.layers.flatten(
+            self.max_pool(self.final_fc, 'flat_fc'))
 
         if 'label' in target_variables.keys():
             self.output = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
+                self.flat_fc,
+                int(self.flat_fc.get_shape()[-1]),
                 output_shape,
                 "output")
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
-            self.occlusion = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
-                occlusion_shape,
-                "occlusion")
+            self.occlusion = tf.squeeze(
+                    self.fc_layer(
+                        self.flat_fc,
+                        int(self.flat_fc.get_shape()[-1]),
+                        occlusion_shape,
+                        "occlusion")
+                    )
         self.data_dict = None
 
         if 'pose' in target_variables.keys():
             # Occlusion head
-            self.pose = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
-                pose_shape,
-                "pose")
-
-        # Deconv to full image
-        layer_structure = [
-            {
-                'layers': ['deconv'],
-                'weights': [output_shape],
-                'names': ['up-conv2'],
-                'filter_size': [4],
-            },
-            {
-                'layers': ['deconv'],
-                'weights': [1],
-                'names': ['up-conv1'],
-                'filter_size': [4]
-            },
-            ]
-        self.deconv = self.create_conv_tower(
-            output_layer,
-            layer_structure,
-            tower_name='highres_conv')
-
+            self.pose = tf.squeeze(
+                    self.fc_layer(
+                        self.flat_fc,
+                        int(self.flat_fc.get_shape()[-1]),
+                        pose_shape,
+                        "pose")
+                )
         self.data_dict = None
 
     def resnet_layer(
@@ -205,20 +234,13 @@ class model_struct:
                             out_channels=we,
                             name=na,
                             filter_size=fs
+
                         )
                     elif la == 'res':
                         act = self.resnet_layer(
                             bottom=act,
                             layer_weights=we,
-                            layer_name=na
-                        )
-                    elif la == 'deconv':
-                        act = self.deconv_layer(
-                            bottom=act,
-                            out_channels=we,
-                            layer_name=na,
-                            filter_size=fs
-                        )
+                            layer_name=na)
                     setattr(self, na, act)
                     print 'Added layer: %s' % na
         return act
@@ -238,14 +260,8 @@ class model_struct:
             strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def conv_layer(
-            self,
-            bottom,
-            in_channels,
-            out_channels,
-            name,
-            filter_size=3,
-            batchnorm=None,
-            stride=[1, 1, 1, 1]):
+                    self, bottom, in_channels,
+                    out_channels, name, filter_size=3, batchnorm=None, stride=[1, 1, 1, 1]):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
                 filter_size, in_channels, out_channels, name)
@@ -253,80 +269,12 @@ class model_struct:
             conv = tf.nn.conv2d(bottom, filt, stride, padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
             relu = tf.nn.relu(bias)
+
             if batchnorm is not None:
                 if name in batchnorm:
                     relu = self.batchnorm(relu)
 
             return relu
-
-    def deconv_layer(
-            self,
-            bottom,
-            out_channels,
-            filter_size,
-            layer_name,
-            strides=[1, 2, 2, 1],
-            shape=None,
-            padding='SAME'):
-
-        pool_layer = 'pool%s' % re.search('\d+', layer_name).group()
-        in_channels = bottom.get_shape()[3].value
-        with tf.variable_scope(layer_name):
-
-            if shape is None:
-                # Compute shape out of Bottom
-                in_shape = [int(s) for s in bottom.get_shape()]
-                h = ((in_shape[1] - 1) * strides[1]) + 1
-                w = ((in_shape[2] - 1) * strides[1]) + 1
-                new_shape = [in_shape[0], h, w, out_channels]
-            else:
-                new_shape = [shape[0], shape[1], shape[2], out_channels]
-            output_shape = tf.stack(new_shape)
-            f_shape = [filter_size, filter_size, out_channels, in_channels]
-
-            # create
-            # num_input = filter_size * filter_size * in_channels / strides
-            # stddev = (2 / num_input)**0.5
-
-            weights = self.get_deconv_filter(f_shape)
-            deconv = tf.nn.conv2d_transpose(
-                bottom,
-                weights,
-                output_shape,
-                strides=strides,
-                padding='SAME')
-            score = self.conv_layer(
-                bottom=self[pool_layer],
-                in_channels=int(self[pool_layer].get_shape()[-1]),
-                out_channels=out_channels,
-                name='%s_conv' % layer_name,
-                stride=[1, 1, 1, 1],
-                filter_size=filter_size
-            )
-        return tf.pad(deconv, [[0, 0], [1, 0], [0, 1], [0, 0]]) + score
-        # return deconv + score
-
-    def get_deconv_filter(self, f_shape):
-        width = f_shape[0]
-        heigh = f_shape[0]
-        f = np.ceil(width/2.0)
-        c = (2 * f - 1 - f % 2) / (2.0 * f)
-        bilinear = np.zeros([f_shape[0], f_shape[1]])
-        for x in range(width):
-            for y in range(heigh):
-                value = (1 - abs(x / f - c)) * (1 - abs(y / f - c))
-                bilinear[x, y] = value
-        weights = np.zeros(f_shape)
-        for i in range(f_shape[2]):
-            weights[:, :, i, i] = bilinear
-
-        init = tf.constant_initializer(
-            value=weights,
-            dtype=tf.float32)
-        return tf.get_variable(
-            name="up_filter",
-            initializer=init,
-            shape=weights.shape)
 
     def fc_layer(self, bottom, in_size, out_size, name):
         with tf.variable_scope(name):
@@ -337,39 +285,13 @@ class model_struct:
 
             return fc
 
-    def upsample_filt(size):
-        """
-        Make a 2D bilinear kernel suitable for upsampling of the given (h, w) size.
-        """
-        factor = (size + 1) // 2
-        if size % 2 == 1:
-            center = factor - 1
-        else:
-            center = factor - 0.5
-        og = np.ogrid[:size, :size]
-        return (1 - abs(og[0] - center) / factor) * \
-               (1 - abs(og[1] - center) / factor)
-
     def get_conv_var(
-            self,
-            filter_size,
-            in_channels,
-            out_channels,
-            name,
-            init_type='xavier'):
+            self, filter_size, in_channels, out_channels,
+            name, init_type='xavier'):
         if init_type == 'xavier':
             weight_init = [
                 [filter_size, filter_size, in_channels, out_channels],
                 tf.contrib.layers.xavier_initializer_conv2d(uniform=False)]
-        elif init_type == 'bilinear':
-            weight_init = np.zeros((
-                filter_size,
-                filter_size,
-                in_channels,
-                out_channels), dtype=np.float32)
-            upsample_kernel = self.upsample_filt(filter_size)
-            for i in xrange(out_channels):
-                weight_init[:, :, i, i] = upsample_kernel
         else:
             weight_init = tf.truncated_normal(
                 [filter_size, filter_size, in_channels, out_channels],
