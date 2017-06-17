@@ -246,9 +246,10 @@ def train_and_eval(config):
         'train_acc': train_score,
         'im': train_data_dict['image'],
         'yhat': model.output,
-        'ytrue': train_data_dict['label'],
-        'deconv': model.deconv
+        'ytrue': train_data_dict['label']
     }
+    if hasattr(model, 'deconv'):
+        train_session_vars['deconv'] = model.deconv
 
     # Create list of variables to run through validation model
     val_session_vars = {
@@ -295,7 +296,6 @@ def train_and_eval(config):
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
             losses.append(train_out_dict['loss_value'])
-            import ipdb;ipdb.set_trace()
             duration = time.time() - start_time
             assert not np.isnan(train_out_dict['loss_value']), 'Model diverged with loss = NaN'
 

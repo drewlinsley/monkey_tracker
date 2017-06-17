@@ -146,13 +146,13 @@ class model_struct:
                 'layers': ['deconv'],
                 'weights': [output_shape],
                 'names': ['up-conv2'],
-                'filter_size': [3],
+                'filter_size': [4],
             },
             {
                 'layers': ['deconv'],
                 'weights': [1],
                 'names': ['up-conv1'],
-                'filter_size': [5]
+                'filter_size': [4]
             },
             ]
         self.deconv = self.create_conv_tower(
