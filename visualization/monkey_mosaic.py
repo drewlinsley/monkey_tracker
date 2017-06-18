@@ -26,8 +26,8 @@ def save_mosaic(ims, yhats, ys, output):
     plt.savefig(output)
 
 
-def xyz_vector_to_xy(vector):
-    return vector.reshape(-1, 3)[:, :2]
+def xyz_vector_to_xy(vector, num_dims=2):
+    return vector.reshape(-1, num_dims)[:, :2]
 
 
 def plot_coordinates(ax, vector, color):
@@ -45,11 +45,12 @@ def plot_coordinates(ax, vector, color):
 def main(
         num_files=1,
         output_file='monkey_mosaic.png',
-        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_16_16_41_23',
+        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_17_20_51_42',
         normalize=False,
         unnormalize=False
         ):
 
+    # Eventually read settings from the saved config file
     if unnormalize:
         # Because normalization was fucked up in the training script
         config = monkeyConfig()

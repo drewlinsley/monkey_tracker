@@ -325,7 +325,8 @@ def train_and_eval(config):
                         os.path.join(
                             config.model_output, '%s_val_coors' % step),
                         val_pred=val_out_dict['val_pred'],
-                        val_ims=val_out_dict['val_ims'])
+                        val_ims=val_out_dict['val_ims'],
+                        config=config)
 
                 # Summaries
                 summary_str = sess.run(summary_op)
