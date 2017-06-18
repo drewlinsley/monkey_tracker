@@ -67,85 +67,106 @@ class model_struct:
                     target_variables['pose'].get_shape()[-1])
 
         input_bgr = tf.identity(rgb, name="lrp_input")
-
-        # Initial convolutional
         layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
                 'filter_size': [3, 3, None]
-            }]
-        output_layer = self.create_conv_tower(
-            input_bgr,
-            layer_structure,
-            tower_name='highres_conv')
-
-        # Residual structure
-        layer_structure = [
+            },
             {
                 'layers': ['res', 'res', 'pool'],
                 'weights': [[128, 128], [128, 128], None],
-                'names': ['res2_1', 'res2_2', 'pool2'],
+                'names': ['conv2_1', 'conv2_2', 'pool2'],
+                'filter_size': [3, 3, None]
+            },
+            {
+                'layers': ['res', 'res', 'pool'],
+                'weights': [[128, 128], [128, 128], None],
+                'names': ['conv3_1', 'conv3_2', 'pool3'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['res', 'res', 'pool'],
                 'weights': [[256, 256], [256, 256], None],
-                'names': ['res3_1', 'res3_2', 'pool3'],
+                'names': ['conv4_1', 'conv4_2', 'pool4'],
                 'filter_size': [3, 3, None]
-            }
-            ]
+            }]
+
 
         output_layer = self.create_conv_tower(
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
+
+        # Rescale feature maps to the largest in the hr_fe_keys
         if train_mode is not None:
             output_layer = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(output_layer, 0.5),
-                lambda: self.output_layer)
-        output_layer = tf.contrib.layers.flatten(output_layer, 'output_layer')
-        self.flat_output_1 = self.fc_layer(
+                lambda: tf.nn.dropout(
+                    output_layer, 0.5),
+                lambda: output_layer)
+        self.high_1x1_0_pool = self.max_pool(
             output_layer,
-            int(self.high_1x1_2_pool.get_shape()[-1]),
-            4096,
-            'flat_output_1')
+            'high_1x1_0_pool')
+
+        self.high_feature_encoder_1x1_1 = self.conv_layer(
+            self.high_1x1_0_pool,
+            int(self.high_1x1_0_pool.get_shape()[-1]),
+            256,
+            "high_feature_encoder_1x1_1",
+            filter_size=1)
         if train_mode is not None:
-            output_layer = tf.cond(
+            self.high_feature_encoder_1x1_1 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(output_layer, 0.5),
-                lambda: self.output_layer)
-        self.flat_output_2 = self.fc_layer(
-            self.flat_output_1,
-            int(self.flat_output_1.get_shape()[-1]),
-            4096,
-            'flat_output_2')
+                lambda: tf.nn.dropout(
+                    self.high_feature_encoder_1x1_1, 0.5),
+                lambda: self.high_feature_encoder_1x1_1)
+        self.high_1x1_1_pool = self.max_pool(
+            self.high_feature_encoder_1x1_1,
+            'high_1x1_1_pool')
+
+        self.high_feature_encoder_1x1_2 = self.conv_layer(
+            self.high_1x1_1_pool,
+            int(self.high_1x1_1_pool.get_shape()[-1]),
+            256,
+            "high_feature_encoder_1x1_2",
+            filter_size=1)
+        if train_mode is not None:
+            self.high_feature_encoder_1x1_2 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_2, 0.5),
+                lambda: self.high_feature_encoder_1x1_2)
+        self.high_1x1_2_pool = tf.contrib.layers.flatten(
+            self.max_pool(self.high_feature_encoder_1x1_2, 'high_1x1_2_pool'))
 
         if 'label' in target_variables.keys():
             self.output = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
+                self.high_1x1_2_pool,
+                int(self.high_1x1_2_pool.get_shape()[-1]),
                 output_shape,
                 "output")
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
-            self.occlusion = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
-                occlusion_shape,
-                "occlusion")
+            self.occlusion = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_2_pool,
+                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        occlusion_shape,
+                        "occlusion")
+                    )
         self.data_dict = None
 
         if 'pose' in target_variables.keys():
             # Occlusion head
-            self.pose = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
-                pose_shape,
-                "pose")
+            self.pose = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_2_pool,
+                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        pose_shape,
+                        "pose")
+                )
         self.data_dict = None
 
     def resnet_layer(

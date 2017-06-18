@@ -32,7 +32,7 @@ class model_struct:
             train_mode=None,
             batchnorm=None,
             fe_keys=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4', 'pool5'],
+            hr_fe_keys=['pool2', 'pool3', 'conv4_1', 'pool4'],
             ):
         """
         load variable from npy to build the VGG
@@ -90,12 +90,6 @@ class model_struct:
                 'weights': [256, 256, None],
                 'names': ['conv4_1', 'conv4_2', 'pool4'],
                 'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [512, 512, None],
-                'names': ['conv5_1', 'conv5_2', 'pool5'],
-                'filter_size': [3, 3, None]
             }]
 
         self.create_conv_tower(
@@ -126,48 +120,17 @@ class model_struct:
                     self.fc1, 0.5),
                 lambda: self.fc1)
 
-        self.fc2 = self.conv_layer(
-            self.fc1,
-            int(self.fc1.get_shape()[-1]),
-            256,
-            "fc2",
-            filter_size=1)
-        if train_mode is not None:
-            self.fc2 = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(
-                    self.fc2, 0.5),
-                lambda: self.fc2)
-
-        self.fc3 = self.conv_layer(
-            self.fc2,
-            int(self.fc2.get_shape()[-1]),
-            256,
-            "fc3",
-            filter_size=1)
-        if train_mode is not None:
-            self.fc3 = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(self.fc3, 0.5),
-                lambda: self.fc3)
         # FC for full image loss
         self.final_fc = self.conv_layer(
-            self.fc3,
-            int(self.fc3.get_shape()[-1]),
+            self.fc1,
+            int(self.fc1.get_shape()[-1]),
             1,
             "final_fc",
             filter_size=1)
 
         # FC for other losses
         self.flat_fc = tf.contrib.layers.flatten(
-            self.max_pool(self.final_fc, 'flat_fc'))
-
-        if 'label' in target_variables.keys():
-            self.output = self.fc_layer(
-                self.flat_fc,
-                int(self.flat_fc.get_shape()[-1]),
-                output_shape,
-                "output")
+            self.max_pool(self.fc1, 'flat_fc'))
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
@@ -178,17 +141,30 @@ class model_struct:
                         occlusion_shape,
                         "occlusion")
                     )
-        self.data_dict = None
+
+        self.flat_fc2 = self.fc_layer(
+            self.flat_fc,
+            int(self.flat_fc.get_shape()[-1]),               
+            4096,
+            "flat_fc2")
+
+        if 'label' in target_variables.keys():
+            self.output = self.fc_layer(
+                self.flat_fc2,
+                int(self.flat_fc2.get_shape()[-1]),
+                output_shape,
+                "output")
 
         if 'pose' in target_variables.keys():
             # Occlusion head
             self.pose = tf.squeeze(
                     self.fc_layer(
-                        self.flat_fc,
-                        int(self.flat_fc.get_shape()[-1]),
+                        self.flat_fc2,
+                        int(self.flat_fc2.get_shape()[-1]),
                         pose_shape,
                         "pose")
                 )
+
         self.data_dict = None
 
     def resnet_layer(

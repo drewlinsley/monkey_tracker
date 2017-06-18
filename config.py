@@ -52,7 +52,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'vgg_fc'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
+        self.model_type = 'resnet'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
@@ -65,7 +65,7 @@ class monkeyConfig(object):
         ]
         # ['left_right, up_down, random_crop,
         # random_brightness, random_contrast, rotate']
-        self.train_batch = 48
+        self.train_batch = 32
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
@@ -81,7 +81,7 @@ class monkeyConfig(object):
         self.test_proprtion = 0.1  # TEST_RATIO
         self.mean_file = 'mean_file'  # Double check: used in training?
         self.normalize_labels = True  # True
-        self.aux_losses = ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
+        self.aux_losses = [None]  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
         self.calculate_per_joint_loss = True
         self.include_validation = True
         self.wd_type = 'l1'
@@ -151,7 +151,7 @@ class monkeyConfig(object):
         ]
         self.selected_joints = None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
-        self.keep_dims = 2
+        self.keep_dims = 3
         self.num_classes = len(self.joint_order) * self.num_dims
-        self.mask_occluded_joints = True
+        self.mask_occluded_joints = False
 
