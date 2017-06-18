@@ -31,7 +31,6 @@ class model_struct:
             target_variables=None,
             train_mode=None,
             batchnorm=None,
-            fe_keys=None,
             hr_fe_keys=['pool2', 'pool3', 'pool4', 'lrpool2', 'lrpool3'],
             ):
         """
@@ -41,8 +40,6 @@ class model_struct:
         :param train_mode: a bool tensor, usually a placeholder:
         :if True, dropout will be turned on
         """
-        if fe_keys is not None:
-            print 'You supplied feature extractor keys... These are ignored.'
 
         if 'label' in target_variables.keys():
             if len(target_variables['label'].get_shape()) == 1:
@@ -187,7 +184,8 @@ class model_struct:
                 self.high_1x1_2_pool,
                 int(self.high_1x1_2_pool.get_shape()[-1]),
                 output_shape,
-                "output")
+                'output')
+            self.joint_label_output_keys = ['output']
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head

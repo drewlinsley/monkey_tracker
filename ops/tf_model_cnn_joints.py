@@ -5,7 +5,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 from ops.data_loader_joints import inputs
-from ops.tf_fun import correlation, make_dir, fine_tune_prepare_layers
+from ops import tf_fun
 from ops.utils import get_dt, import_cnn, save_training_data
 
 
@@ -31,7 +31,7 @@ def train_and_eval(config):
     results_dir = os.path.join(config.npy_dir, dt_stamp)
     print 'Saving Dmurphy\'s online updates to: %s' % results_dir
     dir_list = [config.train_checkpoint, config.summary_dir, results_dir]
-    [make_dir(d) for d in dir_list]
+    [tf_fun.make_dir(d) for d in dir_list]
 
     # Prepare model inputs
     train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
@@ -118,21 +118,10 @@ def train_and_eval(config):
             if 'label' in train_data_dict.keys():
                 # 1. Joint localization loss
                 if config.calculate_per_joint_loss:
-                    if config.selected_joints is None:
-                        use_joints = config.joint_order
-                    else:
-                        use_joints = config.selected_joints
-                    res_pred = tf.reshape(
-                        model.output,
-                        [config.train_batch, len(use_joints), config.keep_dims])
-                    res_gt = tf.reshape(
-                        train_data_dict['label'],
-                        [config.train_batch, len(use_joints), config.keep_dims])
-                    label_loss = tf.reduce_sum(
-                        tf.abs(res_pred - res_gt), axis=-1)
-                    loss_x_batch = tf.reduce_sum(label_loss, axis=0)
-                    _, joint_variance = tf.nn.moments(loss_x_batch, [0])
-
+                    label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
+                        model=model,
+                        train_data_dict=train_data_dict,
+                        config=config) 
                     # Summarize joint loss (X batch): some easier than others?
                     [tf.summary.scalar(
                         '%s' % la, lo[0]) for la, lo in zip(
@@ -141,10 +130,10 @@ def train_and_eval(config):
                     tf.summary.scalar('Joint variance', joint_variance)
                     loss_list += [tf.reduce_mean(label_loss)]
                 else:
-                    loss_list += [tf.nn.l2_loss(
-                        model.output - train_data_dict['label'])]
+                    loss_list += [tf.add_n([tf.nn.l2_loss(
+                        model[x] - train_data_dict['label']) for x in model.joint_label_output_keys])]
                 loss_label += ['combined head']
-                train_score, _ = correlation(
+                train_score, _ = tf_fun.correlation(
                     model.output, train_data_dict['label'])
                 tf.summary.scalar('training correlation', train_score)
             if 'occlusion' in train_data_dict.keys():
@@ -184,7 +173,7 @@ def train_and_eval(config):
 
             # Add wd if necessary
             if config.wd_penalty is not None:
-                _, l2_wd_layers = fine_tune_prepare_layers(
+                _, l2_wd_layers = tf_fun.fine_tune_prepare_layers(
                     tf.trainable_variables(), config.wd_layers)
                 l2_wd_layers = [
                     x for x in l2_wd_layers if 'biases' not in x.name]

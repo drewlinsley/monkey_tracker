@@ -52,12 +52,11 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'resnet'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
+        self.model_type = 'multiscale_multitower'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
-        self.fe_keys = ['pool2', 'pool3', 'pool4', 'pool5', 'lr_conv3_3']  # , 'lr_pool2', 'lr_pool3']  # ['conv2_1', 'conv3_1', 'conv4_1', 'conv5_1']
         self.data_augmentations = [
             'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
             # 'random_crop'
@@ -65,7 +64,7 @@ class monkeyConfig(object):
         ]
         # ['left_right, up_down, random_crop,
         # random_brightness, random_contrast, rotate']
-        self.train_batch = 32
+        self.train_batch = 64
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm

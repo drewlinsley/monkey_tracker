@@ -140,3 +140,29 @@ def find_ckpts(config, dirs=None):
     ckpts = [ck for ck in ckpts if '.meta' not in ck]  # Don't include metas
     ckpt_names = [re.split('-', ck)[-1] for ck in ckpts]
     return np.asarray(ckpts), np.asarray(ckpt_names)
+
+
+def thomas_l1_loss(model, train_data_dict, config)
+    if config.selected_joints is None:
+        use_joints = config.joint_order
+    else:
+        use_joints = config.selected_joints
+    res_gt = tf.reshape(
+        train_data_dict['label'],
+        [config.train_batch, len(use_joints), config.keep_dims])
+    
+    res_pred = [tf.reshape(
+        model[x],
+        [config.train_batch, len(use_joints), config.keep_dims]) for x in model.joint_label_output_keys]
+
+
+    label_losses = [tf.reduce_sum(
+        tf.abs(x - res_gt), axis=-1) for x in res_pred]
+
+    # Return variance for tf.summary
+    loss_x_batch = tf.reduce_sum(label_loss, axis=0)
+    _, joint_variance = tf.nn.moments(loss_x_batch, [0])
+
+    return label_losses, use_joints, joint_variance
+
+
