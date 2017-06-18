@@ -36,12 +36,6 @@ class monkeyConfig(object):
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
         self.max_depth = 1300.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
         self.background_constant = self.max_depth * 2  # HIGH_NUMBER
-
-        # Feature extraction settings
-        self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
-        self.n_features = 400  # Tune this 
-        self.max_pixels_per_image = 800  # Tune this
-        self.cte_depth = 2  # ?? 
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_input_size = [480, 640]  # Maya render output
         self.image_target_size = [240, 320, 3]  # Resize before tfrecords
@@ -52,18 +46,16 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'multiscale_multitower'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
+        self.model_type = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'multiscale_multitower'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
         # vgg_feature_model, fully_connected_conv
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
             'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
-            # 'random_crop'
-            # 'left_right' 
         ]
-        # ['left_right, up_down, random_crop,
-        # random_brightness, random_contrast, rotate']
+
+        # Key training settings
         self.train_batch = 64
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
@@ -72,13 +64,15 @@ class monkeyConfig(object):
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
-        # for a weighted cost. First entry = background.
+        self.loss_type = 'l1'
 
-        # Training settings
+        # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
         self.early_stopping_rounds = 100
         self.test_proprtion = 0.1  # TEST_RATIO
         self.mean_file = 'mean_file'  # Double check: used in training?
+
+        # Auxillary training settings
         self.normalize_labels = True  # True
         self.aux_losses = [None]  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
         self.calculate_per_joint_loss = True
@@ -150,7 +144,13 @@ class monkeyConfig(object):
         ]
         self.selected_joints = None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
-        self.keep_dims = 3
+        self.keep_dims = 2
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
+
+        # Feature extraction settings for classic kinect alg
+        self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
+        self.n_features = 400  # Tune this 
+        self.max_pixels_per_image = 800  # Tune this
+        self.cte_depth = 2  # ?? 
 

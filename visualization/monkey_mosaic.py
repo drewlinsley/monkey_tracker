@@ -47,7 +47,8 @@ def main(
         output_file='monkey_mosaic.png',
         monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_17_20_51_42',
         normalize=False,
-        unnormalize=False
+        unnormalize=False,
+        max_ims=4
         ):
 
     # Eventually read settings from the saved config file
@@ -87,6 +88,11 @@ def main(
         [im_list.append(x) for x in images]
         [yhat_list.append(x) for x in yhats]
         [ytrue_list.append(x) for x in ytrues]
+
+    if max_ims is not None:
+        im_list = im_list[:max_ims]
+        yhat_list = yhat_list[:max_ims]
+        ytrue_list = ytrue_list[:max_ims]
 
     save_mosaic(
         ims=im_list,

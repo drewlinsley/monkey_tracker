@@ -121,21 +121,12 @@ def train_and_eval(config):
                     label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
                         model=model,
                         train_data_dict=train_data_dict,
-                        config=config) 
-                    # Summarize joint loss (X batch): some easier than others?
-                    [tf.summary.scalar(
-                        '%s' % la, lo[0]) for la, lo in zip(
-                        use_joints, tf.split(loss_x_batch, len(use_joints)))]
-                    # Track variance across losses
-                    tf.summary.scalar('Joint variance', joint_variance)
-                    loss_list += [tf.reduce_mean(label_loss)]
+                        config=config)
+                    loss_list += [label_loss]
                 else:
                     loss_list += [tf.add_n([tf.nn.l2_loss(
                         model[x] - train_data_dict['label']) for x in model.joint_label_output_keys])]
                 loss_label += ['combined head']
-                train_score, _ = tf_fun.correlation(
-                    model.output, train_data_dict['label'])
-                tf.summary.scalar('training correlation', train_score)
             if 'occlusion' in train_data_dict.keys():
                 # 2. Auxillary losses
                 # a. Occlusion
@@ -257,7 +248,6 @@ def train_and_eval(config):
     train_session_vars = {
         'train_op': train_op,
         'loss_value': loss,
-        'train_acc': train_score,
         'im': train_data_dict['image'],
         'yhat': model.output,
         'ytrue': train_data_dict['label']
@@ -335,12 +325,11 @@ def train_and_eval(config):
                 # Training status and validation accuracy attach 9177
                 format_str = (
                     '%s: step %d, loss = %.2f (%.1f examples/sec; '
-                    '%.3f sec/batch) | Training r = %s | '
-                    'Validation r = %s | logdir = %s')
+                    '%.3f sec/batch) | '
+                    'Validation l2 loss = %s | logdir = %s')
                 print (format_str % (
                     datetime.now(), step, train_out_dict['loss_value'],
                     config.train_batch / duration, float(duration),
-                    train_out_dict['train_acc'],
                     val_out_dict['val_acc'],
                     config.summary_dir))
 
@@ -365,14 +354,13 @@ def train_and_eval(config):
             else:
                 # Training status
                 format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; '
-                              '%.3f sec/batch) | Training F = %s')
+                              '%.3f sec/batch)')
                 print (format_str % (
                     datetime.now(),
                     step,
                     train_out_dict['loss_value'],
                     config.train_batch / duration,
-                    float(duration),
-                    train_out_dict['train_acc']))
+                    float(duration)))
             # End iteration
             step += 1
 
