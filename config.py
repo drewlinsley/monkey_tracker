@@ -46,8 +46,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'multiscale_multitower'  # 'cnn_multiscale_high_res_skinny_pose_occlusion'  # 'resnet'  # 'vgg_regression_model'  'vgg_deconv'  #  
-        # vgg_feature_model, fully_connected_conv
+        self.model_type = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'
         self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
@@ -59,8 +58,8 @@ class monkeyConfig(object):
         self.train_batch = 64
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-3
+        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 1e-4
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
@@ -74,7 +73,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True  # True
-        self.aux_losses = [None]  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
+        self.aux_losses = ['occlusion']  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
         self.calculate_per_joint_loss = True
         self.include_validation = True
         self.wd_type = 'l1'
