@@ -43,6 +43,7 @@ class monkeyConfig(object):
         self.sample = {'train': True, 'val': False}  # random sample of feats
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
+        self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
 
         # Model settings
         self.epochs = 50
@@ -63,7 +64,7 @@ class monkeyConfig(object):
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
-        self.loss_type = 'l1'
+        self.loss_type = 'l2'
 
         # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
@@ -141,6 +142,33 @@ class monkeyConfig(object):
             'lToeMid3', 
             'rToeMid3'
         ]
+
+        self.joint_names = [
+            'head',
+            'neck'
+            'abdomen',
+            'abdomen2',
+            'left shoulder',
+            'right shoulder',
+            'left elbow',
+            'right elbow',
+            'left hand',
+            'right hand',
+            'left knuckles',
+            'right knuckles',
+            'left fingertips',
+            'right fingertips',
+            'left hip',
+            'right hip',
+            'left knee',
+            'right knee',
+            'left ankle',
+            'right ankle',
+            'left foot',
+            'right foot',
+            'left toetips',
+            'right toetips'
+        ]
         self.selected_joints = None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
         self.keep_dims = 2
@@ -152,4 +180,3 @@ class monkeyConfig(object):
         self.n_features = 400  # Tune this 
         self.max_pixels_per_image = 800  # Tune this
         self.cte_depth = 2  # ?? 
-

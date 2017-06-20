@@ -8,16 +8,23 @@ import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 from config import monkeyConfig
-import itertools
+import matplotlib.cm as cm
 
 
-def save_mosaic(ims, yhats, ys, output, wspace=0., hspace=0.):
+def save_mosaic(
+        ims,
+        yhats,
+        ys,
+        output,
+        wspace=0.,
+        hspace=0.):
     # Get a color for each yhat and a color for each ytrue
-    colors = cm.rainbow(np.linspace(0, 1, len(yhats)))
+    joints = monkeyConfig().joint_names
+    num_joints = len(joints)
+    colors = cm.rainbow(np.linspace(0, 1, num_joints))
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
     fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
-    gs1.update(wspace=wspace, hspace=hspace)  # set the spacing between axes.
     for idx, (im, yhat, y) in enumerate(zip(ims, yhats, ys)):
         ax1 = plt.subplot(gs1[idx])
         plt.axis('off')
@@ -25,23 +32,26 @@ def save_mosaic(ims, yhats, ys, output, wspace=0., hspace=0.):
         ax1.set_yticklabels([])
         ax1.set_aspect('equal')
         ax1.imshow(np.log10(im), cmap='Greys_r')
-        lab_legend_artists = plot_coordinates(ax1, y, colors, marker='.')
-        est_legend_artists = plot_coordinates(ax1, yhat, colors,
-                                              linestyle='none', markeredgewidth=1.25,
-                                              marker='o', mfc='none', markersize=4.)
-    plt.subplots_adjust(top=1)
+        lab_legend_artists = plot_coordinates(
+            ax1, y, colors, marker='.', markersize=1.5)
+        est_legend_artists = plot_coordinates(
+            ax1, yhat, colors,
+            linestyle='none',
+            markeredgewidth=.5,
+            marker='o',
+            mfc='none',
+            markersize=1.5)
+    plt.subplots_adjust(top=1, left=0)
 
     # Legend
     patches = est_legend_artists + lab_legend_artists
-    joints = monkeyConfig().joint_order
     fig.legend(
         patches,
         (["" for _ in colors] +
-         [joints[i] for i in range(1, len(colors) + 1)]),
+         [j for j in joints]),
         title="Estimated / True",
         loc=1, frameon=False, numpoints=1, ncol=2,
         columnspacing=0, handlelength=0.25, markerscale=2)
-
     plt.savefig(output)
 
 
@@ -69,7 +79,7 @@ def main(
         dmurphy_npy_dir='/media/data_cifs/monkey_tracking/batches/test',
         normalize=False,
         unnormalize=False,
-        max_ims=None
+        max_ims=4
         ):
 
     monkey_dir = os.path.join(dmurphy_npy_dir, monkey_date)
@@ -132,6 +142,6 @@ if __name__ == '__main__':
         type=str,
         default='2017_06_18_17_45_17',
         help='Date of model directory.')
+
     args = parser.parse_args()
     main(**vars(args))
-    main()
