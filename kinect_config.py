@@ -14,6 +14,7 @@ class kinectConfig():
              'show_threshold_results': False,
 
              # Background GMM params
+             'run_gmm': False,
              'bgsub_wraps': 1,  # Set to None if you don't want this
              'bgsub_quorum': 1,
              'bgsub_mog_bg_theshold': 10,
@@ -35,9 +36,10 @@ class kinectConfig():
     def monkey_on_pole_1(self):
         monkey_on_pole_1 = self.defaults
         monkey_on_pole_1['output_dir'] = '/home/drew/Desktop/'
-        monkey_on_pole_1['output_name'] = None # os.path.join(
-            # monkey_on_pole_1['output_dir'],
-            # 'monkey_on_pole_1.mp4')
+        monkey_on_pole_1['kinect_output_name'] = None
+        monkey_on_pole_1['predicted_output_name'] = os.path.join(
+            monkey_on_pole_1['output_dir'],
+            'predicted_monkey_on_pole_1.mp4')
         return monkey_on_pole_1
 
     def __getitem__(self, name):
