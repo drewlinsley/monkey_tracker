@@ -324,7 +324,7 @@ def train_and_eval(config):
 
                 # Training status and validation accuracy attach 9177
                 format_str = (
-                    '%s: step %d, loss = %.2f (%.1f examples/sec; '
+                    '%s: step %d, loss = %.4f (%.1f examples/sec; '
                     '%.3f sec/batch) | '
                     'Validation l2 loss = %s | logdir = %s')
                 print (format_str % (
@@ -353,7 +353,7 @@ def train_and_eval(config):
                         'model_' + str(step) + '.ckpt'), global_step=step)
             else:
                 # Training status
-                format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; '
+                format_str = ('%s: step %d, loss = %.4f (%.1f examples/sec; '
                               '%.3f sec/batch)')
                 print (format_str % (
                     datetime.now(),

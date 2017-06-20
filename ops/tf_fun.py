@@ -147,7 +147,7 @@ def l1_loss(yhat, y):
 
 
 def l2_loss(yhat, y):
-    return tf.reduce_mean(tf.pow(yhat - y, 2), axis=-1)
+    return tf.reduce_sum(tf.pow(yhat - y, 2), axis=-1) / 2
 
 
 def thomas_l1_loss(model, train_data_dict, config):

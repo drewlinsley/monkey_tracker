@@ -59,12 +59,12 @@ class monkeyConfig(object):
         self.train_batch = 64
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-3
+        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 1e-4
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
-        self.loss_type = 'l1'
+        self.loss_type = 'l2'
 
         # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
