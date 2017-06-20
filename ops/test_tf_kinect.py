@@ -2,13 +2,13 @@ import os
 import re
 import numpy as np
 import tensorflow as tf
-from glob import glob
 import cv2
 import itertools
 from skimage.morphology import remove_small_objects
 from scipy.ndimage.morphology import binary_opening, binary_closing, \
                                      binary_fill_holes
 from matplotlib import pyplot as plt
+from matplotlib import animation
 from ops.utils import get_dt, import_cnn, save_training_data
 from tqdm import tqdm
 
@@ -40,14 +40,14 @@ def mask_voting(tup):
     return r
 
 
-def static_background(frames, left_frame_no=0, right_frame_no=40):
+def static_background(frames, left_frame=0, right_frame=40):
     '''
     Combine the left half of `frames[left_frame_no]` with the
     right half of `frames[right_frame_no]`. For good choices
     of `left_frame_no` and `right_frame_no`, this will give
     something like the background of the video.
     '''
-    l, r = frames[left_frame_no], frames[right_frame_no]
+    l, r = frames[left_frame], frames[right_frame]
     w = l.shape[0]
     return np.vstack((l[:w/2], r[w/2:]))
 

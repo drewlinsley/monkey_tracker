@@ -7,29 +7,30 @@ class kinectConfig():
         self.selected_video = 'video_list'
         self.defaults = {
              # Video frame and background subtraction params
-             'trim_start' : 100,
-             'trim_end' : 35,
-             'low_threshold' : 1400,
-             'high_threshold' : 3350,
-             'show_threshold_results' : False,
+             'trim_start': 100,
+             'trim_end': 35,
+             'low_threshold': 1400,
+             'high_threshold': 3350,
+             'show_threshold_results': False,
 
              # Background GMM params
-             'bgsub_wraps' : 1,  # Set to None if you don't want this
-             'bgsub_quorum' : 1,
-             'bgsub_mog_bg_theshold' : 10,
-             'show_mog_result' : False,
+             'bgsub_wraps': 1,  # Set to None if you don't want this
+             'bgsub_quorum': 1,
+             'bgsub_mog_bg_theshold': 10,
+             'show_mog_result': False,
+             'left_frame': 100,
+             'right_frame': 40,
 
-             # Crop box params             
-             'crop' : True,
-             'w' : 175,
-             'h' : 150,
-             '_x' : 32,
-             '_y' : 40,
-             'x_' : 412,
-             'y_' : 300,
-             'ignore_border_px' : 10
+             # Crop box params
+             'crop': True,
+             'w': 175,
+             'h': 150,
+             '_x': 32,
+             '_y': 40,
+             'x_': 412,
+             'y_': 300,
+             'ignore_border_px': 10
         }
-
 
     def video_list(self):
         monkey_on_pole_1 = self.defaults
@@ -44,4 +45,3 @@ class kinectConfig():
 
     def __contains__(self, name):
         return hasattr(self, name)
-

@@ -23,14 +23,19 @@ def main(model_dir, ckpt_name):
     monkey_files = sorted(
         monkey_files, key=lambda name: int(
             re.search('\d+', name.split('/')[-1]).group()))
+    if len(monkey_files) == 0:
+        raise RuntimeError('Could not find any files!')
     frames = test_tf_kinect.get_and_trim_frames(monkey_files, 100, 35)
-    
+
     # combine two frames to approximate the background
-    bg = test_tf_kinect.static_background(frames)
+    bg = test_tf_kinect.static_background(
+        frames,
+        kinect_config['left_frame'],
+        kinect_config['right_frame'])
     frames = [bg] + frames
 
     # threshold the depths and do some denoising
-    threshed = test_tf_kinect.threshold(
+    frames = test_tf_kinect.threshold(
         frames,
         kinect_config['low_threshold'],
         kinect_config['high_threshold'],
@@ -42,8 +47,8 @@ def main(model_dir, ckpt_name):
     # and doing a lot of openings and closings, but we are only going to
     # use it to estimate a good crop, so that's OK
     if kinect_config['bgsub_wraps'] is not None:
-        threshed = test_tf_kinect.bgsub_frames(
-            threshed,
+        frames = test_tf_kinect.bgsub_frames(
+            frames,
             kinect_config['bgsub_wraps'],
             kinect_config['bgsub_quorum'],
             show_result=kinect_config['show_mog_result'],
@@ -53,15 +58,15 @@ def main(model_dir, ckpt_name):
     # a good crop using the result of the MOG
     
     if kinect_config['crop']:
-        threshed = test_tf_kinect.box_tracking(
-            threshed[1:],
+        frames = test_tf_kinect.box_tracking(
+            frames[1:],
             kinect_config['w'],
             kinect_config['h'],
             kinect_config['_x'],
             kinect_config['_y'],
             kinect_config['x_'],
             kinect_config['y_'],
-            binaries=threshed[1:],
+            binaries=frames[1:],
             ignore_border_px=kinect_config['ignore_border_px'])
 
     # save this result to `res.mp4`
@@ -69,7 +74,7 @@ def main(model_dir, ckpt_name):
         print('Making movie...')
         f, a = plt.subplots(1, 1)
         f.tight_layout()
-        artists = [[a.imshow(c)] for c in threshed]
+        artists = [[a.imshow(c)] for c in frames]
         ani = animation.ArtistAnimation(f, artists, interval=50)
         ani.save('%s' % kinect_config['output_name'], 'ffmpeg', 24)
 
