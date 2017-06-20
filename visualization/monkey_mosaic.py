@@ -1,5 +1,6 @@
 import os
 import re
+import argparse
 import numpy as np
 from glob import glob
 from matplotlib import pyplot as plt
@@ -10,13 +11,13 @@ from config import monkeyConfig
 import itertools
 
 
-def save_mosaic(ims, yhats, ys, output):
+def save_mosaic(ims, yhats, ys, output, wspace=0., hspace=0.):
     # Get a color for each yhat and a color for each ytrue
     colors = cm.rainbow(np.linspace(0, 1, len(yhats)))
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
     fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
-    gs1.update(wspace=0.0001, hspace=0.0001)  # set the spacing between axes.
+    gs1.update(wspace=wspace, hspace=hspace)  # set the spacing between axes.
     for idx, (im, yhat, y) in enumerate(zip(ims, yhats, ys)):
         ax1 = plt.subplot(gs1[idx])
         plt.axis('off')
@@ -62,14 +63,16 @@ def plot_coordinates(ax, vector, colors, **kwargs):
 
 
 def main(
+        monkey_date,
         num_files=1,
         output_file='monkey_mosaic.png',
-        monkey_dir='/media/data_cifs/monkey_tracking/batches/test/2017_06_17_20_51_42',
+        dmurphy_npy_dir='/media/data_cifs/monkey_tracking/batches/test',
         normalize=False,
         unnormalize=False,
-        max_ims=4
+        max_ims=None
         ):
 
+    monkey_dir = os.path.join(dmurphy_npy_dir, monkey_date)
     # Eventually read settings from the saved config file
     if unnormalize:
         # Because normalization was fucked up in the training script
@@ -109,9 +112,10 @@ def main(
         [ytrue_list.append(x) for x in ytrues]
 
     if max_ims is not None:
-        im_list = im_list[:max_ims]
-        yhat_list = yhat_list[:max_ims]
-        ytrue_list = ytrue_list[:max_ims]
+        rand_order = np.random.permutation(len(im_list))
+        im_list = np.asarray(im_list)[rand_order][:max_ims]
+        yhat_list = np.asarray(yhat_list)[rand_order][:max_ims]
+        ytrue_list = np.asarray(ytrue_list)[rand_order][:max_ims]
 
     save_mosaic(
         ims=im_list,
@@ -121,4 +125,13 @@ def main(
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--monkey_date",
+        dest="monkey_date",
+        type=str,
+        default='2017_06_18_17_45_17',
+        help='Date of model directory.')
+    args = parser.parse_args()
+    main(**vars(args))
     main()
