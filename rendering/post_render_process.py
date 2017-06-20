@@ -68,19 +68,19 @@ def process(filename):
 	coordFile = os.path.join(coordDir[0], filename)
 	labelImFile = os.path.join(labelImDir[0], filename[:-4]+im_ext)
 	depthImFile = os.path.join(depthImDir[0], filename[:-4]+im_ext)
-	try:
-		open(coordFile, 'r+')
-		open(labelImFile, 'r+') 
-		open(depthImFile, 'r+')
-	except:
-		return
+	# try:
+	# 	open(coordFile, 'r+')
+	# 	open(labelImFile, 'r+') 
+	# 	open(depthImFile, 'r+')
+	# except:
+	# 	return
 	coords = np.load(coordFile)
 	image = TiffFile(labelImFile).asarray() / 255
 	depth = TiffFile(depthImFile).asarray().astype(np.float32)
 
 	pixel_coords = (coords[:, :2]*np.asarray([-620.0, -620.0])/coords[:, 2].reshape([23, 1]) + 
 		np.asarray([320.0, 240.0]))
-	pixel_coords = np.concatenate([pixel_coords, coords[:, 2].reshape([23, 1])], axis=1)
+	pixel_coords = np.concatenate([pixel_coords, coords[:, 2].reshape([23, 1])], axis=1).astype(np.int32)
 
 	# select all pixel coordinates that are in the bounds of the image
 	in_bound_bool = (pixel_coords[:, 0] < 640) * (pixel_coords[:, 0] > -1) * (pixel_coords[:, 1] < 480) * (pixel_coords[:, 1] > -1)
