@@ -4,12 +4,17 @@ import numpy as np
 from glob import glob
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.cm as cm
+import matplotlib.patches as mpatches
 from config import monkeyConfig
+import itertools
 
 
 def save_mosaic(ims, yhats, ys, output):
+    # Get a color for each yhat and a color for each ytrue
+    colors = cm.rainbow(np.linspace(0, 1, len(yhats)))
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
-    plt.figure(figsize=(20, 20))
+    fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
     gs1.update(wspace=0.0001, hspace=0.0001)  # set the spacing between axes.
     for idx, (im, yhat, y) in enumerate(zip(ims, yhats, ys)):
@@ -19,10 +24,23 @@ def save_mosaic(ims, yhats, ys, output):
         ax1.set_yticklabels([])
         ax1.set_aspect('equal')
         ax1.imshow(np.log10(im), cmap='Greys_r')
-        plot_coordinates(ax1, y, 'r')
-        plot_coordinates(ax1, yhat, 'b')
+        lab_legend_artists = plot_coordinates(ax1, y, colors, marker='.')
+        est_legend_artists = plot_coordinates(ax1, yhat, colors,
+                                              linestyle='none', markeredgewidth=1.25,
+                                              marker='o', mfc='none', markersize=4.)
     plt.subplots_adjust(top=1)
-    plt.suptitle('Red = True Joint Position\nBlue = Predicted Joint Position.')
+
+    # Legend
+    patches = est_legend_artists + lab_legend_artists
+    joints = monkeyConfig().joint_order
+    fig.legend(
+        patches,
+        (["" for _ in colors] +
+         [joints[i] for i in range(1, len(colors) + 1)]),
+        title="Estimated / True",
+        loc=1, frameon=False, numpoints=1, ncol=2,
+        columnspacing=0, handlelength=0.25, markerscale=2)
+
     plt.savefig(output)
 
 
@@ -30,16 +48,17 @@ def xyz_vector_to_xy(vector, num_dims=2):
     return vector.reshape(-1, num_dims)[:, :2]
 
 
-def plot_coordinates(ax, vector, color):
+def plot_coordinates(ax, vector, colors, **kwargs):
     xy = xyz_vector_to_xy(vector)
-    ax.scatter(
-        xy[:, 0],
-        xy[:, 1],
-        c=color,
-        marker='.',
-        s=15,
-        edgecolors='face')  # , alpha=0.5)
-    return ax
+    # it will be helpful to have this list of paths
+    # for legend making
+    return [ax.plot(
+                x,
+                y,
+                color=c,
+                mec=c,
+                **kwargs)[0]
+            for c, (x, y) in zip(colors, xy)]
 
 
 def main(
