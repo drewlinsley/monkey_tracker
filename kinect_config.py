@@ -23,7 +23,7 @@ class kinectConfig():
              'right_frame': 40,
 
              # Crop box params
-             'crop': False,
+             'crop': 'static',  # static or box
              'w': 175,
              'h': 150,
              '_x': 32,

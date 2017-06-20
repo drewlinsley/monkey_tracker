@@ -9,6 +9,12 @@ from config import monkeyConfig
 import matplotlib.cm as cm
 
 
+def get_colors():
+    joints = monkeyConfig().joint_names
+    num_joints = len(joints)
+    return cm.rainbow(np.linspace(0, 1, num_joints)), joints, num_joints
+
+
 def save_mosaic(
         ims,
         yhats,
@@ -17,9 +23,7 @@ def save_mosaic(
         wspace=0.,
         hspace=0.):
     # Get a color for each yhat and a color for each ytrue
-    joints = monkeyConfig().joint_names
-    num_joints = len(joints)
-    colors = cm.rainbow(np.linspace(0, 1, num_joints))
+    colors, joints, num_joints = get_colors
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
     fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)

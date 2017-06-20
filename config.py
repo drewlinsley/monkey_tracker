@@ -57,7 +57,7 @@ class monkeyConfig(object):
 
         # Key training settings
         self.train_batch = 64
-        self.validation_batch = 1
+        self.validation_batch = 64
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-4

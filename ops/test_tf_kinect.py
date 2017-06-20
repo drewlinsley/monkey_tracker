@@ -12,6 +12,7 @@ from matplotlib import animation
 from ops.utils import get_dt, import_cnn, save_training_data
 from tqdm import tqdm
 from datetime import datetime
+from visualization import monkey_mosaic
 
 
 def save_to_numpys(file_dict, path):
@@ -32,6 +33,14 @@ def create_movie(frames, output):
     ani.save('%s' % output, 'ffmpeg', 24)
 
 
+def drop_empty_frames(frames):
+    frames = np.asarray(frames).astype('float32')
+    keep_frames = np.sum(np.sum(frames, axis=-1), axis=-1) > 0
+    frames = frames[keep_frames]
+    toss_index = np.where(keep_frames)[0]
+    return frames, toss_index
+
+
 def transform_to_renders(frames, config, rotate=True):
     '''Transform kinect data to the "Maya-space" that
     our renders were produced in.
@@ -44,10 +53,7 @@ def transform_to_renders(frames, config, rotate=True):
     frames: Kinect data transformed to maya space'''
 
     # 1. Trim empty bullshit frames
-    frames = np.asarray(frames).astype('float32')
-    keep_frames = np.sum(np.sum(frames, axis=-1), axis=-1) > 0
-    frames = frames[keep_frames]
-    toss_index = np.where(keep_frames)[0]
+    frames, toss_index = drop_empty_frames(frames)
 
     # 2. Derive wall position then add it to each frame
     wall_mask = np.asarray([(f == 0).astype(np.float32) for f in frames])
@@ -380,15 +386,18 @@ def image_batcher(
         images,
         batch_size):
     for b in range(num_batches):
-        print start, len(images)
-        next_image_batch = images[start:start + batch_size]
-        image_stack = images[next_image_batch]
-        # Add dimensions and concatenate
-        yield np.concatenate(
-            [x for x in image_stack], axis=0)
+        yield images[start:start + batch_size]
 
 
-def process_kinect_placeholder(model_file, kinect_data, config):
+def crop_center(img, crop_size):
+    x, y = img.shape
+    cx, cy = crop_size
+    startx = x//2-(cx//2)
+    starty = y//2-(cy//2)
+    return img[starty:starty+cy, startx:startx+cx]
+
+
+def process_kinect_placeholder(model_ckpt, kinect_data, config):
     """Train and evaluate the model."""
 
     # Import your model
@@ -401,14 +410,9 @@ def process_kinect_placeholder(model_file, kinect_data, config):
         val_data_dict = {
             'image': tf.placeholder(
                 dtype=tf.float32,
-                shape=[None] + config.image_target_size[:2] + [1],
+                shape=[config.validation_batch] + config.image_target_size[:2] + [1],
                 name='image')
         }
-
-        val_data_dict['image'] = tf.image.resize_image_with_crop_or_pad(
-            image=val_data_dict['image'],
-            target_height=config.image_target_size[0],
-            target_width=config.image_target_size[1])
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -417,18 +421,16 @@ def process_kinect_placeholder(model_file, kinect_data, config):
             if (config.num_classes // config.keep_dims) > (joint_shape):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
-
     num_label_targets = config.keep_dims * len(config.joint_order)
     dummy_target = {
-        'label': tf.constant(np.zeros(num_label_targets))}
+        'label': tf.constant(np.zeros((1, num_label_targets)))}
     with tf.device('/gpu:0'):
         with tf.variable_scope('cnn'):
             print 'Creating training graph:'
-            model = model_file.model_struct(
-                vgg16_npy_path=config.vgg16_weight_path,
-                fine_tune_layers=config.initialize_layers)
+            model = model_file.model_struct()
             model.build(
-                rgb=dummy_target)
+                rgb=val_data_dict['image'],
+                target_variables=dummy_target)
             # Model may have multiple "joint prediction" output heads.
             selected_head = model.joint_label_output_keys[0]
             print 'Deriving joint localizations from: %s' % selected_head
@@ -442,20 +444,11 @@ def process_kinect_placeholder(model_file, kinect_data, config):
     # Need to initialize both of these if supplying num_epochs to inputs
     sess.run(tf.group(tf.global_variables_initializer(),
              tf.local_variables_initializer()))
-
-    # Create list of variables to run through validation model
-    val_session_vars = {
-        'predictions': predictions,
-    }
-
     yhat_batch = []
     num_joints = len(config.joint_order)
-    saver.restore(sess, model_file)
-    val_out_dict = sess.run(val_session_vars.values())
-    val_out_dict = {k: v for k, v in zip(
-        val_session_vars.keys(), val_out_dict)}
     num_batches = len(kinect_data) // config.validation_batch
-    for image_batch, file_batch in tqdm(
+    saver.restore(sess, model_ckpt)
+    for image_batch in tqdm(
             image_batcher(
                 start=0,
                 num_batches=num_batches,
@@ -475,6 +468,18 @@ def process_kinect_placeholder(model_file, kinect_data, config):
                     config.max_depth])[:config.keep_dims]
             normalize_vec = normalize_values.reshape(
                 1, -1).repeat(num_joints, axis=0).reshape(1, -1)
-            it_yhat['yhat'] *= normalize_vec
+            it_yhat *= normalize_vec
         yhat_batch += [it_yhat]
     return np.asarray(yhat_batch)
+
+
+def overlay_joints_frames(frames, joint_predictions):
+    colors, joints, num_joints = monkey_mosaic.get_coors()
+    processed = []
+    for fr, jp in zip(frames, joint_predictions):
+        f, ax = plt.subplots()
+        ax.imshow(fr)
+        monkey_mosaic.plot_coordinates(ax, jp, colors)
+        processed += ax.get_array()
+        plt.close('all')
+    return processed

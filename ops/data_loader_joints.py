@@ -433,7 +433,8 @@ def inputs(
         joint_names=None,
         mask_occluded_joints=False,
         num_dims=3,
-        keep_dims=3):
+        keep_dims=3,
+        background_multiplier=1.01):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -457,7 +458,8 @@ def inputs(
             joint_names=joint_names,
             mask_occluded_joints=mask_occluded_joints,
             num_dims=num_dims,
-            keep_dims=keep_dims
+            keep_dims=keep_dims,
+            background_multiplier=background_multiplier
             )
         keys = []
         var_list = []
