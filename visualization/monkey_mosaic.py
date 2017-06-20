@@ -5,6 +5,8 @@ import numpy as np
 from glob import glob
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.cm as cm
+import matplotlib.patches as mpatches
 from config import monkeyConfig
 import matplotlib.cm as cm
 

@@ -9,9 +9,7 @@ from glob import glob
 from tqdm import tqdm, trange
 from matplotlib import pyplot as plt
 from matplotlib import animation
-
-
-DEPTH_DATA_PATH = '/media/data_cifs/monkey_tracking/extracted_kinect_depth/Xef2Mat_Output_Trial02_np_conversion'
+import seaborn
 
 
 def denoise_mask(mask):
@@ -25,16 +23,16 @@ def mask_voting(tup):
     `tup` should contain a frame, a numeric quorum, and a
     tuple of masks.
     '''
-    frame, quorum, masks = tup
+    frame, quorum, morpho_steps, masks = tup
     r = np.zeros_like(frame)
     m = np.zeros_like(masks[0])
     for mm in masks:
         m[mm.astype(np.bool)] += 1
     # voting
     m = m >= quorum
-    binary_opening(m, output=m)
+    binary_opening(m, output=m, iterations=morpho_steps)
     remove_small_objects(m, min_size=35, in_place=True)
-    binary_closing(m, output=m)
+    binary_closing(m, output=m, iterations=morpho_steps)
     binary_fill_holes(m, output=m)
     m = m.astype(np.bool)
     r[m] = frame[m]
@@ -102,11 +100,7 @@ def threshold(frames, low, high,
 
     if show_result:
         print('Displaying result...')
-        f, (a1, a2) = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(10, 5))
-        artists = [[a1.imshow(o), a2.imshow(r)] for o, r in zip(frames, results)]
-        ani = animation.ArtistAnimation(f, artists, interval=50)
-        plt.show()
-        plt.close('all')
+        multianimate([frames, results], ['Original', 'Results'])
 
     return results
 
@@ -122,7 +116,7 @@ def trim_and_threshold(data_path, skip_frames_beg, skip_frames_end, low, high,
 
 
 def bgsub_frames(frames_16bit, wraps=32, quorum=10, show_result=False,
-                 mog_bg_threshold=2.6):
+                 mog_bg_threshold=2.6, morpho_steps=1):
     '''bgsub_frames
     Given a list of nparrays `frames_16bit`, create `wraps` MOG background
     subtractors with selectivity `mog_bg_threshold` (documented in cv2 docs),
@@ -146,48 +140,73 @@ def bgsub_frames(frames_16bit, wraps=32, quorum=10, show_result=False,
 
     # and, or those masks to mask 16 bit originals
     print('Masking...')
-    p = Pool()
-    results_16bit = p.map(mask_voting, zip(frames_16bit, itertools.repeat(quorum), zip(*mask_lists)))
-    p.close()
+    results_16bit = map(mask_voting,
+                        zip(frames_16bit, 
+                            itertools.repeat(quorum),
+                            itertools.repeat(morpho_steps),
+                            zip(*mask_lists)))
 
     # Display animation if requested
     if show_result:
         print('Displaying result...')
-        plt.close('all')
-        fig, (a1, a2) = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(12, 6))
-        artists = [[a1.imshow(f), a2.imshow(r)]
-                   for f, r, in zip(frames_16bit, results_16bit)]
-        a1.set_title('Orig'); a2.set_title('Res')
-        ani = animation.ArtistAnimation(fig, artists, interval=50)
-        plt.show()
-        plt.close('all')
+        multianimate([frames_16bit, results_16bit], ['Original', 'Result'])
 
     return results_16bit
 
 
-def best_box(frame, w, h, _x, _y, x_, y_):
-    best = 0
-    X, Y = 0, 0
-    for y in range(_y, y_ - h):
-        if frame[_x-w:_x,y:y+h].sum() > best:
-            best = frame[_x-w:_x,y:y+h].sum()
-            X, Y = _x - w, y
-    for y in range(_y, y_ - h):
-        if frame[x_:x_+w,y:y+h].sum() > best:
-            best = frame[x_:x_+w,y:y+h].sum()
-            X, Y = _x, y
-    for x in range(_x, x_ - w):
-        if frame[x:x+w,_y-h:_y].sum() > best:
-            best = frame[x:x+w,_y-h:_y].sum()
-            X, Y = x, _y - h
-    for y in range(_x, x_ - w):
-        if frame[x:x+w,y_:y_+h].sum() > best:
-            best = frame[x:x+w,y_:y_+h].sum()
-            X, Y = x, y_
+def best_box(frame, w, h, _x, _y, x_, y_, binary=None, ignore_border_px=0):
+    '''best_box
+    In `frame, find the best `w` by `h` window in the shape
+    described in `box_tracking(...)`'s docstring. If
+    `binary` is provided, find it by finding the window
+    with the most nonzero positions in `binary`. else,
+    do the same but using `frame` instead of binary.
+    `binary` exists as a parameter to allow the user
+    to pass in the result of an MOG to get a nice box.
+    '''
+    # depth doesn't really matter here...
+    # we don't want the monkey losing priority to the
+    # post in the middle when the monkey is closer to the
+    # camera, so clip to [0, 1]
+    if binary is None:
+        binary = np.clip(frame, 0, 1)
+    else:
+        np.clip(binary, 0, 1, out=binary)
+    
+    # because we're using a greedy strategy, it will pick
+    # the first best frame, which tends to have the monkey on
+    # an edge. so ignore `ignore_border_px` pixels on the
+    # edges to mitigate this
+    ww, hh = w - 2 * ignore_border_px, h - 2 * ignore_border_px
+    __x, __y = _x + ignore_border_px, _y + ignore_border_px
+    x__, y__ = x_ - ignore_border_px, y_ - ignore_border_px
+    
+    # results so far
+    best, X, Y = 0, 0, 0
+    
+    # check sides
+    for y in range(__y, y__ - hh):
+        if binary[_x:_x + w, y:y + hh].sum() > best:
+            best = binary[_x:_x + w, y:y + hh].sum()
+            X, Y = _x, y - ignore_border_px
+        if binary[x_- w:x_, y:y + hh].sum() > best:
+            best = binary[x_- w:x_, y:y + hh].sum()
+            X, Y = x_ - w, y - ignore_border_px
+    
+    # check top and bottom
+    for x in range(__x, x__ - ww):
+        if binary[x:x + ww, _y:_y + h].sum() > best:
+            best = binary[x:x + ww, _y:_y + h].sum()
+            X, Y = x - ignore_border_px, _y
+        if binary[x:x + ww, y_ - h:y_].sum() > best:
+            best = binary[x:x + ww, y_ - h:y_].sum()
+            X, Y = x - ignore_border_px, y_ - h
+    # print(_x, X, x_ - w, '    ', _y, Y, y_ - h)
     return frame[X:X+w, Y:Y+h]
 
 
-def box_tracking(frames, w, h, _x, _y, x_, y_):
+def box_tracking(frames, w, h, _x, _y, x_, y_,
+                 binaries=None, ignore_border_px=0):
     '''
     For each frame, find the `w` by `h` box with the largest sum,
     out of all boxes in the region consisting of the rectangles
@@ -196,8 +215,16 @@ def box_tracking(frames, w, h, _x, _y, x_, y_):
         (x_, _y), (x_ + w, y_)
         (_x, _y - h), (x_, _y)
         (_x, y_), (x_, y_ + h)
+    If `binaries` exists, use that to help crop as described
+    in `best_box`.
     '''
-    return [best_box(f, w, h, _x, _y, x_, y_) for f in frames]
+    print('Box tracking...')
+    if binaries is None:
+        return [best_box(f, w, h, _x, _y, x_, y_, ignore_border_px=ignore_border_px)
+                for f in frames]
+    else:
+        return [best_box(f, w, h, _x, _y, x_, y_, b, ignore_border_px)
+                for b, f in zip(binaries, frames)]
 
 
 def trim_and_bgsub(data_path, skip_frames_beg, skip_frames_end, wraps,
@@ -221,17 +248,43 @@ def trim_and_bgsub(data_path, skip_frames_beg, skip_frames_end, wraps,
     return bgsub_frames(frames_16bit, denoise, show_result, wraps)
 
 
-if __name__ == '__main__':
-    frames = get_and_trim_frames(DEPTH_DATA_PATH, 100, 35)
-    # bg = static_background(frames)
-    # print(bg.shape)
-    # plt.figure(); plt.imshow(bg); plt.show(); plt.close()
-    # frames = [bg] + frames
-    threshed = threshold(frames, 1400, 3500, show_result=False, denoise=True)
-    plt.close('all')
-    # res = bgsub_frames(threshed, 1, 1, True, 0.1)
-    cropped = box_tracking(frames, 100, 100, 120, 50, 300, 400)
-    f, a = plt.subplots(1, 1)
-    artists = [[plt.imshow(c)] for c in cropped]
-    ani = animation.ArtistAnimation(f, artists, interval=50)
-    plt.show()
+def multianimate(alolom, titles=None, figtitle=None, show=True, save_to=None,
+                 repeat_if_show=True, **figure_kwargs):
+    '''multianimate
+    Helper for showing simultaneous videos on different axes with imshow,
+    nice for comparing results.
+    `alolom` is a list of lists of matrices to be displayed.
+    `titles` is a list of titles corresponding to each list of matrices.
+    '''
+    n = len(alolom)
+    if titles is None:
+        titles = range(1, n + 1)
+    
+    # arrangement
+    if n % 3 is 0:
+        c, r = 3, n / 3
+    elif n % 2 is 0:
+        c, r = 2, n / 2
+    else:
+        c, r = 1, n
+    
+    # with squeeze=False, we have same dims
+    alololom, titles = zip(*([iter(alolom)] * c)), zip(*([iter(titles)] * c))
+    fig, axes = plt.subplots(r, c, squeeze=False,
+                             **figure_kwargs)
+    # fig.tight_layout()
+    if figtitle: fig.suptitle(figtitle)
+
+    # create artists
+    artists = []
+    for aloa, alot, alolom in zip(axes, titles, alololom):
+        for a, t, alom in zip(aloa, alot, alolom):
+            a.set_title(t)
+            a.set_aspect('equal')
+            artists.append([a.imshow(m) for m in alom])
+
+    # animate
+    ani = animation.ArtistAnimation(fig, zip(*artists), interval=50, repeat=repeat_if_show)
+    if show: plt.show()
+    if save_to: ani.save(save_to, 'ffmpeg', 24)
+    plt.close(fig)
