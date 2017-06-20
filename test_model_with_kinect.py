@@ -12,6 +12,7 @@ from matplotlib import animation
 def main(model_dir, ckpt_name):
     '''Skeleton script for preprocessing and
     passing kinect videos through a trained model'''
+    # Find config from the trained model
     config = monkeyConfig()
     kinect_config = kinectConfig()
     kinect_config = kinect_config[kinect_config['selected_video']]()
@@ -79,7 +80,10 @@ def main(model_dir, ckpt_name):
         ani.save('%s' % kinect_config['output_name'], 'ffmpeg', 24)
 
     import ipdb; ipdb.set_trace()
-    a = 2
+    test_tf_kinect.process_kinect_placeholder(
+        model_name=model_dir,
+        kinect_data=frames,
+        config=config)
     
 
 if __name__ == '__main__':

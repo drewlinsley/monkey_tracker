@@ -313,7 +313,7 @@ def trim_and_bgsub(
         wraps)
 
 
-def test_model(model_name, config):
+def process_kinect_placeholder(model_name, config):
     """Train and evaluate the model."""
 
     # Import your model

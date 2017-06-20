@@ -141,6 +141,33 @@ class monkeyConfig(object):
             'lToeMid3', 
             'rToeMid3'
         ]
+
+        self.joint_names = [
+            'head',
+            'neck'
+            'abdomen',
+            'abdomen2',
+            'left shoulder',
+            'right shoulder',
+            'left elbow',
+            'right elbow',
+            'left hand',
+            'right hand',
+            'left knuckles',
+            'right knuckles',
+            'left fingertips',
+            'right fingertips',
+            'left hip',
+            'right hip',
+            'left knee',
+            'right knee',
+            'left ankle',
+            'right ankle',
+            'left foot',
+            'right foot',
+            'left toetips',
+            'right toetips'
+        ]
         self.selected_joints = None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
         self.keep_dims = 2

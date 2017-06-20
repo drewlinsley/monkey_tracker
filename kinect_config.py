@@ -4,7 +4,7 @@ import os
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'video_list'
+        self.selected_video = 'monkey_on_pole_1'
         self.defaults = {
              # Video frame and background subtraction params
              'trim_start': 100,
@@ -22,7 +22,7 @@ class kinectConfig():
              'right_frame': 40,
 
              # Crop box params
-             'crop': True,
+             'crop': False,
              'w': 175,
              'h': 150,
              '_x': 32,
@@ -32,12 +32,12 @@ class kinectConfig():
              'ignore_border_px': 10
         }
 
-    def video_list(self):
+    def monkey_on_pole_1(self):
         monkey_on_pole_1 = self.defaults
         monkey_on_pole_1['output_dir'] = '/home/drew/Desktop/'
-        monkey_on_pole_1['output_name'] = os.path.join(
-            monkey_on_pole_1['output_dir'],
-            'monkey_on_pole_1.mp4')
+        monkey_on_pole_1['output_name'] = None # os.path.join(
+            # monkey_on_pole_1['output_dir'],
+            # 'monkey_on_pole_1.mp4')
         return monkey_on_pole_1
 
     def __getitem__(self, name):
