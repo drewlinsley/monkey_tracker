@@ -9,8 +9,8 @@ from skimage.morphology import remove_small_objects
 from scipy.ndimage.morphology import binary_opening, binary_closing, \
                                      binary_fill_holes
 from matplotlib import pyplot as plt
-from matplotlib import animation
 from ops.utils import get_dt, import_cnn, save_training_data
+from tqdm import tqdm
 
 
 def denoise_mask(mask):
@@ -65,22 +65,19 @@ def uint16_to_uint8(in_image):
         in_image, (mx - mn + 1.) / 256., casting='unsafe').astype(np.uint8)
 
 
-def get_and_trim_frames(data_path, skip_frames_beg, skip_frames_end):
+def get_and_trim_frames(files, skip_frames_beg, skip_frames_end):
     '''get_and_trim_frames
     Helper for `trim_and_threshold(...)` and `trim_and_bgsub` that
     takes care of loading files from `data_path` and removing
     the first `skip_frames_beg` and last `skip_frames_end` of them.
     '''
     # Get filenames in order
-    print('Getting data...')
-    files = sorted(glob(os.path.join(data_path, '*.npy')))
     n = len(files)
     # skip beginning and end
-    files = (f for i, f in enumerate(
-        files) if (i >= skip_frames_beg and i < n - skip_frames_end))
-    # load up frames
-    return [np.load(f) for f in files]
-
+    data = []
+    for idx in tqdm(range(skip_frames_beg, n - skip_frames_end), desc='Trimming frames'):
+        data += [np.load(files[idx])]
+    return data
 
 def threshold(frames, low, high,
               show_result=False, denoise=False,
@@ -91,9 +88,8 @@ def threshold(frames, low, high,
     `remove_objects_smaller_than`.
     '''
     # Apply thresholds
-    print('Thresholding...')
     results = [np.zeros_like(f) for f in frames]
-    for i, f in enumerate(frames):
+    for i, f in tqdm(enumerate(frames), desc='Thresholding frames', total=len(frames)):
         good_ones = (f > low) & (f < high)
         # if denoise, use morphological processing to clean up the mask
         if denoise:
@@ -161,10 +157,9 @@ def bgsub_frames(
     # Do the subtraction. Doing a 'wraparound' approach, making masks using
     # video starting at its beginning, and also masks starting from the middle,
     # and then `or`ing the resulting masks to get a result
-    print('Subtracting background...')
     nframes = len(frames_8bit)
     mask_lists = []
-    for i in range(wraps):
+    for i in tqdm(range(wraps), desc='Background subtracting'):
         offset = np.random.randint(nframes)
         fgbg = cv2.createBackgroundSubtractorKNN(dist2Threshold=50.0)
         offset_frames = frames_8bit[offset:] + frames_8bit[:offset]
