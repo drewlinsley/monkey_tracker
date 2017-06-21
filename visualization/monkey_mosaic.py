@@ -5,7 +5,16 @@ import numpy as np
 from glob import glob
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.cm as cm
+import matplotlib.patches as mpatches
 from config import monkeyConfig
+import matplotlib.cm as cm
+
+
+def get_colors():
+    joints = monkeyConfig().joint_names
+    num_joints = len(joints)
+    return cm.rainbow(np.linspace(0, 1, num_joints)), joints, num_joints
 
 
 def save_mosaic(
@@ -15,10 +24,11 @@ def save_mosaic(
         output,
         wspace=0.,
         hspace=0.):
+    # Get a color for each yhat and a color for each ytrue
+    colors, joints, num_joints = get_colors
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
-    plt.figure(figsize=(20, 20))
+    fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
-    gs1.update(wspace=wspace, hspace=hspace)  # set the spacing between axes.
     for idx, (im, yhat, y) in enumerate(zip(ims, yhats, ys)):
         ax1 = plt.subplot(gs1[idx])
         plt.axis('off')
@@ -26,10 +36,26 @@ def save_mosaic(
         ax1.set_yticklabels([])
         ax1.set_aspect('equal')
         ax1.imshow(np.log10(im), cmap='Greys_r')
-        plot_coordinates(ax1, y, edge=None, face='r')
-        plot_coordinates(ax1, yhat, edge=None, face='b')
-    plt.subplots_adjust(top=1)
-    plt.suptitle('Red = True Joint Position\nBlue = Predicted Joint Position.')
+        lab_legend_artists = plot_coordinates(
+            ax1, y, colors, marker='.', markersize=1.5)
+        est_legend_artists = plot_coordinates(
+            ax1, yhat, colors,
+            linestyle='none',
+            markeredgewidth=.5,
+            marker='o',
+            mfc='none',
+            markersize=1.5)
+    plt.subplots_adjust(top=1, left=0)
+
+    # Legend
+    patches = est_legend_artists + lab_legend_artists
+    fig.legend(
+        patches,
+        (["" for _ in colors] +
+         [j for j in joints]),
+        title="Estimated / True",
+        loc=1, frameon=False, numpoints=1, ncol=2,
+        columnspacing=0, handlelength=0.25, markerscale=2)
     plt.savefig(output)
 
 
@@ -37,27 +63,17 @@ def xyz_vector_to_xy(vector, num_dims=2):
     return vector.reshape(-1, num_dims)[:, :2]
 
 
-def plot_coordinates(ax, vector, edge, face):
-    if edge is None:
-        edgesize = 0
-    else:
-        edgesize = 2
-    if face is None:
-        facecolors = None
-    else:
-        facecolors = face
-    edgecolors = edge
-
+def plot_coordinates(ax, vector, colors, **kwargs):
     xy = xyz_vector_to_xy(vector)
-    ax.scatter(
-        xy[:, 0],
-        xy[:, 1],
-        facecolors=facecolors,
-        linewidth=edgesize,
-        marker='.',
-        s=12,
-        edgecolors=edgecolors)  # , alpha=0.5)
-    return ax
+    # it will be helpful to have this list of paths
+    # for legend making
+    return [ax.plot(
+                x,
+                y,
+                color=c,
+                mec=c,
+                **kwargs)[0]
+            for c, (x, y) in zip(colors, xy)]
 
 
 def main(
@@ -67,7 +83,7 @@ def main(
         dmurphy_npy_dir='/media/data_cifs/monkey_tracking/batches/test',
         normalize=False,
         unnormalize=False,
-        max_ims=None
+        max_ims=4
         ):
 
     monkey_dir = os.path.join(dmurphy_npy_dir, monkey_date)
@@ -130,6 +146,6 @@ if __name__ == '__main__':
         type=str,
         default='2017_06_18_17_45_17',
         help='Date of model directory.')
+
     args = parser.parse_args()
     main(**vars(args))
-    main()

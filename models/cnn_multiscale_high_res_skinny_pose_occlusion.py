@@ -37,7 +37,7 @@ class model_struct:
         """
         load variable from npy to build the VGG
 
-        :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
+        :param rgb: rgb image [batch, height, width, 1] values scaled [0, 1]
         :param train_mode: a bool tensor, usually a placeholder:
         :if True, dropout will be turned on
         """

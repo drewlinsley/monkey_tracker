@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import numpy as np
 import tensorflow as tf
+import cPickle as pickle
 from ops.data_loader_joints import inputs
 from ops import tf_fun
 from ops.utils import get_dt, import_cnn, save_training_data
@@ -21,14 +22,14 @@ def train_and_eval(config):
     dt_stamp = re.split(
         '\.', str(datetime.now()))[0].\
         replace(' ', '_').replace(':', '_').replace('-', '_')
-    dt_dataset = config.model_type + '_' + dt_stamp + '/'
+    dt_dataset = '%s_%s' % (config.model_type, dt_stamp)
     if config.selected_joints is not None:
         dt_dataset = '_%s' % (config.selected_joints) + dt_dataset
     config.train_checkpoint = os.path.join(
         config.model_output, dt_dataset)  # timestamp this run
     config.summary_dir = os.path.join(
         config.train_summaries, dt_dataset)
-    results_dir = os.path.join(config.npy_dir, dt_stamp)
+    results_dir = os.path.join(config.npy_dir, dt_dataset)
     print 'Saving Dmurphy\'s online updates to: %s' % results_dir
     dir_list = [config.train_checkpoint, config.summary_dir, results_dir]
     [tf_fun.make_dir(d) for d in dir_list]
@@ -63,7 +64,8 @@ def train_and_eval(config):
             joint_names=config.joint_order,
             num_dims=config.num_dims,
             keep_dims=config.keep_dims,
-            mask_occluded_joints=config.mask_occluded_joints)
+            mask_occluded_joints=config.mask_occluded_joints,
+            background_multiplier=config.background_multiplier)
 
         val_data_dict = inputs(
             tfrecord_file=validation_data,
@@ -84,7 +86,8 @@ def train_and_eval(config):
             joint_names=config.joint_order,
             num_dims=config.num_dims,
             keep_dims=config.keep_dims,
-            mask_occluded_joints=config.mask_occluded_joints)
+            mask_occluded_joints=config.mask_occluded_joints,
+            background_multiplier=config.background_multiplier)
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -305,7 +308,8 @@ def train_and_eval(config):
                 train_session_vars.keys(), train_out_dict)}
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
-            assert not np.isnan(train_out_dict['loss_value']), 'Model diverged with loss = NaN'
+            assert not np.isnan(
+                train_out_dict['loss_value']), 'Model diverged with loss = NaN'
 
             if step % config.steps_before_validation == 0:
                 if validation_data is not False:
@@ -317,8 +321,11 @@ def train_and_eval(config):
                         os.path.join(
                             results_dir, '%s_val_coors' % step),
                         val_pred=val_out_dict['val_pred'],
-                        val_ims=val_out_dict['val_ims'],
-                        config=config)
+                        val_ims=val_out_dict['val_ims'])
+                    with open(
+                        os.path.join(
+                            results_dir, '%s_config.p' % step), 'wb') as fp:
+                        pickle.dump(config, fp)
 
                 # Summaries
                 summary_str = sess.run(summary_op)
