@@ -10,6 +10,7 @@ class KinectConfig():
         # Video trimming
         'trim_start': 100,
         'trim_end': 35,
+        'show_trimmed_original': False,
 
         # Thresholding
         'do_thresholding': True,
@@ -47,7 +48,7 @@ class KinectConfig():
         'save_tfrecords_to_disk': False,
         'output_dir': '~/monkey_data/',
         'name': 'monkey_video_name',
-        'display_final_results': True,
+        'display_final_results': False,
     }
 
 
@@ -62,8 +63,20 @@ class KinectConfig():
     @classmethod
     def monkey_on_pole_2(cls):
         config = cls.defaults
-        config['name'] = 'monkey_on_pole_2'
-        config['input_dir'] = '/media/data_cifs/monkey_tracking/extracted_kinect_depth/Xef2Mat_Output_Trial03_np_conversion/'
+        # this one is big... I recommend copying to local disk
+        # if processing more than a couple of times
+        config.update(name='monkey_on_pole_2',
+                input_dir='~/Xef2Mat_Output_Trial03_np_conversion/',
+                # show_threshold_results=True,
+                trim_start=135,
+                trim_end=75,
+                _x=18,
+                x_=420,
+                _y=30,
+                y_=325,
+                h=175,
+                w=200,
+                high_threshold=3300)
         return config
 
 
@@ -78,7 +91,8 @@ class KinectConfig():
         c = configuration
         print('Processing %s...' % c['name'])
         # load up frames
-        final = frames = get_and_trim_frames(c['input_dir'], c['trim_start'], c['trim_end'])
+        final = frames = get_and_trim_frames(c['input_dir'], c['trim_start'],
+                                             c['trim_end'], show_result=c['show_trimmed_original'])
         d = c['display_final_results']
         if d: alolom, titles = [frames], ['Original']
 
@@ -139,6 +153,8 @@ class KinectConfig():
         configs = [cls.monkey_on_pole_1, cls.monkey_on_pole_2]
         return [cls.process(cfg()) for cfg in configs]
 
+
 if __name__ == '__main__':
+    KinectConfig.defaults['display_final_results'] = True
     # KinectConfig.process_all_videos()
     KinectConfig.process(KinectConfig.monkey_on_pole_2())
