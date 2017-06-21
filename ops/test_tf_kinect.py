@@ -532,31 +532,31 @@ def make_mosaic(images, remove_images=None):
         images = images[rem_idx == 1, :, :]
 
     im_dim = images.shape
-    num_cols = np.sqrt(im_dim[0]).astype(int)
+    num_cols = np.sqrt(im_dim[-1]).astype(int)
     num_cols = np.min([num_cols, 5])
     num_rows = num_cols
-    canvas = np.zeros((im_dim[1] * num_rows, im_dim[2] * num_cols))
+    canvas = np.zeros((im_dim[0] * num_rows, im_dim[1] * num_cols))
     count = 0
     row_anchor = 0
     col_anchor = 0
     for x in range(num_rows):
         for y in range(num_cols):
-            it_image = images[count] * -1
+            it_image = images[:, :, count]
             it_image += (np.sign(np.min(it_image)) * np.min(it_image))
             it_image /= (np.max(it_image) + 1e-3)
             canvas[
-                row_anchor:row_anchor + im_dim[1],
-                col_anchor:col_anchor + im_dim[2]] += np.sqrt(it_image)
-            col_anchor += im_dim[2]
+                row_anchor:row_anchor + im_dim[0],
+                col_anchor:col_anchor + im_dim[1]] += np.sqrt(it_image)
+            col_anchor += im_dim[1]
             count += 1
         col_anchor = 0
-        row_anchor += im_dim[1]
+        row_anchor += im_dim[0]
     return canvas
 
 
 def plot_filters(layer_weights, title=None, show=False):
     mosaic = make_mosaic(layer_weights)
-    plt.imshow(mosaic, interpolation='none')
+    plt.imshow(mosaic, interpolation='none', cmap='Greys')
     ax = plt.gca()
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
