@@ -4,55 +4,6 @@ from visualization.preprocess_kinect import \
     bgsub_frames, box_tracking, multianimate
 
 
-# <<<<<<< HEAD
-# class kinectConfig():
-
-#     def __init__(self):
-#         self.selected_video = 'monkey_on_pole_1'
-#         self.defaults = {
-#              # Video frame and background subtraction params
-#              'trim_start': 100,
-#              'trim_end': 35,
-#              'low_threshold': 1400,
-#              'high_threshold': 3350,
-#              'show_threshold_results': False,
-
-#              # Background GMM params
-#              'run_gmm': False,
-#              'bgsub_wraps': 1,  # Set to None if you don't want this
-#              'bgsub_quorum': 1,
-#              'bgsub_mog_bg_theshold': 10,
-#              'show_mog_result': False,
-#              'left_frame': 100,
-#              'right_frame': 40,
-
-#              # Crop box params
-#              'crop': 'static',  # static or box
-#              'w': 175,
-#              'h': 150,
-#              '_x': 32,
-#              '_y': 40,
-#              'x_': 412,
-#              'y_': 300,
-#              'ignore_border_px': 10
-#         }
-
-#     def monkey_on_pole_1(self):
-#         monkey_on_pole_1 = self.defaults
-#         monkey_on_pole_1['output_dir'] = '/home/drew/Desktop/'
-#         monkey_on_pole_1['kinect_output_name'] = None
-#         monkey_on_pole_1['predicted_output_name'] = os.path.join(
-#             monkey_on_pole_1['output_dir'],
-#             'predicted_monkey_on_pole_1.mp4')
-#         return monkey_on_pole_1
-
-#     def __getitem__(self, name):
-#         return getattr(self, name)
-
-#     def __contains__(self, name):
-#         return hasattr(self, name)
-# =======
-
 class KinectConfig():
 
     defaults = {
@@ -108,11 +59,21 @@ class KinectConfig():
         return config
 
 
+    @classmethod
+    def monkey_on_pole_2(cls):
+        config = cls.defaults
+        config['name'] = 'monkey_on_pole_2'
+        config['input_dir'] = '/media/data_cifs/monkey_tracking/extracted_kinect_depth/Xef2Mat_Output_Trial03_np_conversion/'
+        return config
+
+
     @staticmethod
     def process(configuration):
         '''
         process frames according to `configuration`,
-        a config dict like defaults
+        a config dict like defaults.
+        it gets a little ugly since there are a lot of combinations
+        of actions that the config might specify.
         '''
         c = configuration
         print('Processing %s...' % c['name'])
@@ -121,11 +82,13 @@ class KinectConfig():
         d = c['display_final_results']
         if d: alolom, titles = [frames], ['Original']
 
+        # if we're subtracting the background, make a synthetic static
+        # background to prime the gmm
         if c['do_bgsub']:
             bg = static_background(frames)
             frames = [bg] + frames
 
-
+        # do thresholding and background subtraction
         if c['do_thresholding']:
             threshed = threshold(frames, c['low_threshold'], c['high_threshold'],
                                  show_result=c['show_threshold_results'],
@@ -173,8 +136,9 @@ class KinectConfig():
 
     @classmethod
     def process_all_videos(cls):
-        configs = [cls.monkey_on_pole_1]
+        configs = [cls.monkey_on_pole_1, cls.monkey_on_pole_2]
         return [cls.process(cfg()) for cfg in configs]
 
 if __name__ == '__main__':
-    KinectConfig.process_all_videos()
+    # KinectConfig.process_all_videos()
+    KinectConfig.process(KinectConfig.monkey_on_pole_2())
