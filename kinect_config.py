@@ -44,14 +44,25 @@ class kinectConfig():
         monkey_on_pole_1 = self.defaults
         monkey_on_pole_1['output_dir'] = '/home/drew/Desktop/'
         monkey_on_pole_1['kinect_output_name'] = None
-        monkey_on_pole_1['predicted_output_name'] = os.path.join(
-            monkey_on_pole_1['output_dir'],
-            'predicted_monkey_on_pole_1.mp4')
-        monkey_on_pole_1['output_npy_path'] = os.path.join(
+        monkey_on_pole_1['data_dir'] = os.path.join(
             monkey_on_pole_1['output_dir'],
             'predicted_monkey_on_pole_1')
+        monkey_on_pole_1['predicted_output_name'] = os.path.join(
+            monkey_on_pole_1['data_dir'],
+            'predicted_monkey_on_pole_1.mp4')
+        monkey_on_pole_1['gt_output_name'] = os.path.join(
+            monkey_on_pole_1['data_dir'],
+            'gt_monkey_on_pole_1.mp4')
+        monkey_on_pole_1['output_npy_path'] = monkey_on_pole_1['data_dir']
         monkey_on_pole_1['tfrecord_name'] = os.path.join(
-            monkey_on_pole_1['output_npy_path'], 'monkey_on_pole.tfrecords')
+            monkey_on_pole_1['data_dir'],
+            'monkey_on_pole.tfrecords')
+        monkey_on_pole_1['prediction_image_folder'] = os.path.join(
+            monkey_on_pole_1['data_dir'],
+            'prediction_frames')
+        monkey_on_pole_1['gt_image_folder'] = os.path.join(
+            monkey_on_pole_1['data_dir'],
+            'gt_frames')
         return monkey_on_pole_1
 
     def __getitem__(self, name):

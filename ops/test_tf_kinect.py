@@ -4,15 +4,16 @@ import numpy as np
 import tensorflow as tf
 import cv2
 import itertools
+from glob import glob
 from skimage.morphology import remove_small_objects
 from scipy.ndimage.morphology import binary_opening, binary_closing, \
                                      binary_fill_holes
+from scipy import misc
 from matplotlib import pyplot as plt
 from matplotlib import animation
 from ops.utils import import_cnn
 from ops import data_processing_joints
 from ops import data_loader_joints
-from ops import utils
 from tqdm import tqdm
 from visualization import monkey_mosaic
 from skimage.transform import resize
@@ -28,11 +29,14 @@ def save_to_numpys(file_dict, path):
         print 'Saved: %s' % fp
 
 
-def create_movie(frames, output):
+def create_movie(frames=None, output=None, files=None):
     print('Making movie...')
+    if files is not None:
+        frames = []
+        frames = np.asarray([misc.imread(fi) for fi in files])
     f, a = plt.subplots(1, 1)
     f.tight_layout()
-    artists = [[a.imshow(c)] for c in frames]
+    artists = [[a.imshow(fr)] for fr in frames]
     ani = animation.ArtistAnimation(f, artists, interval=50)
     ani.save('%s' % output, 'ffmpeg', 24)
 
@@ -45,7 +49,7 @@ def drop_empty_frames(frames):
     return frames, toss_index
 
 
-def transform_to_renders(frames, config, rotate=True, pad=True):
+def transform_to_renders(frames, config, rotate=True, pad=False):
     '''Transform kinect data to the "Maya-space" that
     our renders were produced in.
 
@@ -58,7 +62,6 @@ def transform_to_renders(frames, config, rotate=True, pad=True):
 
     # 0. Trim empty bullshit frames
     frames, toss_index = drop_empty_frames(frames)
-
     if pad:
         padded_frames = []
         for f in frames:
@@ -149,19 +152,31 @@ def get_and_trim_frames(
         files,
         start_frame,
         end_frame,
-        rotate_frames):
+        rotate_frames,
+        test_frames):
     '''get_and_trim_frames
     Helper for `trim_and_threshold(...)` and `trim_and_bgsub` that
     takes care of loading files from `data_path` and removing
     the first `skip_frames_beg` and last `skip_frames_end` of them.
     '''
-    files = np.asarray(files)
-    files = files[start_frame:end_frame]
-    data = [np.load(f) for f in files]
-    if rotate_frames != 0:
-        return np.asarray([np.rot90(d, -1) for d in data])
+    if test_frames:
+        files = np.asarray(files)
+        files = files[start_frame:end_frame]
+        data = [np.load(f) for f in files]
+        if rotate_frames != 0:
+            return np.asarray([np.rot90(d, -1) for d in data]), files
+        else:
+            return np.asarray(data), files
     else:
-        return np.asarray(data)
+        # Get filenames in order
+        n = len(files)
+        # skip beginning and end
+        data = []
+        for idx in tqdm(
+            range(
+                start_frame, n - end_frame), desc='Trimming frames'):
+            data += [np.load(files[idx])]
+        return data, files
 
 
 def threshold(
@@ -460,7 +475,7 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
                 model_input_shape=config.resize,
                 train=config.data_augmentations,
                 label_shape=config.num_classes,
-                num_epochs=config.epochs,
+                num_epochs=1,
                 image_target_size=config.image_target_size,
                 image_input_size=config.image_input_size,
                 maya_conversion=config.maya_conversion,
@@ -492,79 +507,105 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
     with tf.device('/gpu:0'):
         with tf.variable_scope('cnn'):
             print 'Creating training graph:'
-            model = model_file.model_struct()
+            model = model_file.model_struct(
+                vgg16_npy_path=config.vgg16_weight_path,
+                fine_tune_layers=config.initialize_layers)
+            train_mode = tf.get_variable(name='training', initializer=False)
             model.build(
                 rgb=val_data_dict['image'],
-                target_variables=val_data_dict)
-            # Model may have multiple "joint prediction" output heads.
-            selected_head = model.joint_label_output_keys[0]
-            print 'Deriving joint localizations from: %s' % selected_head
-            predictions = model[selected_head]
+                target_variables=val_data_dict,
+                train_mode=train_mode,
+                batchnorm=[''])
+            predictions = model.output
 
     # Initialize the graph
-    saver = tf.train.Saver(
-        tf.global_variables(), max_to_keep=config.keep_checkpoints)
-    sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+        saver = tf.train.Saver(
+            tf.global_variables(), max_to_keep=config.keep_checkpoints)
 
-    # Need to initialize both of these if supplying num_epochs to inputs
-    sess.run(tf.group(tf.global_variables_initializer(),
-             tf.local_variables_initializer()))
+        # Need to initialize both of these if supplying num_epochs to inputs
+        sess.run(tf.group(tf.global_variables_initializer(),
+                 tf.local_variables_initializer()))
+        # saver = tf.train.import_meta_graph('my-save-dir/my-model-10000.meta')
+        # saver.restore(sess, 'my-save-dir/my-model-10000')
 
-    # Start testing data
-    yhat_batch = []
-    num_joints = len(config.joint_order)
-    num_batches = len(kinect_data) // config.validation_batch
-    normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
-    
-    saver.restore(sess, model_ckpt)
+        # Start testing data
+        y_batch = []
+        yhat_batch = []
+        num_joints = len(config.joint_order)
+        num_batches = len(kinect_data) // config.validation_batch
+        normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
+        saver.restore(sess, model_ckpt)
+        if use_tfrecords:
+            # Set up exemplar threading
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+            step = 0
+            try:
+                while not coord.should_stop():
+                    it_yhat, it_y = sess.run(
+                        [
+                            predictions,
+                            val_data_dict['label']
+                        ])
+                    if config.normalize_labels:
+                        norm_it_yhat = it_yhat * normalize_vec
+                        norm_it_y = it_y * normalize_vec
+                    yhat_batch += [norm_it_yhat.squeeze()]
+                    y_batch += [norm_it_y.squeeze()]
+                    step += 1
+            except tf.errors.OutOfRangeError:
+                print 'Done with %d steps.' % step
+            finally:
+                coord.request_stop()
+                coord.join(threads)
+        else:
+            for image_batch in tqdm(
+                    image_batcher(
+                        start=0,
+                        num_batches=num_batches,
+                        images=kinect_data,
+                        batch_size=config.validation_batch),
+                    total=num_batches):
+                feed_dict = {
+                    val_data_dict['image']: image_batch
+                }
+                it_yhat = sess.run(
+                    predictions,
+                    feed_dict=feed_dict)
 
-    if use_tfrecords:
-        # Set up exemplar threading
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-        while not coord.should_stop():
-            it_yhat = sess.run(predictions)
-            if config.normalize_labels:
-                it_yhat *= normalize_vec
-            import ipdb;ipdb.set_trace()
-            yhat_batch += [it_yhat]
-        coord.join(threads)
-    else:
-        for image_batch in tqdm(
-                image_batcher(
-                    start=0,
-                    num_batches=num_batches,
-                    images=kinect_data,
-                    batch_size=config.validation_batch),
-                total=num_batches):
-            feed_dict = {
-                val_data_dict['image']: image_batch
-            }
-            import ipdb;ipdb.set_trace()
-            it_yhat = sess.run(
-                predictions,
-                feed_dict=feed_dict)
-
-            if config.normalize_labels:
-                it_yhat *= normalize_vec
-            yhat_batch += [it_yhat]
-    sess.close()
-    return np.asarray(yhat_batch)
+                if config.normalize_labels:
+                    norm_it_yhat = it_yhat * normalize_vec
+                yhat_batch += [it_yhat]
+    return np.asarray(yhat_batch), np.asarray(y_batch)
 
 
-def overlay_joints_frames(frames, joint_predictions):
+def overlay_joints_frames(
+        frames,
+        joint_predictions,
+        output_folder):
+    tf_fun.make_dir(output_folder)
     colors, joints, num_joints = monkey_mosaic.get_colors()
-    processed = []
-    for fr, jp in zip(frames, joint_predictions):
+    files = []
+    for idx, (fr, jp) in enumerate(zip(frames, joint_predictions)):
         f, ax = plt.subplots()
+        plt.axis('off')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_aspect('equal')
         xy_coors = monkey_mosaic.xyz_vector_to_xy(jp)
-        ax.imshow(fr[:, :, 0], cmap='Greys_r')
+        if len(fr.shape) > 2:
+            im = fr[:, :, 0]
+        else:
+            im = fr
+        ax.imshow(im, cmap='Greys_r')
         [ax.scatter(xy[0], xy[1], color=c) for xy, c in zip(xy_coors, colors)]
         # monkey_mosaic.plot_coordinates(ax, jp, colors)
-        import ipdb;ipdb.set_trace()
-        processed += [ax.get_images()[0].get_array().data]
+        out_name = os.path.join(output_folder, '%s.png' % idx)
+        plt.savefig(out_name)
+        files += [out_name]
         plt.close('all')
-    return processed
+    return files
 
 
 def make_mosaic(images, remove_images=None):
@@ -610,8 +651,10 @@ def plot_filters(layer_weights, title=None, show=False):
 
 def create_joint_tf_records_for_kinect(
         depth_files,
+        depth_file_names,
         model_config,
-        kinect_config):
+        kinect_config,
+        dummy_label='/media/data_cifs/monkey_tracking/batches/TrueDepth100kStore/labels/pixel_joint_coords/tmp4_000626.npy'):
 
     """Feature extracts and creates the tfrecords."""
     num_successful = 0
@@ -619,25 +662,22 @@ def create_joint_tf_records_for_kinect(
     tf_file = kinect_config['tfrecord_name']
     max_array = []
     toss_frame_index = []
-    dummy_depth_files = utils.get_files(
-        model_config.depth_dir,
-        model_config.depth_regex)
-    dummy_label_files = np.asarray([
+    label_files = np.asarray([  # replace the depth dir with label dir
         os.path.join(
-            model_config.label_dir,
+            model_config.pixel_label_dir,
             re.split(
                 model_config.image_extension,
                 re.split('/', x)[-1])[0] + model_config.label_extension)
-        for x in dummy_depth_files])
-    dummy_occlusion_files = np.asarray([
+        for x in depth_file_names])
+    if not os.path.exists(label_files[0]):
+        label_files = np.repeat(dummy_label, len(depth_file_names))
+    occlusion_files = np.asarray([
         os.path.join(
             model_config.occlusion_dir,
             re.split(
-                model_config.image_extension,
+                model_config.label_extension,
                 re.split('/', x)[-1])[0] + model_config.occlusion_extension)
-        for x in dummy_depth_files])
-    dummy_label = np.load(dummy_label_files[0])
-    dummy_occlusion = np.load(dummy_occlusion_files[0])
+        for x in label_files])
     print 'Saving tfrecords to: %s' % tf_file
     with tf.python_io.TFRecordWriter(tf_file) as tfrecord_writer:
         for i, depth_image in tqdm(
@@ -668,12 +708,11 @@ def create_joint_tf_records_for_kinect(
                         depth_image,
                         num_reps,
                         axis=-1)[:, :, :num_reps]
-
                 example = data_processing_joints.encode_example(
                     im=depth_image.astype(np.float32),
-                    label=dummy_label.astype(np.float32),
+                    label=np.load(label_files[i]).astype(np.float32),
                     im_label=depth_image.astype(np.float32),
-                    occlusion=dummy_occlusion)
+                    occlusion=np.load(occlusion_files[i]).astype(np.float32))
                 tfrecord_writer.write(example)
                 num_successful += 1
             else:

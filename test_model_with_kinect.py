@@ -33,23 +33,25 @@ def main(model_dir, ckpt_name, run_tests=False):
         monkey_files = sorted(
             monkey_files, key=lambda name: int(
                 re.search('\d+', name.split('/')[-1]).group()))
+        test_frames = False
     else:
         monkey_files = utils.get_files(config.depth_dir, config.depth_regex)
-        kinect_config['start_frame'] = 50000
-        kinect_config['end_frame'] = 50010
+        kinect_config['start_frame'] = 0
+        kinect_config['end_frame'] = 10
         kinect_config['low_threshold'] = 0
         kinect_config['high_threshold'] = 1e20
         kinect_config['rotate_frames'] = 0
+        test_frames = True
 
     if len(monkey_files) == 0:
         raise RuntimeError('Could not find any files!')
 
-    frames = test_tf_kinect.get_and_trim_frames(
+    frames, monkey_files = test_tf_kinect.get_and_trim_frames(
         files=monkey_files,
         start_frame=kinect_config['start_frame'],
         end_frame=kinect_config['end_frame'],
-        rotate_frames=kinect_config['rotate_frames'])
-
+        rotate_frames=kinect_config['rotate_frames'],
+        test_frames=test_frames)
     if len(frames[0].shape) > 2:
         print 'Detected > 2d images. Trimming excess dimensions.'
         frames = [f[:, :, 0] for f in frames]
@@ -105,38 +107,54 @@ def main(model_dir, ckpt_name, run_tests=False):
 
     # Create tfrecords of kinect data
     if kinect_config['use_tfrecords']:
-        frames, max_value, frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
+        frame_pointer, _, frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
             depth_files=frames,
+            depth_file_names=monkey_files,
             model_config=config,
             kinect_config=kinect_config)
-        config.max_depth = max_value
+        # config.max_depth = max_value
+        in_data = frame_pointer
     else:
         # Transform kinect data to Maya data
         frames, frame_toss_index = test_tf_kinect.transform_to_renders(
             frames=frames,
             config=config)
+        in_data = frames
 
     # Pass each frame through the CNN
-    joint_predictions = test_tf_kinect.process_kinect_tensorflow(
+    joint_predictions, joint_gt = test_tf_kinect.process_kinect_tensorflow(
         model_ckpt=model_ckpt,
-        kinect_data=frames,
+        kinect_data=in_data,
         config=config)
 
     # Overlay joint predictions onto frames
-    overlaid_frames = test_tf_kinect.overlay_joints_frames(
+    overlaid_pred = test_tf_kinect.overlay_joints_frames(
         frames=frames,
-        joint_predictions=joint_predictions)
+        joint_predictions=joint_predictions,
+        output_folder=kinect_config['prediction_image_folder'])
 
     # Create overlay movie if desired
     if kinect_config['predicted_output_name'] is not None:
         test_tf_kinect.create_movie(
-            frames=overlaid_frames,
+            files=overlaid_pred,
             output=kinect_config['predicted_output_name'])
+
+    if len(joint_gt) > 0:
+        overlaid_gt = test_tf_kinect.overlay_joints_frames(
+            frames=frames,
+            joint_predictions=joint_gt,
+            output_folder=kinect_config['gt_image_folder'])
+
+        # Create overlay movie if desired
+        if kinect_config['gt_output_name'] is not None:
+            test_tf_kinect.create_movie(
+                files=overlaid_gt,
+                output=kinect_config['gt_output_name'])
 
     # Save results to a npz
     if kinect_config['output_npy_path'] is not None:
         files_to_save = {
-            'overlaid_frames': overlaid_frames,
+            'overlaid_frames': overlaid_pred,
             'joint_predictions': joint_predictions,
             'frames': frames,
             'kinect_config': kinect_config,
@@ -147,11 +165,6 @@ def main(model_dir, ckpt_name, run_tests=False):
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
 
-        # Overlay joint predictions onto frames
-        overlaid_frames = test_tf_kinect.overlay_joints_frames(
-            frames=frames,
-            joint_predictions=joint_predictions)
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -161,13 +174,13 @@ if __name__ == '__main__':
         type=str,
         default='/media/data_cifs/monkey_tracking/results/' + \
         'TrueDepth100kStore/model_output/' + \
-        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_20_17_40_56',  # cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_17_45_17
+        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_15_59_45',  # cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_17_45_17
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default='model_27000.ckpt-27000',  # 56000
+        default='model_7000.ckpt',  # 56000
         help='Name of TF checkpoint file.')
     parser.add_argument(
         "--run_tests",
