@@ -95,35 +95,30 @@ class model_struct:
             tower_name='highres_conv')
 
 
-        # Replace this lowres tower with atrous convolutions
-        rescaled_shape = [(
-            int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
-        res_input_bgr = tf.image.resize_bilinear(input_bgr, rescaled_shape)
-
         layer_structure = [
             {
-                'layers': ['conv', 'conv', 'pool'],
+                'layers': ['diconv', 'diconv', 'pool'],
                 'weights': [64, 64, None],
-                'names': ['lrconv1_1', 'lrconv1_2', 'lrpool1'],
+                'names': ['diconv1_1', 'diconv1_2', 'pool1'],
                 'filter_size': [5, 5, None]
             },
             {
-                'layers': ['conv', 'conv', 'pool'],
+                'layers': ['diconv', 'diconv', 'pool'],
                 'weights': [128, 128, None],
-                'names': ['lrconv2_1', 'lrconv2_2', 'lrpool2'],
+                'names': ['diconv2_1', 'diconv2_2', 'pool2'],
                 'filter_size': [3, 3, None]
             },
             {
-                'layers': ['conv', 'conv', 'pool'],
+                'layers': ['diconv', 'diconv', 'pool'],
                 'weights': [256, 256, None],
-                'names': ['lrconv3_1', 'lrconv3_2', 'lrpool3'],
+                'names': ['diconv3_1', 'diconv3_2', 'pool3'],
                 'filter_size': [3, 3, None]
             }]
 
         self.create_conv_tower(
-            res_input_bgr,  # pass input_bgr instead of this
+            input_bgr,
             layer_structure,
-            tower_name='lowres_conv')
+            tower_name='atrous_conv')
 
         # Rescale feature maps to the largest in the hr_fe_keys
         resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
@@ -254,7 +249,15 @@ class model_struct:
                             out_channels=we,
                             name=na,
                             filter_size=fs
-
+                        )
+                    elif la == 'diconv':
+                        act = self.conv_layer(
+                            bottom=act,
+                            in_channels=int(act.get_shape()[-1]),
+                            out_channels=we,
+                            name=na,
+                            filter_size=fs,
+                            dilation_rate=2
                         )
                     elif la == 'res':
                         act = self.resnet_layer(
@@ -281,12 +284,15 @@ class model_struct:
 
     def conv_layer(
                     self, bottom, in_channels,
-                    out_channels, name, filter_size=3, batchnorm=None, stride=[1, 1, 1, 1]):
+                    out_channels, name, filter_size=3, batchnorm=None,
+                    stride=[1, 1, 1, 1], dilation_rate=None):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
                 filter_size, in_channels, out_channels, name)
-
-            conv = tf.nn.conv2d(bottom, filt, stride, padding='SAME')
+            if dilation_rate is None:
+                conv = tf.nn.conv2d(bottom, filt, stride, padding='SAME')
+            else:
+                conv = tf.nn.atrous_conv2d(bottom, filt, dilation_rate, padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
             relu = tf.nn.relu(bias)
 
