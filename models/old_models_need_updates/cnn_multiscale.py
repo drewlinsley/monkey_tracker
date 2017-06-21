@@ -32,6 +32,7 @@ class model_struct:
             output_shape=None,
             train_mode=None,
             batchnorm=None,
+            occlusions=True,
             fe_keys=['conv3_2', 'conv4_1', 'conv4_2']
             ):
         """
@@ -41,25 +42,25 @@ class model_struct:
         :param train_mode: a bool tensor, usually a placeholder:
         :if True, dropout will be turned on
         """
-        if output_shape is None:
-            output_shape = 1
+        if occlusions is not None:
+            occlusion_shape = output_shape // 3
 
-        rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
+        # rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
 
-        # Convert RGB to BGR
-        red, green, blue = tf.split(rgb_scaled, 3, 3)
-        assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        assert blue.get_shape().as_list()[1:] == [224, 224, 1]
-        bgr = tf.concat([
-            blue - self.VGG_MEAN[0],
-            green - self.VGG_MEAN[1],
-            red - self.VGG_MEAN[2],
-        ], 3, name='bgr')
+        # # Convert RGB to BGR
+        # input_image, _, _ = tf.split(rgb, 3, 3)
+        # assert red.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert green.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
+        # bgr = tf.concat([
+        #     blue - self.VGG_MEAN[0],
+        #     green - self.VGG_MEAN[1],
+        #     red - self.VGG_MEAN[2],
+        # ], 3, name='bgr')
 
-        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
-        input_bgr = tf.identity(bgr, name="lrp_input")
-        self.conv1_1 = self.conv_layer(input_bgr, 3, 64, "conv1_1")
+        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        input_bgr = tf.identity(rgb, name="lrp_input")
+        self.conv1_1 = self.conv_layer(input_bgr, int(input_bgr.get_shape()[-1]), 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
         self.pool1 = self.max_pool(self.conv1_2, 'pool1')
 
@@ -75,9 +76,9 @@ class model_struct:
         self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
         self.pool4 = self.max_pool(self.conv4_2, 'pool4')
 
-        resize_size = [int(x) for x in self[fe_keys[np.argmin(
-            [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
-        new_size = np.asarray([resize_size[1], resize_size[2]])
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
         fe_layers = [tf.image.resize_bilinear(
             self[x], new_size) for x in fe_keys]
         self.feature_encoder = tf.concat(fe_layers, 3)
@@ -111,11 +112,14 @@ class model_struct:
             if 'fc6' in batchnorm:
                 self.relu6 = self.batchnorm(self.relu6)
         self.fc8 = self.fc_layer(self.relu6, 4096, output_shape, "fc8")
-        final = tf.identity(self.fc8, name="lrp_output")
-        self.prob = tf.nn.softmax(final, name="prob")
+        self.final = tf.identity(self.fc8, name="lrp_output")
+
+        self.fc8_occlusion_score = self.fc_layer(
+            self.relu6, 4096, occlusion_shape, "fc8_occlusion_score")
+        self.fc8_occlusion = tf.nn.sigmoid(
+            self.fc8_occlusion_score, name="fc8_occlusion")
 
         self.data_dict = None
-
 
     def batchnorm(self, layer):
         m, v = tf.nn.moments(layer, [0])

@@ -9,7 +9,8 @@ from matplotlib import pyplot as plt
 
 
 def run_tester(config):
-    train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
+    train_data = os.path.join(config.tfrecord_dir, config.val_tfrecords)
+    print train_data
     label, image = data_loader_joints.read_and_decode_single_example(
         filename=train_data,
         im_size=config.resize,
@@ -30,9 +31,9 @@ def run_tester(config):
     while 1:
         start = timer()
         label_val, image_val = sess.run([label, image])
+        # import ipdb;ipdb.set_trace()
         means.append(np.mean(image_val))
-        import ipdb;ipdb.set_trace()
-        plt.imshow(image_val); plt.show()
+        # plt.imshow(image_val); plt.show()
         delta = timer() - start
         sys.stdout.write(
             '\rEntry %s extracted in: %s seconds' % (count, delta)),

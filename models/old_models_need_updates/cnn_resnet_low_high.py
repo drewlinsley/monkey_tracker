@@ -53,9 +53,9 @@ class model_struct:
             output_shape = 1
 
         # Split off a single channel from our "rgb" depth image
-        bgr = tf.split(rgb, 3, 3)[0]
-        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
-        input_bgr = tf.identity(bgr, name="lrp_input")
+        # bgr = tf.split(rgb, 3, 3)[0]
+        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        input_bgr = tf.identity(rgb, name="lrp_input")
 
         # Architecture
         # 1. Joint regression head: res-net style structure (need to match this more closely)
@@ -65,7 +65,7 @@ class model_struct:
         # That we drive our joint predictions towards the monkey body.
 
         # 1st head:: Feature extraction and image compression
-        self.conv1_1 = self.conv_layer(input_bgr, int(bgr.get_shape()[-1]), 64, "conv1_1")
+        self.conv1_1 = self.conv_layer(input_bgr, int(rgb.get_shape()[-1]), 64, "conv1_1")
         self.pool1 = self.max_pool(self.conv1_1, 'pool1')
         self.block_1 = self.resnet_block(
                 in_layer=self.pool1,
@@ -97,9 +97,9 @@ class model_struct:
 
 
         # Feature encoder
-        resize_size = [int(x) for x in self[fe_keys[np.argmin(
-            [int(self[x].get_shape()[0]) for x in fe_keys])]].get_shape()]
-        new_size = np.asarray([resize_size[1], resize_size[2]])
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
         fe_layers = [self.batchnorm(
             tf.image.resize_bilinear(
                 self[x], new_size)) for x in fe_keys]

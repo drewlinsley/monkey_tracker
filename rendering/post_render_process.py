@@ -27,31 +27,31 @@ for i, key in enumerate(keys):
 # this maps a joint name to an array of numbers. The numbers represent indices of
 # elements the values array that the joint can be labeled as and not be considered occluded
 occlusion_map = {
-    'lEye' : [key_map['head']], 
+    'head' : [key_map['head']], 
     'neck' : [key_map['neck']], 
     'abdomen' : [key_map['hip']], 
-    'lShldr' : [key_map['left_shoulder'], key_map['left_upper_arm']], 
-    'rShldr' : [key_map['right_shoulder'], key_map['right_upper_arm']], 
-    'lForeArm' : [key_map['left_upper_arm'], key_map['left_lower_arm']], 
-    'rForeArm' : [key_map['right_upper_arm'], key_map['right_lower_arm']], 
-    'lHand' : [key_map['left_lower_arm'], key_map['left_hand']], 
-    'rHand' : [key_map['right_lower_arm'], key_map['right_hand']], 
-    'lMid1' : [key_map['left_hand'], key_map['left_finger']], 
-    'rMid1' : [key_map['right_hand'], key_map['right_finger']],
+    'left shoulder' : [key_map['left_shoulder'], key_map['left_upper_arm']], 
+    'right shoulder' : [key_map['right_shoulder'], key_map['right_upper_arm']], 
+    'left elbow' : [key_map['left_upper_arm'], key_map['left_lower_arm']], 
+    'right elbow' : [key_map['right_upper_arm'], key_map['right_lower_arm']], 
+    'left wrist' : [key_map['left_lower_arm'], key_map['left_hand']], 
+    'right wrist' : [key_map['right_lower_arm'], key_map['right_hand']], 
+    'left knuckles' : [key_map['left_hand'], key_map['left_finger']], 
+    'right knuckles' : [key_map['right_hand'], key_map['right_finger']],
     #I'm letting the fingers be labeled as either hand or finger - just because they're so small
     # and might often get labeled as one or the other 
-    'lMid3' : [key_map['left_hand'], key_map['left_finger']], 
-    'rMid3' : [key_map['right_hand'], key_map['right_finger']], 
-    'lThigh' : [key_map['hip'], key_map['left_upper_leg']], 
-    'rThigh' : [key_map['hip'], key_map['right_upper_leg']],
-    'lShin' : [key_map['left_upper_leg'], key_map['left_lower_leg']], 
-    'rShin' : [key_map['right_upper_leg'], key_map['right_lower_leg']], 
-    'lFoot' : [key_map['left_lower_leg'], key_map['left_foot']], 
-    'rFoot' : [key_map['right_lower_leg'], key_map['right_foot']], 
-    'lToe' : [key_map['left_foot'], key_map['left_toe']], 
-    'rToe' : [key_map['right_foot'], key_map['right_toe']], 
-    'lToeMid3' : [key_map['left_toe']], 
-    'rToeMid3' : [key_map['right_toe']]
+    'left fingertips' : [key_map['left_hand'], key_map['left_finger']], 
+    'right fingertips' : [key_map['right_hand'], key_map['right_finger']], 
+    'left hip' : [key_map['hip'], key_map['left_upper_leg']], 
+    'right hip' : [key_map['hip'], key_map['right_upper_leg']], 
+    'left knee' : [key_map['left_upper_leg'], key_map['left_lower_leg']], 
+    'right knee' : [key_map['right_upper_leg'], key_map['right_lower_leg']], 
+    'left ankle' : [key_map['left_lower_leg'], key_map['left_foot']], 
+    'right ankle' : [key_map['right_lower_leg'], key_map['right_foot']], 
+    'left foot' : [key_map['left_foot'], key_map['left_toe']], 
+    'right foot' : [key_map['right_foot'], key_map['right_toe']], 
+    'left toetips' : [key_map['left_toe']], 
+    'right toetips' : [key_map['right_toe']]
 }
 
 labelImDir = []

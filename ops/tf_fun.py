@@ -97,15 +97,6 @@ def correlation(x, y):
         name="pearson")
 
 
-def mse(pred, targets):
-    predicted = tf.cast(tf.argmax(pred, axis=1), tf.int32)
-    return tf.reduce_mean(tf.square(predicted - targets))
-
-
-def regression_mse(pred, targets):
-    return tf.reduce_mean(tf.square(pred - targets))
-
-
 def tf_confusion_matrix(pred, targets):
     return tf.contrib.metrics.confusion_matrix(pred, targets)
 
@@ -135,7 +126,8 @@ def softmax_cost(logits, labels, ratio=None, label_reshape=None):
         # logits, labels, weight=ratio))
     else:
         return tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels))
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits=logits, labels=labels))
 
 
 def find_ckpts(config, dirs=None):
@@ -148,3 +140,52 @@ def find_ckpts(config, dirs=None):
     ckpts = [ck for ck in ckpts if '.meta' not in ck]  # Don't include metas
     ckpt_names = [re.split('-', ck)[-1] for ck in ckpts]
     return np.asarray(ckpts), np.asarray(ckpt_names)
+
+
+def l1_loss(yhat, y):
+    return tf.reduce_sum(tf.abs(yhat - y), axis=-1)
+
+
+def l2_loss(yhat, y):
+    return tf.reduce_mean(tf.pow(yhat - y, 2), axis=-1)
+
+
+def thomas_l1_loss(model, train_data_dict, config):
+    if config.selected_joints is None:
+        use_joints = config.joint_order
+    else:
+        use_joints = config.selected_joints
+
+    if config.loss_type == 'l1':
+        loss = l1_loss
+    elif config.loss_type == 'l2':
+        loss = l2_loss
+    else:
+        raise RuntimeError('Cannot understand your selected loss type. Needs to be implemented?')
+
+    res_gt = tf.reshape(
+        train_data_dict['label'],
+        [config.train_batch, len(use_joints), config.keep_dims])
+    res_pred = [tf.reshape(
+        model[x],
+        [config.train_batch, len(use_joints), config.keep_dims]) for x in model.joint_label_output_keys]
+    label_losses = [loss(x, res_gt) for x in res_pred]
+
+    # Return variance for tf.summary
+    loss_x_batch = [tf.reduce_sum(x, axis=0) for x in label_losses]
+    for lx in loss_x_batch:
+        [tf.summary.scalar(
+            '%s' % la, lo[0]) for la, lo in zip(
+            use_joints, tf.split(lx, len(use_joints)))]
+                    # Track variance across losses
+    joint_variance = []
+    for idx, lb in enumerate(loss_x_batch):
+        _, iv = tf.nn.moments(lb, [0])
+        joint_variance += [iv]
+        tf.summary.scalar('Joint variance %s' % idx, iv)
+
+    # Prepare loss for output
+    label_loss = tf.add_n([tf.reduce_mean(x) for x in label_losses])
+    return label_loss, use_joints, joint_variance
+
+
