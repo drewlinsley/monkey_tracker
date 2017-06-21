@@ -230,11 +230,11 @@ def train_and_eval(config):
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
 
-
     # Set up summaries and saver
     saver = tf.train.Saver(
         tf.global_variables(), max_to_keep=config.keep_checkpoints)
     summary_op = tf.summary.merge_all()
+    tf.add_to_collection('output', model.output)
 
     # Initialize the graph
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))

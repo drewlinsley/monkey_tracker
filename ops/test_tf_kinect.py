@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import tensorflow as tf
 import cv2
@@ -11,6 +12,7 @@ from matplotlib import animation
 from ops.utils import import_cnn
 from ops import data_processing_joints
 from ops import data_loader_joints
+from ops import utils
 from tqdm import tqdm
 from visualization import monkey_mosaic
 from skimage.transform import resize
@@ -513,6 +515,7 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
     num_joints = len(config.joint_order)
     num_batches = len(kinect_data) // config.validation_batch
     normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
+    
     saver.restore(sess, model_ckpt)
 
     if use_tfrecords:
@@ -614,9 +617,27 @@ def create_joint_tf_records_for_kinect(
     num_successful = 0
     num_files = len(depth_files)
     tf_file = kinect_config['tfrecord_name']
-    total_joints = len(model_config.joint_order)
     max_array = []
     toss_frame_index = []
+    dummy_depth_files = utils.get_files(
+        model_config.depth_dir,
+        model_config.depth_regex)
+    dummy_label_files = np.asarray([
+        os.path.join(
+            model_config.label_dir,
+            re.split(
+                model_config.image_extension,
+                re.split('/', x)[-1])[0] + model_config.label_extension)
+        for x in dummy_depth_files])
+    dummy_occlusion_files = np.asarray([
+        os.path.join(
+            model_config.occlusion_dir,
+            re.split(
+                model_config.image_extension,
+                re.split('/', x)[-1])[0] + model_config.occlusion_extension)
+        for x in dummy_depth_files])
+    dummy_label = np.load(dummy_label_files[0])
+    dummy_occlusion = np.load(dummy_occlusion_files[0])
     print 'Saving tfrecords to: %s' % tf_file
     with tf.python_io.TFRecordWriter(tf_file) as tfrecord_writer:
         for i, depth_image in tqdm(
@@ -647,11 +668,12 @@ def create_joint_tf_records_for_kinect(
                         depth_image,
                         num_reps,
                         axis=-1)[:, :, :num_reps]
+
                 example = data_processing_joints.encode_example(
                     im=depth_image.astype(np.float32),
-                    label=np.zeros(total_joints * model_config.num_dims),
+                    label=dummy_label.astype(np.float32),
                     im_label=depth_image.astype(np.float32),
-                    occlusion=np.zeros(total_joints))
+                    occlusion=dummy_occlusion)
                 tfrecord_writer.write(example)
                 num_successful += 1
             else:
