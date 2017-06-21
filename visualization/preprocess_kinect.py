@@ -1,15 +1,13 @@
 from __future__ import print_function
 import numpy as np
 import cv2, os, operator, itertools
-from multiprocessing import Pool
-from skimage.restoration import denoise_tv_bregman
 from skimage.morphology import remove_small_objects
-from scipy.ndimage.morphology import binary_opening, binary_closing, binary_fill_holes
+from scipy.ndimage.morphology import \
+    binary_opening, binary_closing, binary_fill_holes
 from glob import glob
-from tqdm import tqdm, trange
 from matplotlib import pyplot as plt
 from matplotlib import animation
-import seaborn
+import seaborn # better default styles for mpl
 
 
 def denoise_mask(mask):
@@ -61,7 +59,7 @@ def uint16_to_uint8(in_image):
     return np.floor_divide(in_image, (mx - mn + 1.) / 256., casting='unsafe').astype(np.uint8)
 
 
-def get_and_trim_frames(data_path, skip_frames_beg, skip_frames_end):
+def get_and_trim_frames(data_path, skip_frames_beg, skip_frames_end, show_result=False):
     '''get_and_trim_frames
     Helper for `trim_and_threshold(...)` and `trim_and_bgsub` that
     takes care of loading files from `data_path` and removing
@@ -69,12 +67,14 @@ def get_and_trim_frames(data_path, skip_frames_beg, skip_frames_end):
     '''
     # Get filenames in order
     print('Getting data...')
-    files = sorted(glob(os.path.join(data_path, '*.npy')))
+    files = sorted(glob(os.path.join(os.path.expanduser(data_path), '*.npy')))
     n = len(files)
     # skip beginning and end
     files = (f for i, f in enumerate(files) if (i >= skip_frames_beg and i < n - skip_frames_end))
     # load up frames
-    return [np.load(f) for f in files]
+    frames = [np.load(f) for f in files]
+    if show_result: multianimate([frames], ['Original'])
+    return frames
 
 
 def threshold(frames, low, high,
@@ -123,6 +123,7 @@ def bgsub_frames(frames_16bit, wraps=32, quorum=10, show_result=False,
     and have them vote so that a pixel remains in the output if `quorum` of them
     agree that it should.
     '''
+    # opencv needs bytes
     frames_8bit = [uint16_to_uint8(f) for f in frames_16bit]
     # Do the subtraction. Doing a 'wraparound' approach, making masks using
     # video starting at its beginning, and also masks starting from the middle,
@@ -132,14 +133,13 @@ def bgsub_frames(frames_16bit, wraps=32, quorum=10, show_result=False,
     mask_lists = []
     for i in range(wraps):
         offset = np.random.randint(nframes)
-        fgbg = cv2.createBackgroundSubtractorKNN(dist2Threshold=50.0)
-        # fgbg = cv2.createBackgroundSubtractorMOG2(history=600, varThreshold=mog_bg_threshold, detectShadows=False)
+        fgbg = cv2.createBackgroundSubtractorMOG2(history=600, varThreshold=mog_bg_threshold, detectShadows=False)
         offset_frames = frames_8bit[offset:] + frames_8bit[:offset]
         offset_masks = [fgbg.apply(frame) for frame in offset_frames]
         mask_lists.append(offset_masks[-offset:] + offset_masks[:-offset])
 
     # and, or those masks to mask 16 bit originals
-    print('Masking...')
+    print('Masking foreground...')
     results_16bit = map(mask_voting,
                         zip(frames_16bit, 
                             itertools.repeat(quorum),
@@ -269,6 +269,7 @@ def multianimate(alolom, titles=None, figtitle=None, show=True, save_to=None,
         c, r = 1, n
     
     # with squeeze=False, we have same dims
+    seaborn.set_style("whitegrid", {'axes.grid' : False})
     alololom, titles = zip(*([iter(alolom)] * c)), zip(*([iter(titles)] * c))
     fig, axes = plt.subplots(r, c, squeeze=False,
                              **figure_kwargs)

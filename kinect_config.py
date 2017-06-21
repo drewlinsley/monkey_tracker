@@ -10,8 +10,10 @@ class kinectConfig():
     def __init__(self):
         self.selected_video = 'monkey_on_pole_1'
         self.defaults = {
-             # Video frame and background subtraction params
              'rotate_frames': -1,
+             'use_tfrecords': True,  # Package into tfrecords
+
+             # Video frame and background subtraction params
              'start_frame': 100,
              'end_frame': 35,
              'low_threshold': 1400,
@@ -45,9 +47,11 @@ class kinectConfig():
         monkey_on_pole_1['predicted_output_name'] = os.path.join(
             monkey_on_pole_1['output_dir'],
             'predicted_monkey_on_pole_1.mp4')
-        monkey_on_pole_1['output_npy_path']  = os.path.join(
+        monkey_on_pole_1['output_npy_path'] = os.path.join(
             monkey_on_pole_1['output_dir'],
             'predicted_monkey_on_pole_1')
+        monkey_on_pole_1['tfrecord_name'] = os.path.join(
+            monkey_on_pole_1['output_npy_path'], 'monkey_on_pole.tfrecords')
         return monkey_on_pole_1
 
     def __getitem__(self, name):

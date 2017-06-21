@@ -44,44 +44,6 @@ def clip_to_value(data, low, high, val, tf_dtype=tf.float32):
     return data * bmask
 
 
-def read_and_decode_single_example(
-                    filename, im_size, target_size, model_input_shape, train,
-                    label_shape=22):
-
-    """first construct a queue containing a list of filenames.
-    this lets a user split up there dataset in multiple files to keep
-    size down"""
-    filename_queue = tf.train.string_input_producer([filename],
-                                                    num_epochs=None)
-    # Unlike the TFRecordWriter, the TFRecordReader is symbolic
-    reader = tf.TFRecordReader()
-    # One can read a single serialized example from a filename
-    # serialized_example is a Tensor of type string.
-    _, serialized_example = reader.read(filename_queue)
-    # The serialized example is converted back to actual values.
-    # One needs to describe the format of the objects to be returned
-    features = tf.parse_single_example(
-        serialized_example,
-        features={
-          'label': tf.FixedLenFeature([], tf.string),
-          'image': tf.FixedLenFeature([], tf.string),
-          # flat_shape * 4 (32-bit flaot -> bytes) = 1080000
-                }
-        )
-
-    # Convert from a scalar string tensor (whose single string has
-    label = tf.decode_raw(features['label'], tf.float32)
-    image = tf.decode_raw(features['image'], tf.float32)
-
-    # Need to reconstruct channels first then transpose channels
-    image = tf.reshape(image, np.asarray(target_size))
-
-    # Insert augmentation and preprocessing here
-    image = augment_data(image, model_input_shape, im_size, train)
-    label.set_shape(label_shape)
-    return label, image[0]
-
-
 def convert_maya_to_pixel(labels, maya_conversion, hw, num_dims=3):
     return ((
         labels * maya_conversion) + tf.cast(tf.tile(  # x/y/z
@@ -172,10 +134,10 @@ def read_and_decode(
         # 1) Resize to config.image_target_size
         # 2) Crop to image size
         label = resize_label_coordinates(
-                    label,
-                    image_target_size,
-                    image_input_size
-                    )
+            label,
+            image_target_size,
+            image_input_size
+            )
         if crop_coors is not None:
             label = apply_crop_coordinates(
                 label,
@@ -193,8 +155,7 @@ def read_and_decode(
 
     # Normalize: must apply max value to image and every 3rd label
     if normalize_labels:
-        tile_size = [int(label.get_shape()[0]) / len(image_target_size)]
-
+        tile_size = [int(label.get_shape()[0]) / num_dims]  # len(image_target_size)]
         # Normalize x coor
         lab_adjust = tf.cast(
             tf.tile([image_target_size[0], 1, 1], tile_size), tf.float32)

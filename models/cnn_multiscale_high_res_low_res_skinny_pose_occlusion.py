@@ -94,6 +94,8 @@ class model_struct:
             layer_structure,
             tower_name='highres_conv')
 
+
+        # Replace this lowres tower with atrous convolutions
         rescaled_shape = [(
             int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
         res_input_bgr = tf.image.resize_bilinear(input_bgr, rescaled_shape)
@@ -119,7 +121,7 @@ class model_struct:
             }]
 
         self.create_conv_tower(
-            res_input_bgr,
+            res_input_bgr,  # pass input_bgr instead of this
             layer_structure,
             tower_name='lowres_conv')
 

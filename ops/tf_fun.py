@@ -161,14 +161,19 @@ def thomas_l1_loss(model, train_data_dict, config):
     elif config.loss_type == 'l2':
         loss = l2_loss
     else:
-        raise RuntimeError('Cannot understand your selected loss type. Needs to be implemented?')
+        raise RuntimeError(
+            'Cannot understand your selected loss type. Needs to be implemented?')
 
     res_gt = tf.reshape(
         train_data_dict['label'],
         [config.train_batch, len(use_joints), config.keep_dims])
     res_pred = [tf.reshape(
         model[x],
-        [config.train_batch, len(use_joints), config.keep_dims]) for x in model.joint_label_output_keys]
+        [
+            config.train_batch,
+            len(use_joints),
+            config.keep_dims]
+            ) for x in model.joint_label_output_keys]
     label_losses = [loss(x, res_gt) for x in res_pred]
 
     # Return variance for tf.summary
@@ -177,7 +182,6 @@ def thomas_l1_loss(model, train_data_dict, config):
         [tf.summary.scalar(
             '%s' % la, lo[0]) for la, lo in zip(
             use_joints, tf.split(lx, len(use_joints)))]
-                    # Track variance across losses
     joint_variance = []
     for idx, lb in enumerate(loss_x_batch):
         _, iv = tf.nn.moments(lb, [0])
@@ -189,3 +193,11 @@ def thomas_l1_loss(model, train_data_dict, config):
     return label_loss, use_joints, joint_variance
 
 
+def get_normalization_vec(config, num_joints):
+    normalize_values = np.asarray(
+        config.image_target_size[:2] + [
+            config.max_depth])[:config.keep_dims]
+    if len(normalize_values) == 1:
+        normalize_values = normalize_values[None, :]
+    return normalize_values.reshape(
+        1, -1).repeat(num_joints, axis=0).reshape(1, -1)

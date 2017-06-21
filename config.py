@@ -27,9 +27,9 @@ class monkeyConfig(object):
             '/media/data_cifs/clicktionary/',
             'pretrained_weights',
             'vgg16.npy')
-        self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
-        'TrueDepth100kStore/model_output/' + \
-        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_20_17_40_56/'
+        self.resume_from_checkpoint = None  # '/media/data_cifs/monkey_tracking/results/' + \
+        # 'TrueDepth100kStore/model_output/' + \
+        # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_20_17_40_56/'
 
         # Tfrecords
         self.new_tf_names = {'train': 'train.tfrecords' , 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
