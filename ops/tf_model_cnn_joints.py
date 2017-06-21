@@ -119,7 +119,6 @@ def train_and_eval(config):
 
             # Prepare the loss functions:::
             loss_list, loss_label = [], []
-
             if 'label' in train_data_dict.keys():
                 # 1. Joint localization loss
                 if config.calculate_per_joint_loss:
@@ -297,16 +296,9 @@ def train_and_eval(config):
     step, losses = 0, []
     num_joints = int(
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
-    normalize_values = np.asarray(
-        config.image_target_size[:2] + [
-            config.max_depth])[:config.keep_dims]
-    if len(normalize_values) == 1:
-        normalize_values = normalize_values[None, :]
-    normalize_vec = normalize_values.reshape(
-        1, -1).repeat(num_joints, axis=0).reshape(1, -1)
-    import ipdb;ipdb.set_trace()
+    normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
     if config.resume_from_checkpoint is not None:
-        ckpt =  tf.train.latest_checkpoint(config.resume_from_checkpoint)
+        ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
         print 'Resuming training from checkpoint: %s' % ckpt
         saver.restore(sess, ckpt)
     try:

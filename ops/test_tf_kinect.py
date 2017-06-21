@@ -9,10 +9,12 @@ from scipy.ndimage.morphology import binary_opening, binary_closing, \
 from matplotlib import pyplot as plt
 from matplotlib import animation
 from ops.utils import import_cnn
+from ops import data_processing_joints
+from ops import data_loader_joints
 from tqdm import tqdm
 from visualization import monkey_mosaic
-from scipy import misc
 from skimage.transform import resize
+import tf_fun
 
 
 def save_to_numpys(file_dict, path):
@@ -432,22 +434,51 @@ def crop_aspect_and_resize_center(img, new_size):
         order=0)
 
 
-def process_kinect_placeholder(model_ckpt, kinect_data, config):
+def process_kinect_tensorflow(model_ckpt, kinect_data, config):
     """Train and evaluate the model."""
 
     # Import your model
     print 'Model directory: %s' % config.model_output
     print 'Running model: %s' % config.model_type
     model_file = import_cnn(config.model_type)
+    if isinstance(kinect_data, basestring):
+        use_tfrecords = True
+    else:
+        use_tfrecords = False
+    num_label_targets = config.keep_dims * len(config.joint_order)
 
     # Prepare data on CPU
     with tf.device('/cpu:0'):
-        val_data_dict = {
-            'image': tf.placeholder(
-                dtype=tf.float32,
-                shape=[config.validation_batch] + config.image_target_size[:2] + [1],
-                name='image')
-        }
+        if use_tfrecords:
+            val_data_dict = data_loader_joints.inputs(
+                tfrecord_file=kinect_data,
+                batch_size=config.validation_batch,
+                im_size=config.resize,
+                target_size=config.image_target_size,
+                model_input_shape=config.resize,
+                train=config.data_augmentations,
+                label_shape=config.num_classes,
+                num_epochs=config.epochs,
+                image_target_size=config.image_target_size,
+                image_input_size=config.image_input_size,
+                maya_conversion=config.maya_conversion,
+                max_value=config.max_depth,
+                normalize_labels=config.normalize_labels,
+                aux_losses=config.aux_losses,
+                selected_joints=config.selected_joints,
+                joint_names=config.joint_order,
+                num_dims=config.num_dims,
+                keep_dims=config.keep_dims,
+                mask_occluded_joints=config.mask_occluded_joints,
+                background_multiplier=config.background_multiplier)
+        else:
+            val_data_dict = {
+                'image': tf.placeholder(
+                    dtype=tf.float32,
+                    shape=[config.validation_batch] + config.image_target_size[:2] + [1],
+                    name='image'),
+                'label': tf.constant(np.zeros((1, num_label_targets)))
+            }
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -456,16 +487,13 @@ def process_kinect_placeholder(model_ckpt, kinect_data, config):
             if (config.num_classes // config.keep_dims) > (joint_shape):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
-    num_label_targets = config.keep_dims * len(config.joint_order)
-    dummy_target = {
-        'label': tf.constant(np.zeros((1, num_label_targets)))}
     with tf.device('/gpu:0'):
         with tf.variable_scope('cnn'):
             print 'Creating training graph:'
             model = model_file.model_struct()
             model.build(
                 rgb=val_data_dict['image'],
-                target_variables=dummy_target)
+                target_variables=val_data_dict)
             # Model may have multiple "joint prediction" output heads.
             selected_head = model.joint_label_output_keys[0]
             print 'Deriving joint localizations from: %s' % selected_head
@@ -479,34 +507,45 @@ def process_kinect_placeholder(model_ckpt, kinect_data, config):
     # Need to initialize both of these if supplying num_epochs to inputs
     sess.run(tf.group(tf.global_variables_initializer(),
              tf.local_variables_initializer()))
+
+    # Start testing data
     yhat_batch = []
     num_joints = len(config.joint_order)
     num_batches = len(kinect_data) // config.validation_batch
-    import ipdb;ipdb.set_trace()
+    normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
     saver.restore(sess, model_ckpt)
-    for image_batch in tqdm(
-            image_batcher(
-                start=0,
-                num_batches=num_batches,
-                images=kinect_data,
-                batch_size=config.validation_batch),
-            total=num_batches):
-        feed_dict = {
-            val_data_dict['image']: image_batch
-        }
-        import ipdb;ipdb.set_trace()
-        it_yhat = sess.run(
-            predictions,
-            feed_dict=feed_dict)
 
-        if config.normalize_labels:
-            normalize_values = np.asarray(
-                config.image_target_size[:2] + [
-                    config.max_depth])[:config.keep_dims]
-            normalize_vec = normalize_values.reshape(
-                1, -1).repeat(num_joints, axis=0).reshape(1, -1)
-            it_yhat *= normalize_vec
-        yhat_batch += [it_yhat]
+    if use_tfrecords:
+        # Set up exemplar threading
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        while not coord.should_stop():
+            it_yhat = sess.run(predictions)
+            if config.normalize_labels:
+                it_yhat *= normalize_vec
+            import ipdb;ipdb.set_trace()
+            yhat_batch += [it_yhat]
+        coord.join(threads)
+    else:
+        for image_batch in tqdm(
+                image_batcher(
+                    start=0,
+                    num_batches=num_batches,
+                    images=kinect_data,
+                    batch_size=config.validation_batch),
+                total=num_batches):
+            feed_dict = {
+                val_data_dict['image']: image_batch
+            }
+            import ipdb;ipdb.set_trace()
+            it_yhat = sess.run(
+                predictions,
+                feed_dict=feed_dict)
+
+            if config.normalize_labels:
+                it_yhat *= normalize_vec
+            yhat_batch += [it_yhat]
+    sess.close()
     return np.asarray(yhat_batch)
 
 
@@ -564,3 +603,57 @@ def plot_filters(layer_weights, title=None, show=False):
         plt.title(title)
     if show:
         plt.show()
+
+
+def create_joint_tf_records_for_kinect(
+        depth_files,
+        model_config,
+        kinect_config):
+
+    """Feature extracts and creates the tfrecords."""
+    num_successful = 0
+    num_files = len(depth_files)
+    tf_file = kinect_config['tfrecord_name']
+    total_joints = len(model_config.joint_order)
+    max_array = []
+    toss_frame_index = []
+    print 'Saving tfrecords to: %s' % tf_file
+    with tf.python_io.TFRecordWriter(tf_file) as tfrecord_writer:
+        for i, depth_image in tqdm(
+                enumerate(
+                    depth_files),
+                total=num_files):
+
+            if depth_image.sum() > 0:
+                # extract depth image
+                max_array += [depth_image.max()]
+                depth_image[depth_image == depth_image.min()] = 0
+                # set nans to 0
+                depth_image[np.isnan(depth_image)] = 0.
+                if depth_image.shape != tuple(model_config.image_target_size[:2]):
+                    depth_image = resize(
+                        depth_image,
+                        model_config.image_target_size[:2],
+                        preserve_range=True,
+                        order=0)
+                if len(depth_image.shape) < len(model_config.image_target_size):
+                    depth_image = np.repeat(
+                        depth_image[:, :, None],
+                        model_config.image_target_size[-1],
+                        axis=-1)
+                elif depth_image.shape[-1] < model_config.image_target_size[-1]:
+                    num_reps = model_config.image_target_size[-1] // depth_image.shape[-1]
+                    depth_image = np.repeat(
+                        depth_image,
+                        num_reps,
+                        axis=-1)[:, :, :num_reps]
+                example = data_processing_joints.encode_example(
+                    im=depth_image.astype(np.float32),
+                    label=np.zeros(total_joints * model_config.num_dims),
+                    im_label=depth_image.astype(np.float32),
+                    occlusion=np.zeros(total_joints))
+                tfrecord_writer.write(example)
+                num_successful += 1
+            else:
+                toss_frame_index += [i]
+    return tf_file, np.max(max_array), np.asarray(toss_frame_index)

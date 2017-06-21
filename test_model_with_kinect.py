@@ -49,6 +49,7 @@ def main(model_dir, ckpt_name, run_tests=False):
         start_frame=kinect_config['start_frame'],
         end_frame=kinect_config['end_frame'],
         rotate_frames=kinect_config['rotate_frames'])
+
     if len(frames[0].shape) > 2:
         print 'Detected > 2d images. Trimming excess dimensions.'
         frames = [f[:, :, 0] for f in frames]
@@ -102,16 +103,25 @@ def main(model_dir, ckpt_name, run_tests=False):
             frames=frames,
             output=kinect_config['kinect_output_name'])
 
-    # Transform kinect data to Maya data
-    frames, frame_toss_index = test_tf_kinect.transform_to_renders(
-        frames=frames,
-        config=config)
+    # Create tfrecords of kinect data
+    if kinect_config['use_tfrecords']:
+        frames, max_value, frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
+            depth_files=frames,
+            model_config=config,
+            kinect_config=kinect_config)
+        config.max_depth = max_value
+    else:
+        # Transform kinect data to Maya data
+        frames, frame_toss_index = test_tf_kinect.transform_to_renders(
+            frames=frames,
+            config=config)
+
     # Pass each frame through the CNN
-    joint_predictions = test_tf_kinect.process_kinect_placeholder(
+    joint_predictions = test_tf_kinect.process_kinect_tensorflow(
         model_ckpt=model_ckpt,
         kinect_data=frames,
         config=config)
-    import ipdb;ipdb.set_trace()
+
     # Overlay joint predictions onto frames
     overlaid_frames = test_tf_kinect.overlay_joints_frames(
         frames=frames,
@@ -136,7 +146,6 @@ def main(model_dir, ckpt_name, run_tests=False):
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
-
 
         # Overlay joint predictions onto frames
         overlaid_frames = test_tf_kinect.overlay_joints_frames(
