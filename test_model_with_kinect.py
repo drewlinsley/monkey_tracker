@@ -6,9 +6,10 @@ from config import monkeyConfig
 from kinect_config import kinectConfig
 from glob import glob
 from ops import test_tf_kinect
+from ops import utils
 
 
-def main(model_dir, ckpt_name):
+def main(model_dir, ckpt_name, run_tests=False):
     '''Skeleton script for preprocessing and
     passing kinect videos through a trained model'''
     # Find config from the trained model
@@ -23,24 +24,34 @@ def main(model_dir, ckpt_name):
     model_ckpt = os.path.join(model_dir, ckpt_name)
     kinect_config = kinectConfig()
     kinect_config = kinect_config[kinect_config['selected_video']]()
-    monkey_files = glob(
-        os.path.join(
-            config.kinect_directory,
-            config.kinect_project,
-            '*%s' % config.kinect_file_ext))
-    monkey_files = sorted(
-        monkey_files, key=lambda name: int(
-            re.search('\d+', name.split('/')[-1]).group()))
+    if not run_tests:
+        monkey_files = glob(
+            os.path.join(
+                config.kinect_directory,
+                config.kinect_project,
+                '*%s' % config.kinect_file_ext))
+        monkey_files = sorted(
+            monkey_files, key=lambda name: int(
+                re.search('\d+', name.split('/')[-1]).group()))
+    else:
+        monkey_files = utils.get_files(config.depth_dir, config.depth_regex)
+        kinect_config['start_frame'] = 50000
+        kinect_config['end_frame'] = 50010
+        kinect_config['low_threshold'] = 0
+        kinect_config['high_threshold'] = 1e20
+        kinect_config['rotate_frames'] = 0
+
     if len(monkey_files) == 0:
         raise RuntimeError('Could not find any files!')
-    frames = test_tf_kinect.get_and_trim_frames(monkey_files, 100, 35)
 
-    # combine two frames to approximate the background
-    bg = test_tf_kinect.static_background(
-        frames,
-        kinect_config['left_frame'],
-        kinect_config['right_frame'])
-    frames = [bg] + frames
+    frames = test_tf_kinect.get_and_trim_frames(
+        files=monkey_files,
+        start_frame=kinect_config['start_frame'],
+        end_frame=kinect_config['end_frame'],
+        rotate_frames=kinect_config['rotate_frames'])
+    if len(frames[0].shape) > 2:
+        print 'Detected > 2d images. Trimming excess dimensions.'
+        frames = [f[:, :, 0] for f in frames]
 
     # threshold the depths and do some denoising
     frames = test_tf_kinect.threshold(
@@ -55,6 +66,12 @@ def main(model_dir, ckpt_name):
     # and doing a lot of openings and closings, but we are only going to
     # use it to estimate a good crop, so that's OK
     if kinect_config['run_gmm']:
+        # combine two frames to approximate the background
+        bg = test_tf_kinect.static_background(
+            frames,
+            kinect_config['left_frame'],
+            kinect_config['right_frame'])
+        frames = [bg] + frames
         frames = test_tf_kinect.bgsub_frames(
             frames,
             kinect_config['bgsub_wraps'],
@@ -76,8 +93,8 @@ def main(model_dir, ckpt_name):
             binaries=frames[1:],
             ignore_border_px=kinect_config['ignore_border_px'])
     elif kinect_config['crop'] == 'static':
-        frames = [test_tf_kinect.crop_center(
-            f, config.image_target_size[:2]) for f in frames]
+        frames = [test_tf_kinect.crop_aspect_and_resize_center(
+            f, new_size=config.image_target_size[:2]) for f in frames]
 
     # Create preprocessed kinect movie if desired
     if kinect_config['kinect_output_name'] is not None:
@@ -89,13 +106,12 @@ def main(model_dir, ckpt_name):
     frames, frame_toss_index = test_tf_kinect.transform_to_renders(
         frames=frames,
         config=config)
-
     # Pass each frame through the CNN
     joint_predictions = test_tf_kinect.process_kinect_placeholder(
         model_ckpt=model_ckpt,
         kinect_data=frames,
         config=config)
-
+    import ipdb;ipdb.set_trace()
     # Overlay joint predictions onto frames
     overlaid_frames = test_tf_kinect.overlay_joints_frames(
         frames=frames,
@@ -122,6 +138,12 @@ def main(model_dir, ckpt_name):
             path=kinect_config['output_npy_path'])
 
 
+        # Overlay joint predictions onto frames
+        overlaid_frames = test_tf_kinect.overlay_joints_frames(
+            frames=frames,
+            joint_predictions=joint_predictions)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -136,7 +158,12 @@ if __name__ == '__main__':
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default='model_1000.ckpt-1000',  # 56000
+        default='model_27000.ckpt-27000',  # 56000
         help='Name of TF checkpoint file.')
+    parser.add_argument(
+        "--run_tests",
+        dest="run_tests",
+        action='store_true',
+        help='Check to see the pipeline works for our renders before transfering to Kinect.')
     args = parser.parse_args()
     main(**vars(args))

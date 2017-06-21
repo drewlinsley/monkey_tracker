@@ -297,9 +297,18 @@ def train_and_eval(config):
     step, losses = 0, []
     num_joints = int(
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
+    normalize_values = np.asarray(
+        config.image_target_size[:2] + [
+            config.max_depth])[:config.keep_dims]
+    if len(normalize_values) == 1:
+        normalize_values = normalize_values[None, :]
+    normalize_vec = normalize_values.reshape(
+        1, -1).repeat(num_joints, axis=0).reshape(1, -1)
+    import ipdb;ipdb.set_trace()
     if config.resume_from_checkpoint is not None:
-        print 'Resuming training from checkpoint: %s' % config.resume_from_checkpoint
-        saver.restore(sess, config.resume_from_checkpoint)
+        ckpt =  tf.train.latest_checkpoint(config.resume_from_checkpoint)
+        print 'Resuming training from checkpoint: %s' % ckpt
+        saver.restore(sess, ckpt)
     try:
         while not coord.should_stop():
             start_time = time.time()
@@ -311,7 +320,7 @@ def train_and_eval(config):
             assert not np.isnan(
                 train_out_dict['loss_value']), 'Model diverged with loss = NaN'
 
-            if step % config.steps_before_validation == 0:
+            if step % config.steps_before_validation == 0 and step > 0:
                 if validation_data is not False:
                     val_out_dict = sess.run(
                         val_session_vars.values())
@@ -333,7 +342,7 @@ def train_and_eval(config):
 
                 # Training status and validation accuracy attach 9177
                 format_str = (
-                    '%s: step %d, loss = %.4f (%.1f examples/sec; '
+                    '%s: step %d, loss = %.8f (%.1f examples/sec; '
                     '%.3f sec/batch) | '
                     'Validation l2 loss = %s | logdir = %s')
                 print (format_str % (
@@ -344,11 +353,6 @@ def train_and_eval(config):
 
                 # Save the model checkpoint if it's the best yet
                 if config.normalize_labels:
-                    normalize_values = np.asarray(
-                        config.image_target_size[:2] + [
-                            config.max_depth])[:config.keep_dims]
-                    normalize_vec = normalize_values.reshape(
-                        1, -1).repeat(num_joints, axis=0).reshape(1, -1)
                     train_out_dict['yhat'] *= normalize_vec
                     train_out_dict['ytrue'] *= normalize_vec
                 [save_training_data(
@@ -359,10 +363,11 @@ def train_and_eval(config):
                 saver.save(
                     sess, os.path.join(
                         config.train_checkpoint,
-                        'model_' + str(step) + '.ckpt'), global_step=step)
+                        'model_' + str(step) + '.ckpt'))
+
             else:
                 # Training status
-                format_str = ('%s: step %d, loss = %.4f (%.1f examples/sec; '
+                format_str = ('%s: step %d, loss = %.8f (%.1f examples/sec; '
                               '%.3f sec/batch)')
                 print (format_str % (
                     datetime.now(),
@@ -377,7 +382,6 @@ def train_and_eval(config):
         print('Done training for %d epochs, %d steps.' % (config.epochs, step))
     finally:
         coord.request_stop()
-
         dt_stamp = get_dt()  # date-time stamp
         np.save(
             os.path.join(
