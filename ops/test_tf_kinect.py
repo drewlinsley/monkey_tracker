@@ -1,5 +1,4 @@
 import os
-import time
 import numpy as np
 import tensorflow as tf
 import cv2
@@ -9,10 +8,11 @@ from scipy.ndimage.morphology import binary_opening, binary_closing, \
                                      binary_fill_holes
 from matplotlib import pyplot as plt
 from matplotlib import animation
-from ops.utils import get_dt, import_cnn, save_training_data
+from ops.utils import import_cnn
 from tqdm import tqdm
-from datetime import datetime
 from visualization import monkey_mosaic
+from scipy import misc
+from skimage.transform import resize
 
 
 def save_to_numpys(file_dict, path):
@@ -41,7 +41,7 @@ def drop_empty_frames(frames):
     return frames, toss_index
 
 
-def transform_to_renders(frames, config, rotate=True):
+def transform_to_renders(frames, config, rotate=True, pad=True):
     '''Transform kinect data to the "Maya-space" that
     our renders were produced in.
 
@@ -52,22 +52,39 @@ def transform_to_renders(frames, config, rotate=True):
     outputs::
     frames: Kinect data transformed to maya space'''
 
-    # 1. Trim empty bullshit frames
+    # 0. Trim empty bullshit frames
     frames, toss_index = drop_empty_frames(frames)
+
+    if pad:
+        padded_frames = []
+        for f in frames:
+            pre_size = f.shape
+            it_frame = np.pad(
+                f, [int(x // 4) for x in f.shape],
+                'constant',
+                constant_values=(0, 0))
+            it_frame = resize(
+                it_frame,
+                pre_size,
+                preserve_range=True,
+                order=0)
+            padded_frames += [it_frame]
+        frames = padded_frames
 
     # 2. Derive wall position then add it to each frame
     wall_mask = np.asarray([(f == 0).astype(np.float32) for f in frames])
     max_depth_value = np.max(frames)
     wall_position = max_depth_value * config.background_multiplier
     print 'Adding imaginary wall...'
-    wall_mask += ((wall_position  - 1) * wall_mask)  # modulate wall position and subtract 1 from masking
+    # modulate wall position and subtract 1 from masking
+    wall_mask += ((wall_position - 1) * wall_mask)
     frames += wall_mask  # Because wall_mask is 0s outside of monkey
 
     # 3. Normalize frames to [0, 1]
     frames /= wall_position
 
-    # 4. Rotate 90 degrees
-    frames = np.asarray([np.rot90(f, 3)[:, :, None] for f in frames])
+    # 4. Add new dimension
+    frames = frames[:, :, :, None]
 
     return frames, toss_index
 
@@ -124,21 +141,23 @@ def uint16_to_uint8(in_image):
         in_image, (mx - mn + 1.) / 256., casting='unsafe').astype(np.uint8)
 
 
-def get_and_trim_frames(files, skip_frames_beg, skip_frames_end):
+def get_and_trim_frames(
+        files,
+        start_frame,
+        end_frame,
+        rotate_frames):
     '''get_and_trim_frames
     Helper for `trim_and_threshold(...)` and `trim_and_bgsub` that
     takes care of loading files from `data_path` and removing
     the first `skip_frames_beg` and last `skip_frames_end` of them.
     '''
-    # Get filenames in order
-    n = len(files)
-    # skip beginning and end
-    data = []
-    for idx in tqdm(
-        range(
-            skip_frames_beg, n - skip_frames_end), desc='Trimming frames'):
-        data += [np.load(files[idx])]
-    return data
+    files = np.asarray(files)
+    files = files[start_frame:end_frame]
+    data = [np.load(f) for f in files]
+    if rotate_frames != 0:
+        return np.asarray([np.rot90(d, -1) for d in data])
+    else:
+        return np.asarray(data)
 
 
 def threshold(
@@ -389,12 +408,28 @@ def image_batcher(
         yield images[start:start + batch_size]
 
 
-def crop_center(img, crop_size):
-    x, y = img.shape
-    cx, cy = crop_size
-    startx = x//2-(cx//2)
-    starty = y//2-(cy//2)
-    return img[starty:starty+cy, startx:startx+cx]
+def crop_aspect_and_resize_center(img, new_size):
+    '''Crop to appropros aspect ratio then resize.'''
+    h, w = img.shape
+    ih, iw = new_size
+    ideal_aspect = float(iw) / float(ih)
+    current_aspect = float(w) / float(h)
+    if current_aspect > ideal_aspect:
+        new_width = int(ideal_aspect * h)
+        offset = (w - new_width) / 2
+        crop_h = [0, h]
+        crop_w = [offset, w - offset]
+    else:
+        new_height = int(w / ideal_aspect)
+        offset = (h - new_height) / 2
+        crop_h = [offset, h - offset]
+        crop_w = [0, w]
+    cropped_im = img[crop_h[0]:crop_h[1], crop_w[0]:crop_w[1]]
+    return resize(
+        cropped_im,
+        new_size,
+        preserve_range=True,
+        order=0)
 
 
 def process_kinect_placeholder(model_ckpt, kinect_data, config):
@@ -447,6 +482,7 @@ def process_kinect_placeholder(model_ckpt, kinect_data, config):
     yhat_batch = []
     num_joints = len(config.joint_order)
     num_batches = len(kinect_data) // config.validation_batch
+    import ipdb;ipdb.set_trace()
     saver.restore(sess, model_ckpt)
     for image_batch in tqdm(
             image_batcher(
@@ -458,6 +494,7 @@ def process_kinect_placeholder(model_ckpt, kinect_data, config):
         feed_dict = {
             val_data_dict['image']: image_batch
         }
+        import ipdb;ipdb.set_trace()
         it_yhat = sess.run(
             predictions,
             feed_dict=feed_dict)
@@ -474,12 +511,56 @@ def process_kinect_placeholder(model_ckpt, kinect_data, config):
 
 
 def overlay_joints_frames(frames, joint_predictions):
-    colors, joints, num_joints = monkey_mosaic.get_coors()
+    colors, joints, num_joints = monkey_mosaic.get_colors()
     processed = []
     for fr, jp in zip(frames, joint_predictions):
         f, ax = plt.subplots()
-        ax.imshow(fr)
-        monkey_mosaic.plot_coordinates(ax, jp, colors)
-        processed += ax.get_array()
+        xy_coors = monkey_mosaic.xyz_vector_to_xy(jp)
+        ax.imshow(fr[:, :, 0], cmap='Greys_r')
+        [ax.scatter(xy[0], xy[1], color=c) for xy, c in zip(xy_coors, colors)]
+        # monkey_mosaic.plot_coordinates(ax, jp, colors)
+        import ipdb;ipdb.set_trace()
+        processed += [ax.get_images()[0].get_array().data]
         plt.close('all')
     return processed
+
+
+def make_mosaic(images, remove_images=None):
+    if remove_images is not None:
+        rem_idx = np.ones(len(images))
+        rem_idx[remove_images] = 0
+        images = images[rem_idx == 1, :, :]
+
+    im_dim = images.shape
+    num_cols = np.sqrt(im_dim[0]).astype(int)
+    num_cols = np.min([num_cols, 5])
+    num_rows = num_cols
+    canvas = np.zeros((im_dim[1] * num_rows, im_dim[2] * num_cols))
+    count = 0
+    row_anchor = 0
+    col_anchor = 0
+    for x in range(num_rows):
+        for y in range(num_cols):
+            it_image = images[count] * -1
+            it_image += (np.sign(np.min(it_image)) * np.min(it_image))
+            it_image /= (np.max(it_image) + 1e-3)
+            canvas[
+                row_anchor:row_anchor + im_dim[1],
+                col_anchor:col_anchor + im_dim[2]] += np.sqrt(it_image)
+            col_anchor += im_dim[2]
+            count += 1
+        col_anchor = 0
+        row_anchor += im_dim[1]
+    return canvas
+
+
+def plot_filters(layer_weights, title=None, show=False):
+    mosaic = make_mosaic(layer_weights)
+    plt.imshow(mosaic, interpolation='none')
+    ax = plt.gca()
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    if title is not None:
+        plt.title(title)
+    if show:
+        plt.show()
