@@ -1,15 +1,13 @@
 from __future__ import print_function
 import numpy as np
 import cv2, os, operator, itertools
-from multiprocessing import Pool
-from skimage.restoration import denoise_tv_bregman
 from skimage.morphology import remove_small_objects
-from scipy.ndimage.morphology import binary_opening, binary_closing, binary_fill_holes
+from scipy.ndimage.morphology import \
+    binary_opening, binary_closing, binary_fill_holes
 from glob import glob
-from tqdm import tqdm, trange
 from matplotlib import pyplot as plt
 from matplotlib import animation
-import seaborn
+import seaborn # better default styles for mpl
 
 
 def denoise_mask(mask):
