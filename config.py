@@ -27,7 +27,9 @@ class monkeyConfig(object):
             '/media/data_cifs/clicktionary/',
             'pretrained_weights',
             'vgg16.npy')
-        self.resume_from_checkpoint = None  # '/media/data_cifs/monkey_tracking/batches/CnnMultiLowHigh2/walk-all-png/model_output/cnn_multiscale_low_high_res_2017_05_22_14_59_44/model_31600.ckpt-31600'
+        self.resume_from_checkpoint = None  # '/media/data_cifs/monkey_tracking/results/' + \
+        # 'TrueDepth100kStore/model_output/' + \
+        # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_20_17_40_56/model_27000.ckpt-27000'
 
         # Tfrecords
         self.new_tf_names = {'train': 'train.tfrecords' , 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
@@ -56,11 +58,11 @@ class monkeyConfig(object):
         ]
 
         # Key training settings
-        self.train_batch = 64
-        self.validation_batch = 64
+        self.train_batch = 48
+        self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-4
+        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 3e-4
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
@@ -74,7 +76,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True  # True
-        self.aux_losses = ['occlusion']  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
+        self.aux_losses = [None]  # ['occlusion']  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
         self.calculate_per_joint_loss = True
         self.include_validation = True
         self.wd_type = 'l1'

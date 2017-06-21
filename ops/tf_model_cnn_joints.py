@@ -299,7 +299,12 @@ def train_and_eval(config):
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
     if config.resume_from_checkpoint is not None:
         print 'Resuming training from checkpoint: %s' % config.resume_from_checkpoint
+        from test_tf_kinect import plot_filters
+        from matplotlib import pyplot as plt
+        plot_filters(sess.run(tf.trainable_variables()[1]).squeeze());plt.show()
         saver.restore(sess, config.resume_from_checkpoint)
+        plot_filters(sess.run(tf.trainable_variables()[1]).squeeze());plt.show()
+        import ipdb;ipdb.set_trace()
     try:
         while not coord.should_stop():
             start_time = time.time()
@@ -359,7 +364,7 @@ def train_and_eval(config):
                 saver.save(
                     sess, os.path.join(
                         config.train_checkpoint,
-                        'model_' + str(step) + '.ckpt'), global_step=step)
+                        'model_' + str(step) + '.ckpt'))
             else:
                 # Training status
                 format_str = ('%s: step %d, loss = %.4f (%.1f examples/sec; '
@@ -377,7 +382,6 @@ def train_and_eval(config):
         print('Done training for %d epochs, %d steps.' % (config.epochs, step))
     finally:
         coord.request_stop()
-
         dt_stamp = get_dt()  # date-time stamp
         np.save(
             os.path.join(
