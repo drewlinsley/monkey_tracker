@@ -294,6 +294,8 @@ def train_and_eval(
         ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
         print 'Evaluating checkpoint: %s' % ckpt
         saver.restore(sess, ckpt)
+    else:
+        raise RuntimeError('Set resume_from_checkoint=True in the config')
     try:
         while not coord.should_stop():
             train_out_dict = sess.run(train_session_vars.values())

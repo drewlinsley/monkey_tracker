@@ -27,11 +27,11 @@ class monkeyConfig(object):
             '/media/data_cifs/clicktionary/',
             'pretrained_weights',
             'vgg16.npy')
-        use_checkpoint = True
+        use_checkpoint = False
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_17_39_05/'
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
         else:
             self.resume_from_checkpoint = None
 
@@ -53,9 +53,9 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'
-        self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
-        self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
+        self.model_type = 'vgg16_multiscale'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
+        # self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
             'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
@@ -65,12 +65,13 @@ class monkeyConfig(object):
         self.train_batch = 48
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-4
+        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 1e-6
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
         self.loss_type = 'l2'
+        self.grad_clip = False
 
         # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
@@ -79,7 +80,7 @@ class monkeyConfig(object):
         self.mean_file = 'mean_file'  # Double check: used in training?
 
         # Auxillary training settings
-        self.normalize_labels = True  # True
+        self.normalize_labels = True
         self.aux_losses = [None]  # ['occlusion']  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
         self.calculate_per_joint_loss = True
         self.include_validation = True
