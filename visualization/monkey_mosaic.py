@@ -122,7 +122,6 @@ def main(
         if normalize:
             yhats *= normalize_vec
             ytrues *= normalize_vec
-        import ipdb;ipdb.set_trace()
         if unnormalize:
             yhats /= unnormalize_vec
             ytrues /= unnormalize_vec
@@ -151,7 +150,7 @@ if __name__ == '__main__':
         "--monkey_date",
         dest="monkey_date",
         type=str,
-        default='cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_19_59_55',
+        default='cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05',
         help='Date of model directory.')
 
     args = parser.parse_args()

@@ -68,13 +68,13 @@ class model_struct:
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
-                'filter_size': [5, 5, None]
+                'filter_size': [7, 7, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [128, 128, None],
                 'names': ['conv2_1', 'conv2_2', 'pool2'],
-                'filter_size': [3, 3, None]
+                'filter_size': [5, 5, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -105,13 +105,13 @@ class model_struct:
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['lrconv1_1', 'lrconv1_2', 'lrpool1'],
-                'filter_size': [5, 5, None]
+                'filter_size': [7, 7, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [128, 128, None],
                 'names': ['lrconv2_1', 'lrconv2_2', 'lrpool2'],
-                'filter_size': [3, 3, None]
+                'filter_size': [5, 5, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],

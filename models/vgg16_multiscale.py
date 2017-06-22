@@ -9,15 +9,19 @@ class model_struct:
     """
 
     def __init__(
-                self, vgg16_npy_path=None, trainable=True,
-                fine_tune_layers=None):
+                self,
+                vgg16_npy_path=None,
+                trainable=True):
         if vgg16_npy_path is not None:
-            print 'Ignoring vgg16_npy_path (not using a vgg!).'
-        self.data_dict = None
+            self.data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
+            print 'Restored model weights from: %s' % vgg16_npy_path
+        else:
+            self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
+        self.fine_tune_layers = []
 
     def __getitem__(self, name):
         return getattr(self, name)
@@ -62,13 +66,22 @@ class model_struct:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
 
-        input_bgr = tf.identity(rgb, name="lrp_input")
+
+        # Convert RGB to BGR
+        rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
+        self.bgr = tf.concat(axis=3, values=[
+            rgb_scaled - self.VGG_MEAN[0],
+            rgb_scaled - self.VGG_MEAN[1],
+            rgb_scaled - self.VGG_MEAN[2],
+        ], name='bgr')
+
+        input_bgr = tf.identity(self.bgr, name="lrp_input")
         layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
-                'filter_size': [5, 5, None]
+                'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -78,13 +91,13 @@ class model_struct:
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
+                'weights': [256, 256, None],
                 'names': ['conv3_1', 'conv3_2', 'pool3'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
+                'weights': [512, 512, None],
                 'names': ['conv4_1', 'conv4_2', 'pool4'],
                 'filter_size': [3, 3, None]
             }]
@@ -105,7 +118,7 @@ class model_struct:
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['lrconv1_1', 'lrconv1_2', 'lrpool1'],
-                'filter_size': [5, 5, None]
+                'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -129,9 +142,9 @@ class model_struct:
         resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
         resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
         new_size = np.asarray([resize_h, resize_w])
-        high_fe_layers = [self.batchnorm(
+        high_fe_layers = [
             tf.image.resize_bilinear(
-                self[x], new_size)) for x in hr_fe_keys]
+                self[x], new_size) for x in hr_fe_keys]
         self.high_feature_encoder = tf.concat(high_fe_layers, 3)
 
         # High-res 1x1 X 2
@@ -141,6 +154,7 @@ class model_struct:
             256,
             "high_feature_encoder_1x1_0",
             filter_size=1)
+        self.fine_tune_layers += ['high_feature_encoder_1x1_0']
         if train_mode is not None:
             self.high_feature_encoder_1x1_0 = tf.cond(
                 train_mode,
@@ -157,6 +171,8 @@ class model_struct:
             256,
             "high_feature_encoder_1x1_1",
             filter_size=1)
+        self.fine_tune_layers += ['high_feature_encoder_1x1_1']
+
         if train_mode is not None:
             self.high_feature_encoder_1x1_1 = tf.cond(
                 train_mode,
@@ -173,6 +189,8 @@ class model_struct:
             256,
             "high_feature_encoder_1x1_2",
             filter_size=1)
+        self.fine_tune_layers += ['high_feature_encoder_1x1_2']
+
         if train_mode is not None:
             self.high_feature_encoder_1x1_2 = tf.cond(
                 train_mode,
@@ -188,6 +206,7 @@ class model_struct:
                 output_shape,
                 'output')
             self.joint_label_output_keys = ['output']
+            self.fine_tune_layers += ['output']
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
@@ -198,7 +217,7 @@ class model_struct:
                         occlusion_shape,
                         "occlusion")
                     )
-        self.data_dict = None
+            self.fine_tune_layers += ['occlusion']
 
         if 'pose' in target_variables.keys():
             # Occlusion head
@@ -209,6 +228,8 @@ class model_struct:
                         pose_shape,
                         "pose")
                 )
+            self.fine_tune_layers += ['pose']
+
         self.data_dict = None
 
     def resnet_layer(
@@ -337,7 +358,12 @@ class model_struct:
 
     def get_var(
             self, initial_value, name, idx,
-            var_name, in_size=None, out_size=None):
+            var_name, in_size=None, out_size=None, ms_filt='lr'):
+        # Hardcoding this for the current model... Figure out a better solution later.
+        vd_name = name
+        if ms_filt in name:
+            name = name.strip(ms_filt)
+            print 'Reusing %s for %s' % (name,  var_name)
         if self.data_dict is not None and name in self.data_dict:
             value = self.data_dict[name][idx]
         else:
@@ -353,7 +379,7 @@ class model_struct:
         else:
             var = tf.constant(value, dtype=tf.float32, name=var_name)
 
-        self.var_dict[(name, idx)] = var
+        self.var_dict[(vd_name, idx)] = var
 
         return var
 

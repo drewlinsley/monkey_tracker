@@ -258,3 +258,48 @@ def put_kernels_on_grid(kernel, pad=1):
     # scaling to [0, 255] is not necessary for tensorboard
     return x
 
+
+def finetune_learning(
+        loss,
+        trainables,
+        fine_tune_layers,
+        config):
+    if fine_tune_layers is not None:
+        other_opt_vars, ft_opt_vars = fine_tune_prepare_layers(
+            trainables, fine_tune_layers)
+        if config.optimizer == 'adam':
+            train_op, gvs = ft_optimizer_list(
+                loss, [other_opt_vars, ft_opt_vars],
+                tf.train.AdamOptimizer,
+                [config.hold_lr, config.lr],
+                grad_clip=config.grad_clip)
+        elif config.optimizer == 'sgd':
+            train_op, gvs = ft_optimizer_list(
+                loss, [other_opt_vars, ft_opt_vars],
+                tf.train.GradientDescentOptimizer,
+                [config.hold_lr, config.lr],
+                grad_clip=config.grad_clip)
+        else:
+            raise RuntimeException('Cannot understand what optimizer you\'re using')
+    else:
+        raise RuntimeException('Pass some layers for finetuning')
+    return train_op, gvs
+
+
+def ft_optimizer_list(cost, opt_vars, optimizer, lrs, grad_clip=False):
+    """Efficient optimization for fine tuning a net."""
+    ops = []
+    gvs = []
+    for v, l in zip(opt_vars, lrs):
+        if grad_clip:
+            optim = optimizer(l)
+            gvs = optim.compute_gradients(cost, var_list=v)
+            capped_gvs = [
+                (tf.clip_by_norm(grad, 10.), var)
+                if grad is not None else (grad, var) for grad, var in gvs]
+            ops.append(optim.apply_gradients(capped_gvs))
+        else:
+            ops.append(optimizer(l).minimize(cost, var_list=v))
+    return tf.group(*ops), gvs
+
+

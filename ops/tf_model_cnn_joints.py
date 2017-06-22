@@ -101,8 +101,7 @@ def train_and_eval(config):
         with tf.variable_scope('cnn') as scope:
             print 'Creating training graph:'
             model = model_file.model_struct(
-                vgg16_npy_path=config.vgg16_weight_path,
-                fine_tune_layers=config.initialize_layers)
+                vgg16_npy_path=config.vgg16_weight_path)
             train_mode = tf.get_variable(name='training', initializer=True)
             model.build(
                 rgb=train_data_dict['image'],
@@ -187,14 +186,21 @@ def train_and_eval(config):
             # Gradient Descent
             optimizer = optimizer(
                 config.lr)
-            # Op to calculate every variable gradient
-            grads = optimizer.compute_gradients(
-                loss, tf.trainable_variables())
-            # grads = [(tf.clip_by_norm(
-            #     g, 8), v) for g, v in grads if g is not None]
-            # Op to update all variables according to their gradient
-            train_op = optimizer.apply_gradients(
-                grads_and_vars=grads)
+
+            if hasattr(model, 'fine_tune_layers'):
+                train_op, grads = tf_fun.finetune_learning(
+                    loss,
+                    trainables=tf.trainable_variables(),
+                    fine_tune_layers=model.fine_tune_layers,
+                    config=config
+                    )
+            else:
+                # Op to calculate every variable gradient
+                grads = optimizer.compute_gradients(
+                    loss, tf.trainable_variables())
+                # Op to update all variables according to their gradient
+                train_op = optimizer.apply_gradients(
+                    grads_and_vars=grads)
 
             # Summarize all gradients and weights
             [tf.summary.histogram(
