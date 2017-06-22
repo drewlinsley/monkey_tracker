@@ -97,13 +97,6 @@ def train_and_eval(config):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
 
-        tf.summary.image(
-            'train images',
-            tf.cast(train_data_dict['image'], tf.float32))
-        tf.summary.image(
-            'validation images',
-            tf.cast(val_data_dict['image'], tf.float32))
-
     with tf.device('/gpu:0'):
         with tf.variable_scope('cnn') as scope:
             print 'Creating training graph:'
@@ -213,6 +206,15 @@ def train_and_eval(config):
             [tf.summary.scalar(lab, il) for lab, il in zip(
                 loss_label, loss_list)]
 
+            # Summarize images and l1 weights
+            tf.summary.image(
+                'train images',
+                tf.cast(train_data_dict['image'], tf.float32))
+            target_filt = [v for v in tf.trainable_variables() if 'conv1_1_filters' in v.name]
+            tf.summary.image(
+                'train conv1',
+                target_filt)
+
             # Setup validation op
             if validation_data is not False:
                 scope.reuse_variables()
@@ -229,6 +231,10 @@ def train_and_eval(config):
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
+                tf.summary.image(
+                    'validation images',
+                    tf.cast(val_data_dict['image'], tf.float32))
+
 
     # Set up summaries and saver
     saver = tf.train.Saver(

@@ -174,18 +174,19 @@ if __name__ == '__main__':
         type=str,
         default='/media/data_cifs/monkey_tracking/results/' + \
         'TrueDepth100kStore/model_output/' + \
-        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_15_59_45',  # cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_17_45_17
+        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_11_39_45',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_19_59_55',
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default='model_7000.ckpt',  # 56000
+        default='model_19000.ckpt',  # 56000
         help='Name of TF checkpoint file.')
     parser.add_argument(
-        "--run_tests",
+        "--test",
         dest="run_tests",
         action='store_true',
         help='Check to see the pipeline works for our renders before transfering to Kinect.')
     args = parser.parse_args()
     main(**vars(args))
+
