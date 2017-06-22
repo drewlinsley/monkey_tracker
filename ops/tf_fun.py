@@ -204,7 +204,7 @@ def get_normalization_vec(config, num_joints):
         1, -1).repeat(num_joints, axis=0).reshape(1, -1)
 
 
-def put_kernels_on_grid (kernel, pad = 1):
+def put_kernels_on_grid(kernel, pad=1):
 
     '''Visualize conv. filters as an image (mostly for the 1st layer).
     Arranges filters into a grid, with some paddings between adjacent filters.

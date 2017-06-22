@@ -213,7 +213,7 @@ def train_and_eval(config):
             target_filt = [v for v in tf.trainable_variables() if 'conv1_1_filters' in v.name]
             tf.summary.image(
                 'train conv1',
-                target_filt)
+                tf_fun.put_kernels_on_grid(target_filt))
 
             # Setup validation op
             if validation_data is not False:
