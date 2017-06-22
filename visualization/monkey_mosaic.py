@@ -25,7 +25,7 @@ def save_mosaic(
         wspace=0.,
         hspace=0.):
     # Get a color for each yhat and a color for each ytrue
-    colors, joints, num_joints = get_colors
+    colors, joints, num_joints = get_colors()
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
     fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
