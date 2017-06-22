@@ -84,118 +84,46 @@ class model_struct:
                 'weights': [128, 128, None],
                 'names': ['conv3_1', 'conv3_2', 'pool3'],
                 'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
-                'names': ['conv4_1', 'conv4_2', 'pool4'],
-                'filter_size': [3, 3, None]
             }]
 
-        self.create_conv_tower(
+        output_layer = self.create_conv_tower(
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
-
-        rescaled_shape = [(
-            int(x) - 1) // 4 + 1 for x in input_bgr.get_shape()[1:3]]
-        res_input_bgr = tf.image.resize_bilinear(input_bgr, rescaled_shape)
-
-        layer_structure = [
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [64, 64, None],
-                'names': ['lrconv1_1', 'lrconv1_2', 'lrpool1'],
-                'filter_size': [5, 5, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
-                'names': ['lrconv2_1', 'lrconv2_2', 'lrpool2'],
-                'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
-                'names': ['lrconv3_1', 'lrconv3_2', 'lrpool3'],
-                'filter_size': [3, 3, None]
-            }]
-
-        self.create_conv_tower(
-            res_input_bgr,  # pass input_bgr instead of this
-            layer_structure,
-            tower_name='lowres_conv')
-
-        # Rescale feature maps to the largest in the hr_fe_keys
-        resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
-        resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
-        new_size = np.asarray([resize_h, resize_w])
-        high_fe_layers = [self.batchnorm(
-            tf.image.resize_bilinear(
-                self[x], new_size)) for x in hr_fe_keys]
-        self.high_feature_encoder = tf.concat(high_fe_layers, 3)
-
-        # High-res 1x1 X 2
-        self.high_feature_encoder_1x1_0 = self.conv_layer(
-            self.high_feature_encoder,
-            int(self.high_feature_encoder.get_shape()[-1]),
-            256,
-            "high_feature_encoder_1x1_0",
-            filter_size=1)
+        self.high_1 = tf.contrib.layers.flatten(output_layer, 'high_1')
+        self.high_1 = self.fc_layer(
+            self.high_1,
+            int(self.high_1.get_shape()[-1]),
+            4096,
+            'high_1')
         if train_mode is not None:
-            self.high_feature_encoder_1x1_0 = tf.cond(
+            self.high_1 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(
-                    self.high_feature_encoder_1x1_0, 0.5),
-                lambda: self.high_feature_encoder_1x1_0)
-        self.high_1x1_0_pool = self.max_pool(
-            self.high_feature_encoder_1x1_0,
-            'high_1x1_0_pool')
-
-        self.high_feature_encoder_1x1_1 = self.conv_layer(
-            self.high_1x1_0_pool,
-            int(self.high_1x1_0_pool.get_shape()[-1]),
-            256,
-            "high_feature_encoder_1x1_1",
-            filter_size=1)
+                lambda: tf.nn.dropout(self.high_1, 0.5),
+                lambda: self.high_1)
+        self.high_2 = self.fc_layer(
+            self.high_2,
+            int(self.high_2.get_shape()[-1]),
+            4096,
+            'high_2')
         if train_mode is not None:
-            self.high_feature_encoder_1x1_1 = tf.cond(
+            self.high_2 = tf.cond(
                 train_mode,
-                lambda: tf.nn.dropout(
-                    self.high_feature_encoder_1x1_1, 0.5),
-                lambda: self.high_feature_encoder_1x1_1)
-        self.high_1x1_1_pool = self.max_pool(
-            self.high_feature_encoder_1x1_1,
-            'high_1x1_1_pool')
-
-        self.high_feature_encoder_1x1_2 = self.conv_layer(
-            self.high_1x1_1_pool,
-            int(self.high_1x1_1_pool.get_shape()[-1]),
-            256,
-            "high_feature_encoder_1x1_2",
-            filter_size=1)
-        if train_mode is not None:
-            self.high_feature_encoder_1x1_2 = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_2, 0.5),
-                lambda: self.high_feature_encoder_1x1_2)
-        self.high_1x1_2_pool = tf.contrib.layers.flatten(
-            self.max_pool(self.high_feature_encoder_1x1_2, 'high_1x1_2_pool'))
-
+                lambda: tf.nn.dropout(self.high_2, 0.5),
+                lambda: self.high_2)
         if 'label' in target_variables.keys():
             self.output = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
+                self.high_1x1_2,
+                int(self.high_1x1_2.get_shape()[-1]),
                 output_shape,
                 'output')
             self.joint_label_output_keys = ['output']
-
         if 'occlusion' in target_variables.keys():
             # Occlusion head
             self.occlusion = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_2_pool,
-                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        self.high_1x1_2,
+                        int(self.high_1x1_2.get_shape()[-1]),
                         occlusion_shape,
                         "occlusion")
                     )
@@ -203,8 +131,8 @@ class model_struct:
             # Occlusion head
             self.pose = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_2_pool,
-                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        self.high_1x1_2,
+                        int(self.high_1x1_2.get_shape()[-1]),
                         pose_shape,
                         "pose")
                 )

@@ -16,7 +16,7 @@ def train_and_eval(
         validation_data,
         config,
         uniform_batch_size=2,
-        swap_datasets=False):
+        swap_datasets=True):
     """Train and evaluate the model."""
 
     # Import your model

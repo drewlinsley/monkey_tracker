@@ -210,7 +210,9 @@ def train_and_eval(config):
             tf.summary.image(
                 'train images',
                 tf.cast(train_data_dict['image'], tf.float32))
-            target_filt = [v for v in tf.trainable_variables() if 'conv1_1_filters' in v.name]
+            target_filt = [
+                v for v in tf.trainable_variables() if 'conv1_1_filters' in v.name and int(
+                        v.get_shape()[2]) == 1]
             [tf.summary.image(
                 f.name,
                 tf_fun.put_kernels_on_grid(f)) for f in target_filt]
