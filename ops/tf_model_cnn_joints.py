@@ -328,7 +328,8 @@ def train_and_eval(config):
                         os.path.join(
                             results_dir, '%s_val_coors' % step),
                         val_pred=val_out_dict['val_pred'],
-                        val_ims=val_out_dict['val_ims'])
+                        val_ims=val_out_dict['val_ims'],
+                        normalize_vec=normalize_vec)
                     with open(
                         os.path.join(
                             results_dir, '%s_config.p' % step), 'wb') as fp:

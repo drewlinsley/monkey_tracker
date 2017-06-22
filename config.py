@@ -31,7 +31,7 @@ class monkeyConfig(object):
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_07_47_25/'
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_17_39_05/'
         else:
             self.resume_from_checkpoint = None
 
