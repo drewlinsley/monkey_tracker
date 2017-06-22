@@ -505,27 +505,28 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
     with tf.device('/gpu:0'):
-            # model = model_file.model_struct(
-            #     vgg16_npy_path=config.vgg16_weight_path,
-            #     fine_tune_layers=config.initialize_layers)
-            # train_mode = tf.get_variable(name='training', initializer=False)
-            # model.build(
-            #     rgb=val_data_dict['image'],
-            #     target_variables=val_data_dict,
-            #     train_mode=train_mode,
-            #     batchnorm=[''])
-            # predictions = model.output
-         saver = tf.train.import_meta_graph('%s.meta' % model_ckpt)
-
+        with tf.variable_scope('cnn'):
+            print 'Creating training graph:'
+            model = model_file.model_struct(
+                vgg16_npy_path=config.vgg16_weight_path,
+                fine_tune_layers=config.initialize_layers)
+            train_mode = tf.get_variable(name='training', initializer=False)
+            model.build(
+                rgb=val_data_dict['image'],
+                target_variables=val_data_dict,
+                train_mode=train_mode,
+                batchnorm=[''])
+            predictions = model.output
 
     # Initialize the graph
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        # saver = tf.train.Saver(
-        #     tf.global_variables(), max_to_keep=config.keep_checkpoints)
+        saver = tf.train.Saver(
+            tf.global_variables(), max_to_keep=config.keep_checkpoints)
 
         # Need to initialize both of these if supplying num_epochs to inputs
-        # sess.run(tf.group(tf.global_variables_initializer(),
-        #       tf.local_variables_initializer()))
+        sess.run(tf.group(tf.global_variables_initializer(),
+                 tf.local_variables_initializer()))
+        # saver = tf.train.import_meta_graph('my-save-dir/my-model-10000.meta')
         # saver.restore(sess, 'my-save-dir/my-model-10000')
 
         # Start testing data
@@ -543,11 +544,13 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
             try:
                 while not coord.should_stop():
                     import ipdb;ipdb.set_trace()
-                    it_yhat, it_y = sess.run(
+                    it_yhat, it_y, score = sess.run(
                         [
                             predictions,
-                            val_data_dict['label']
+                            val_data_dict['label'],
+                            tf_fun.l2_loss(predictions, val_data_dict['label'])  # tf.nn.l2_loss(predictions - val_data_dict['label'])
                         ])
+                    print score
                     if config.normalize_labels:
                         norm_it_yhat = it_yhat * normalize_vec
                         norm_it_y = it_y * normalize_vec

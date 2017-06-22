@@ -36,8 +36,8 @@ def main(model_dir, ckpt_name, run_tests=False):
         test_frames = False
     else:
         monkey_files = utils.get_files(config.depth_dir, config.depth_regex)
-        kinect_config['start_frame'] = 0
-        kinect_config['end_frame'] = 10
+        kinect_config['start_frame'] = 70000
+        kinect_config['end_frame'] = 70010
         kinect_config['low_threshold'] = 0
         kinect_config['high_threshold'] = 1e20
         kinect_config['rotate_frames'] = 0
@@ -174,13 +174,13 @@ if __name__ == '__main__':
         type=str,
         default='/media/data_cifs/monkey_tracking/results/' + \
         'TrueDepth100kStore/model_output/' + \
-        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_11_39_45',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_19_59_55',
+        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_19_59_55',
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default='model_19000.ckpt',  # 56000
+        default='model_43000.ckpt-43000',
         help='Name of TF checkpoint file.')
     parser.add_argument(
         "--test",

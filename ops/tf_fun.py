@@ -195,9 +195,9 @@ def thomas_l1_loss(model, train_data_dict, config):
 
 
 def get_normalization_vec(config, num_joints):
-    normalize_values = np.asarray(
-        config.image_target_size[:2] + [
-            config.max_depth])[:config.keep_dims]
+    normalize_values = (np.asarray(
+            config.image_target_size[:2] + [
+                config.max_depth])[:config.keep_dims])
     if len(normalize_values) == 1:
         normalize_values = normalize_values[None, :]
     return normalize_values.reshape(
