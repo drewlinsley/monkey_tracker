@@ -21,11 +21,12 @@ def save_mosaic(
         ims,
         yhats,
         ys,
-        output,
+        output=None,
         wspace=0.,
-        hspace=0.):
+        hspace=0.,
+        save_fig=True):
     # Get a color for each yhat and a color for each ytrue
-    colors, joints, num_joints = get_colors
+    colors, joints, num_joints = get_colors()
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
     fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
@@ -56,7 +57,12 @@ def save_mosaic(
         title="Estimated / True",
         loc=1, frameon=False, numpoints=1, ncol=2,
         columnspacing=0, handlelength=0.25, markerscale=2)
-    plt.savefig(output)
+    if save_fig:
+        plt.savefig(output)
+    else:
+        print 'Showing not saving mosaic.'
+        plt.show()
+        plt.close('fig')
 
 
 def xyz_vector_to_xy(vector, num_dims=2):
@@ -144,7 +150,7 @@ if __name__ == '__main__':
         "--monkey_date",
         dest="monkey_date",
         type=str,
-        default='2017_06_18_17_45_17',
+        default='cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_19_59_55',
         help='Date of model directory.')
 
     args = parser.parse_args()
