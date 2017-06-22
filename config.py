@@ -27,9 +27,13 @@ class monkeyConfig(object):
             '/media/data_cifs/clicktionary/',
             'pretrained_weights',
             'vgg16.npy')
-        self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
-        'TrueDepth100kStore/model_output/' + \
-        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_20_17_40_56/'
+        use_checkpoint = True
+        if use_checkpoint:
+            self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
+            'TrueDepth100kStore/model_output/' + \
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_17_39_05/'
+        else:
+            self.resume_from_checkpoint = None
 
         # Tfrecords
         self.new_tf_names = {'train': 'train.tfrecords' , 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
@@ -61,8 +65,8 @@ class monkeyConfig(object):
         self.train_batch = 48
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 3e-4
+        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 1e-4
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000

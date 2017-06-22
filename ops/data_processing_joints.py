@@ -158,7 +158,6 @@ def create_joint_tf_records(
                     occlusion=occlusion)
                 tfrecord_writer.write(example)
                 num_successful += 1
-
             if config.max_train is not None and num_successful > config.max_train:
                 break
     return im_list

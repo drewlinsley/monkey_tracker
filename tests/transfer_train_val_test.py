@@ -1,16 +1,22 @@
 import os
 import re
-import time
 from datetime import datetime
 import numpy as np
 import tensorflow as tf
-import cPickle as pickle
 from ops.data_loader_joints import inputs
 from ops import tf_fun
-from ops.utils import get_dt, import_cnn, save_training_data
+from ops.utils import get_dt, import_cnn
+import argparse
+from config import monkeyConfig
+from visualization import monkey_mosaic
 
 
-def train_and_eval(config):
+def train_and_eval(
+        train_data,
+        validation_data,
+        config,
+        uniform_batch_size=2,
+        swap_datasets=False):
     """Train and evaluate the model."""
 
     # Import your model
@@ -35,15 +41,22 @@ def train_and_eval(config):
     [tf_fun.make_dir(d) for d in dir_list]
 
     # Prepare model inputs
-    train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
-    if config.include_validation:
+    if train_data is None:
+        train_data = os.path.join(
+            config.tfrecord_dir,
+            config.train_tfrecords)
+
+    if validation_data is None:
         validation_data = os.path.join(
             config.tfrecord_dir,
             config.val_tfrecords)
-    else:
-        validation_data = None
+    if swap_datasets:
+        t_train = np.copy(train_data)
+        train_data = validation_data
+        validation_data = str(t_train)
 
     # Prepare data on CPU
+    config.train_batch = uniform_batch_size
     with tf.device('/cpu:0'):
         train_data_dict = inputs(
             tfrecord_file=train_data,
@@ -53,7 +66,7 @@ def train_and_eval(config):
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=config.epochs,
+            num_epochs=None,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -69,13 +82,13 @@ def train_and_eval(config):
 
         val_data_dict = inputs(
             tfrecord_file=validation_data,
-            batch_size=config.validation_batch,
+            batch_size=config.train_batch,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=config.epochs,
+            num_epochs=None,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -226,8 +239,8 @@ def train_and_eval(config):
 
                 # Calculate validation accuracy
                 if 'label' in val_data_dict.keys():
-                    val_score = tf.nn.l2_loss(
-                        val_model.output - val_data_dict['label'])
+                    val_score = tf.reduce_mean(tf_fun.l2_loss(
+                        val_data_dict['label'], val_model.output))
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
@@ -235,11 +248,9 @@ def train_and_eval(config):
                     'validation images',
                     tf.cast(val_data_dict['image'], tf.float32))
 
-
     # Set up summaries and saver
     saver = tf.train.Saver(
         tf.global_variables(), max_to_keep=config.keep_checkpoints)
-    summary_op = tf.summary.merge_all()
     tf.add_to_collection('output', model.output)
 
     # Initialize the graph
@@ -248,7 +259,6 @@ def train_and_eval(config):
     # Need to initialize both of these if supplying num_epochs to inputs
     sess.run(tf.group(tf.global_variables_initializer(),
              tf.local_variables_initializer()))
-    summary_writer = tf.summary.FileWriter(config.summary_dir, sess.graph)
 
     # Set up exemplar threading
     coord = tf.train.Coordinator()
@@ -256,7 +266,7 @@ def train_and_eval(config):
 
     # Create list of variables to run through training model
     train_session_vars = {
-        'train_op': train_op,
+        # 'train_op': train_op,
         'loss_value': loss,
         'im': train_data_dict['image'],
         'yhat': model.output,
@@ -274,106 +284,47 @@ def train_and_eval(config):
         'val_ims': val_data_dict['image']
     }
 
-    # Create list of variables to save to numpys
-    save_training_vars = [
-        'im',
-        'yhat',
-        'ytrue',
-        'yhat'
-        ]
-
-    if 'occlusion' in train_data_dict.keys():
-        key = 'occhat'
-        train_session_vars[key] = model.occlusion,
-        save_training_vars += [key]
-        key = 'occtrue'
-        train_session_vars[key] = train_data_dict['occlusion'],
-        save_training_vars += [key]
-    if 'pose' in train_data_dict.keys():
-        key = 'posehat'
-        train_session_vars[key] = model.pose,
-        save_training_vars += [key]
-        key = 'posetrue'
-        train_session_vars[key] = train_data_dict['pose']
-        save_training_vars += [key]
-
     # Start training loop
     np.save(config.train_checkpoint, config)
-    step, losses = 0, []
+    step = 0
     num_joints = int(
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
     normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
     if config.resume_from_checkpoint is not None:
         ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
-        print 'Resuming training from checkpoint: %s' % ckpt
+        print 'Evaluating checkpoint: %s' % ckpt
         saver.restore(sess, ckpt)
     try:
         while not coord.should_stop():
-            start_time = time.time()
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
-            losses.append(train_out_dict['loss_value'])
-            duration = time.time() - start_time
             assert not np.isnan(
                 train_out_dict['loss_value']), 'Model diverged with loss = NaN'
 
-            if step % config.steps_before_validation == 0 and step > 0:
-                if validation_data is not False:
-                    val_out_dict = sess.run(
-                        val_session_vars.values())
-                    val_out_dict = {k: v for k, v in zip(
-                        val_session_vars.keys(), val_out_dict)}
-                    np.savez(
-                        os.path.join(
-                            results_dir, '%s_val_coors' % step),
-                        val_pred=val_out_dict['val_pred'],
-                        val_ims=val_out_dict['val_ims'],
-                        normalize_vec=normalize_vec)
-                    with open(
-                        os.path.join(
-                            results_dir, '%s_config.p' % step), 'wb') as fp:
-                        pickle.dump(config, fp)
-
-                # Summaries
-                summary_str = sess.run(summary_op)
-                summary_writer.add_summary(summary_str, step)
-
-                # Training status and validation accuracy attach 9177
-                format_str = (
-                    '%s: step %d, loss = %.8f (%.1f examples/sec; '
-                    '%.3f sec/batch) | '
-                    'Validation l2 loss = %s | logdir = %s')
-                print (format_str % (
-                    datetime.now(), step, train_out_dict['loss_value'],
-                    config.train_batch / duration, float(duration),
-                    val_out_dict['val_acc'],
-                    config.summary_dir))
-
-                # Save the model checkpoint if it's the best yet
-                if config.normalize_labels:
-                    train_out_dict['yhat'] *= normalize_vec
-                    train_out_dict['ytrue'] *= normalize_vec
-                [save_training_data(
-                    output_dir=results_dir,
-                    data=train_out_dict[k],
-                    name='%s_%s' % (k, step)) for k in save_training_vars]
-
-                saver.save(
-                    sess, os.path.join(
-                        config.train_checkpoint,
-                        'model_' + str(step) + '.ckpt'), global_step=step)
-
-            else:
-                # Training status
-                format_str = ('%s: step %d, loss = %.8f (%.1f examples/sec; '
-                              '%.3f sec/batch)')
-                print (format_str % (
-                    datetime.now(),
-                    step,
-                    train_out_dict['loss_value'],
-                    config.train_batch / duration,
-                    float(duration)))
+            val_out_dict = sess.run(
+                val_session_vars.values())
+            val_out_dict = {k: v for k, v in zip(
+                val_session_vars.keys(), val_out_dict)}
+            if config.normalize_labels:
+                train_out_dict['yhat'] *= normalize_vec
+                train_out_dict['ytrue'] *= normalize_vec
+                val_out_dict['val_pred'] *= normalize_vec
+            monkey_mosaic.save_mosaic(
+                train_out_dict['im'].squeeze(),
+                train_out_dict['yhat'],
+                train_out_dict['ytrue'],
+                save_fig=False)
+            format_str = (
+                '%s: step %d | ckpt: %s | validation tf: %s | Train l2 loss = %.8f | '
+                'Validation l2 loss = %.8f')
+            print (format_str % (
+                datetime.now(),
+                step,
+                ckpt,
+                validation_data,
+                train_out_dict['loss_value'],
+                val_out_dict['val_acc']))
             # End iteration
             step += 1
 
@@ -382,8 +333,39 @@ def train_and_eval(config):
     finally:
         coord.request_stop()
         dt_stamp = get_dt()  # date-time stamp
-        np.save(
-            os.path.join(
-                config.tfrecord_dir, '%straining_loss' % dt_stamp), losses)
     coord.join(threads)
     sess.close()
+
+
+def main(validation_data=None, train_data=None, which_joint=None):
+    config = monkeyConfig()
+
+    if which_joint is not None:
+        config.selected_joints += [which_joint]
+    train_and_eval(
+        train_data=train_data,
+        validation_data=validation_data,
+        config=config)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--train",
+        dest="train_data",
+        type=str,
+        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        help='Train pointer.')
+    parser.add_argument(
+        "--val",
+        dest="validation_data",
+        type=str,
+        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        help='Validation pointer.')
+    parser.add_argument(
+        "--which_joint",
+        dest="which_joint",
+        type=str,
+        help='Specify a joint to target with the model.')
+    args = parser.parse_args()
+    main(**vars(args))
