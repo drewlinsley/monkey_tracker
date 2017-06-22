@@ -31,7 +31,7 @@ class model_struct:
             target_variables=None,
             train_mode=None,
             batchnorm=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4', 'lrpool2', 'lrpool3'],
+            hr_fe_keys=['pool2', 'pool3', 'pool4', 'dipool2', 'dipool3'],
             ):
         """
         load variable from npy to build the VGG
@@ -63,6 +63,19 @@ class model_struct:
                     target_variables['pose'].get_shape()[-1])
 
         input_bgr = tf.identity(rgb, name="lrp_input")
+
+        # layer_structure = [{
+        #         'layers': ['conv', 'conv', 'pool'],
+        #         'weights': [64, 64, None],
+        #         'names': ['conv1_1', 'conv1_2', 'pool1'],
+        #         'filter_size': [5, 5, None]
+        #     }]
+
+        # conv_base = self.create_conv_tower(
+        #     input_bgr,
+        #     layer_structure,
+        #     tower_name='conv_base')
+
         layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -99,19 +112,19 @@ class model_struct:
             {
                 'layers': ['diconv', 'diconv', 'pool'],
                 'weights': [64, 64, None],
-                'names': ['diconv1_1', 'diconv1_2', 'pool1'],
+                'names': ['diconv1_1', 'diconv1_2', 'dipool1'],
                 'filter_size': [5, 5, None]
             },
             {
                 'layers': ['diconv', 'diconv', 'pool'],
                 'weights': [128, 128, None],
-                'names': ['diconv2_1', 'diconv2_2', 'pool2'],
+                'names': ['diconv2_1', 'diconv2_2', 'dipool2'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['diconv', 'diconv', 'pool'],
                 'weights': [256, 256, None],
-                'names': ['diconv3_1', 'diconv3_2', 'pool3'],
+                'names': ['diconv3_1', 'diconv3_2', 'dipool3'],
                 'filter_size': [3, 3, None]
             }]
 
