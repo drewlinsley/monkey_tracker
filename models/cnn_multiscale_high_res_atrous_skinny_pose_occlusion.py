@@ -64,25 +64,19 @@ class model_struct:
 
         input_bgr = tf.identity(rgb, name="lrp_input")
 
-        # layer_structure = [{
-        #         'layers': ['conv', 'conv', 'pool'],
-        #         'weights': [64, 64, None],
-        #         'names': ['conv1_1', 'conv1_2', 'pool1'],
-        #         'filter_size': [5, 5, None]
-        #     }]
-
-        # conv_base = self.create_conv_tower(
-        #     input_bgr,
-        #     layer_structure,
-        #     tower_name='conv_base')
-
-        layer_structure = [
-            {
+        layer_structure = [{
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
                 'filter_size': [5, 5, None]
-            },
+            }]
+
+        conv_base = self.create_conv_tower(
+            input_bgr,
+            layer_structure,
+            tower_name='conv_base')
+
+        layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [128, 128, None],
@@ -103,7 +97,7 @@ class model_struct:
             }]
 
         self.create_conv_tower(
-            input_bgr,
+            conv_base,
             layer_structure,
             tower_name='highres_conv')
 
@@ -129,7 +123,7 @@ class model_struct:
             }]
 
         self.create_conv_tower(
-            input_bgr,
+            conv_base,
             layer_structure,
             tower_name='atrous_conv')
 
