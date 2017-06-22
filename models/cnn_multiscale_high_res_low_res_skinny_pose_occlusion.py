@@ -254,7 +254,6 @@ class model_struct:
                             out_channels=we,
                             name=na,
                             filter_size=fs
-
                         )
                     elif la == 'res':
                         act = self.resnet_layer(
