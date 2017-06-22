@@ -27,7 +27,7 @@ class monkeyConfig(object):
             '/media/data_cifs/clicktionary/',
             'pretrained_weights',
             'vgg16.npy')
-        use_checkpoint = True
+        use_checkpoint = False
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \

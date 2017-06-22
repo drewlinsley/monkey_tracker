@@ -102,9 +102,9 @@ class model_struct:
                 lambda: tf.nn.dropout(self.high_1, 0.5),
                 lambda: self.high_1)
         self.high_2 = self.fc_layer(
-            self.high_2,
-            int(self.high_2.get_shape()[-1]),
-            4096,
+            self.high_1,
+            int(self.high_1.get_shape()[-1]),
+            1000,
             'high_2')
         if train_mode is not None:
             self.high_2 = tf.cond(
@@ -113,8 +113,8 @@ class model_struct:
                 lambda: self.high_2)
         if 'label' in target_variables.keys():
             self.output = self.fc_layer(
-                self.high_1x1_2,
-                int(self.high_1x1_2.get_shape()[-1]),
+                self.high_2,
+                int(self.high_2.get_shape()[-1]),
                 output_shape,
                 'output')
             self.joint_label_output_keys = ['output']
@@ -122,8 +122,8 @@ class model_struct:
             # Occlusion head
             self.occlusion = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_2,
-                        int(self.high_1x1_2.get_shape()[-1]),
+                        self.high_2,
+                        int(self.high_2.get_shape()[-1]),
                         occlusion_shape,
                         "occlusion")
                     )
@@ -131,8 +131,8 @@ class model_struct:
             # Occlusion head
             self.pose = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_2,
-                        int(self.high_1x1_2.get_shape()[-1]),
+                        self.high_2,
+                        int(self.high_2.get_shape()[-1]),
                         pose_shape,
                         "pose")
                 )
