@@ -61,8 +61,8 @@ class monkeyConfig(object):
         self.train_batch = 48
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 3e-4
+        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 1e-4
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
