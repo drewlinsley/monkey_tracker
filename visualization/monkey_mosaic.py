@@ -6,9 +6,7 @@ from glob import glob
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
-import matplotlib.patches as mpatches
 from config import monkeyConfig
-import matplotlib.cm as cm
 
 
 def get_colors():
@@ -70,7 +68,11 @@ def xyz_vector_to_xy(vector, num_dims=2):
 
 
 def plot_coordinates(ax, vector, colors, **kwargs):
+    if ax is None:
+        fig, ax = plt.subplots()
     xy = xyz_vector_to_xy(vector)
+    if colors is None:
+        colors = ['r'] * xy.shape[0]
     # it will be helpful to have this list of paths
     # for legend making
     return [ax.plot(
@@ -114,40 +116,69 @@ def main(
     im_list = []
     yhat_list = []
     ytrue_list = []
+    val_images_list = []
+    val_yhats_list = []
     for im in ims:
         file_name = re.search('\d+', im.split('/')[-1]).group()
+
+        # Train images
         images = np.squeeze(np.load(im))
         yhats = np.load(os.path.join(monkey_dir, 'yhat_%s.npy' % file_name))
         ytrues = np.load(os.path.join(monkey_dir, 'ytrue_%s.npy' % file_name))
+
+        # Validation images
+        val_npz = os.path.join(monkey_dir, '%s_val_coors.npz' % file_name)
+        if os.path.exists(val_npz):
+            val_data = np.load(val_npz)
+            normalize_vec = val_data['normalize_vec']
+            val_images = val_data['val_ims']
+            val_yhats = val_data['val_pred']
+            val_yhats *= normalize_vec
+            run_vals = True
+        else:
+            run_vals = False
+
         if normalize:
             yhats *= normalize_vec
             ytrues *= normalize_vec
         if unnormalize:
             yhats /= unnormalize_vec
             ytrues /= unnormalize_vec
+            val_yhats /= unnormalize_vec
             yhats *= normalize_vec
             ytrues *= normalize_vec
+            val_yhats *= normalize_vec
         [im_list.append(x) for x in images]
         [yhat_list.append(x) for x in yhats]
         [ytrue_list.append(x) for x in ytrues]
+        [val_images_list.append(x) for x in val_images]
+        [val_yhats_list.append(x) for x in val_yhats]
 
     if max_ims is not None:
         rand_order = np.random.permutation(len(im_list))
         im_list = np.asarray(im_list)[rand_order][:max_ims]
         yhat_list = np.asarray(yhat_list)[rand_order][:max_ims]
         ytrue_list = np.asarray(ytrue_list)[rand_order][:max_ims]
-
+        rand_order = np.random.permutation(len(val_images_list))
+        val_images_list = np.asarray(val_images_list)[rand_order][:max_ims]
+        val_yhats_list = np.asarray(val_yhats_list)[rand_order][:max_ims]
     save_mosaic(
         ims=im_list,
         yhats=yhat_list,
         ys=ytrue_list,
         output=output_file)
+    if run_vals:
+        save_mosaic(
+            ims=val_images_list[:, :, :, 0],
+            yhats=val_yhats_list,
+            ys=np.zeros_like(val_yhats_list),
+            output='val_%s' % output_file)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--monkey_date",
+        "--dir",
         dest="monkey_date",
         type=str,
         default='cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05', # 2017_06_18_11_42_34

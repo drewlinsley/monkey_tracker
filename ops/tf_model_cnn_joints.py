@@ -216,12 +216,9 @@ def train_and_eval(config):
             tf.summary.image(
                 'train images',
                 tf.cast(train_data_dict['image'], tf.float32))
-            target_filt = [
-                v for v in tf.trainable_variables() if 'conv1_1_filters' in v.name and int(
-                        v.get_shape()[2]) == 1]
-            [tf.summary.image(
-                f.name,
-                tf_fun.put_kernels_on_grid(f)) for f in target_filt]
+            tf_fun.add_filter_summary(
+                trainables=tf.trainable_variables(),
+                target_layer='conv1_1_filters')
 
             # Setup validation op
             if validation_data is not False:
@@ -312,9 +309,13 @@ def train_and_eval(config):
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
     normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
     if config.resume_from_checkpoint is not None:
-        ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
-        print 'Resuming training from checkpoint: %s' % ckpt
-        saver.restore(sess, ckpt)
+        if '.ckpt' in config.resume_from_checkpoint:
+            ckpt = config.resume_from_checkpoint
+            saver.restore(sess, ckpt)
+        else:
+            ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
+            print 'Evaluating checkpoint: %s' % ckpt
+            saver.restore(sess, ckpt)
     try:
         while not coord.should_stop():
             start_time = time.time()
@@ -325,8 +326,7 @@ def train_and_eval(config):
             duration = time.time() - start_time
             assert not np.isnan(
                 train_out_dict['loss_value']), 'Model diverged with loss = NaN'
-
-            if step % config.steps_before_validation == 0 and step > 0:
+            if step % config.steps_before_validation == 0:
                 if validation_data is not False:
                     val_out_dict = sess.run(
                         val_session_vars.values())

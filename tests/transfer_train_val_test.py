@@ -15,8 +15,10 @@ def train_and_eval(
         train_data,
         validation_data,
         config,
-        uniform_batch_size=6,
-        swap_datasets=False):
+        uniform_batch_size=32,
+        swap_datasets=False,
+        working_on_kinect=False,
+        return_coors=False):
     """Train and evaluate the model."""
 
     # Import your model
@@ -57,6 +59,10 @@ def train_and_eval(
 
     # Prepare data on CPU
     config.train_batch = uniform_batch_size
+    if working_on_kinect:
+        num_epochs = 1
+    else:
+        num_epochs = None
     with tf.device('/cpu:0'):
         train_data_dict = inputs(
             tfrecord_file=train_data,
@@ -66,7 +72,7 @@ def train_and_eval(
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=None,
+            num_epochs=num_epochs,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -78,7 +84,9 @@ def train_and_eval(
             num_dims=config.num_dims,
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
-            background_multiplier=config.background_multiplier)
+            background_multiplier=config.background_multiplier,
+            working_on_kinect=working_on_kinect,
+            shuffle=False)
 
         val_data_dict = inputs(
             tfrecord_file=validation_data,
@@ -88,7 +96,7 @@ def train_and_eval(
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=None,
+            num_epochs=num_epochs,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -100,7 +108,8 @@ def train_and_eval(
             num_dims=config.num_dims,
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
-            background_multiplier=config.background_multiplier)
+            background_multiplier=config.background_multiplier,
+            shuffle=False)
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -271,6 +280,9 @@ def train_and_eval(
         'yhat': model.output,
         'ytrue': train_data_dict['label']
     }
+    if working_on_kinect:
+        print 'Using predictions for ytrue.'
+        train_session_vars['ytrue'] = tf.identity(model.output)
     if hasattr(model, 'deconv'):
         train_session_vars['deconv'] = model.deconv
     if hasattr(model, 'final_fc'):
@@ -289,10 +301,15 @@ def train_and_eval(
     num_joints = int(
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
     normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
+    joint_predictions, joint_gt, out_ims = [], [], []
     if config.resume_from_checkpoint is not None:
-        ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
-        print 'Evaluating checkpoint: %s' % ckpt
-        saver.restore(sess, ckpt)
+        if '.ckpt' in config.resume_from_checkpoint:
+            ckpt = config.resume_from_checkpoint
+            saver.restore(sess, ckpt)
+        else:
+            ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
+            print 'Evaluating checkpoint: %s' % ckpt
+            saver.restore(sess, ckpt)
     else:
         raise RuntimeError('Set resume_from_checkoint=True in the config')
     try:
@@ -302,7 +319,6 @@ def train_and_eval(
                 train_session_vars.keys(), train_out_dict)}
             assert not np.isnan(
                 train_out_dict['loss_value']), 'Model diverged with loss = NaN'
-
             val_out_dict = sess.run(
                 val_session_vars.values())
             val_out_dict = {k: v for k, v in zip(
@@ -311,11 +327,16 @@ def train_and_eval(
                 train_out_dict['yhat'] *= normalize_vec
                 train_out_dict['ytrue'] *= normalize_vec
                 val_out_dict['val_pred'] *= normalize_vec
-            monkey_mosaic.save_mosaic(
-                train_out_dict['im'].squeeze(),
-                train_out_dict['yhat'],
-                train_out_dict['ytrue'],
-                save_fig=False)
+            if return_coors:
+                joint_predictions += [train_out_dict['yhat']]
+                joint_gt += [train_out_dict['ytrue']]
+                out_ims += [train_out_dict['im'].squeeze()]
+            else:
+                monkey_mosaic.save_mosaic(
+                    train_out_dict['im'].squeeze(),
+                    train_out_dict['yhat'],
+                    train_out_dict['ytrue'],
+                    save_fig=False)
             format_str = (
                 '%s: step %d | ckpt: %s | validation tf: %s | Train l2 loss = %.8f | '
                 'Validation l2 loss = %.8f')
@@ -330,23 +351,33 @@ def train_and_eval(
             step += 1
 
     except tf.errors.OutOfRangeError:
-        print('Done training for %d epochs, %d steps.' % (config.epochs, step))
+        print('Done training for %d epochs, %d steps.' % (num_epochs, step))
     finally:
         coord.request_stop()
         dt_stamp = get_dt()  # date-time stamp
     coord.join(threads)
     sess.close()
+    return {
+        'yhat': np.concatenate(joint_predictions).squeeze(),
+        'ytrue': np.concatenate(joint_gt).squeeze(),
+        'im': np.concatenate(out_ims)
+        }
 
 
-def main(validation_data=None, train_data=None, which_joint=None):
+def main(
+        validation_data=None,
+        train_data=None,
+        which_joint=None,
+        working_on_kinect=False):
+
     config = monkeyConfig()
-
     if which_joint is not None:
         config.selected_joints += [which_joint]
     train_and_eval(
         train_data=train_data,
         validation_data=validation_data,
-        config=config)
+        config=config,
+        working_on_kinect=working_on_kinect)
 
 
 if __name__ == '__main__':
@@ -355,7 +386,7 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
@@ -368,5 +399,10 @@ if __name__ == '__main__':
         dest="which_joint",
         type=str,
         help='Specify a joint to target with the model.')
+    parser.add_argument(
+        "--kinect",
+        dest="working_on_kinect",
+        action='store_true',
+        help='You are passing kinect data as training.')
     args = parser.parse_args()
     main(**vars(args))

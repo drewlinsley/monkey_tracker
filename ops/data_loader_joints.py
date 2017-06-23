@@ -107,7 +107,8 @@ def read_and_decode(
         num_dims=3,
         keep_dims=3,
         clip_z=False,
-        mask_occluded_joints=False):
+        mask_occluded_joints=False,
+        working_on_kinect=False):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -147,32 +148,36 @@ def read_and_decode(
     # Take off first slice of the image
     image = tf.expand_dims(image[:, :, 0], axis=-1)
 
-    # Convert background values
-    background_mask = tf.cast(tf.equal(image, 0), tf.float32)
-    background_constant = (background_multiplier * max_value)
-    background_mask *= background_constant
-    image += background_mask
-
-    # Normalize: must apply max value to image and every 3rd label
-    if normalize_labels:
-        tile_size = [int(label.get_shape()[0]) / num_dims]  # len(image_target_size)]
-        # Normalize x coor
-        lab_adjust = tf.cast(
-            tf.tile([image_target_size[0], 1, 1], tile_size), tf.float32)
-        label /= lab_adjust
-
-        # Normalize y coor
-        lab_adjust = tf.cast(
-            tf.tile([1, image_target_size[1], 1], tile_size), tf.float32)
-        label /= lab_adjust
+    if not working_on_kinect:
+        print 'Normalizing and adjusting rendered data'
+        # Convert background values
+        background_mask = tf.cast(tf.equal(image, 0), tf.float32)
+        background_constant = (background_multiplier * max_value)
+        background_mask *= background_constant
+        image += background_mask
 
         # Normalize intensity
         image /= background_constant
 
-        # Normalize z coor
-        lab_adjust = tf.cast(
-            tf.tile([1, 1, max_value], tile_size), tf.float32)
-        label /= lab_adjust
+        # Normalize: must apply max value to image and every 3rd label
+        if normalize_labels:
+            tile_size = [int(label.get_shape()[0]) / num_dims]
+            # Normalize x coor
+            lab_adjust = tf.cast(
+                tf.tile([image_target_size[0], 1, 1], tile_size), tf.float32)
+            label /= lab_adjust
+
+            # Normalize y coor
+            lab_adjust = tf.cast(
+                tf.tile([1, image_target_size[1], 1], tile_size), tf.float32)
+            label /= lab_adjust
+
+            # Normalize z coor
+            lab_adjust = tf.cast(
+                tf.tile([1, 1, max_value], tile_size), tf.float32)
+            label /= lab_adjust
+    else:
+        print 'Receiving pre-normalized kinect data'
 
     if clip_z:
         print 'Clipping z dimension'
@@ -253,6 +258,16 @@ def read_and_decode(
                 split_joints,
                 axis=1),
             [-1])
+    if 'size' in aux_losses:
+        import ipdb;ipdb.set_trace()
+        res_size = label_shape // keep_dims
+        split_joints = tf.split(
+            tf.reshape(label, [res_size, num_dims]), res_size)
+        monkey_size = []
+        for sj in split_joints:
+            xyz = tf.split(sj, 3, axis=1)
+            monkey_size += [tf.reduce_max(d) - tf.reduce_min(d) for d in xyz]
+        monkey_size = tf.concat(monkey_size, axis=1)
 
     return output_data  # , label_scatter
 
@@ -395,7 +410,9 @@ def inputs(
         mask_occluded_joints=False,
         num_dims=3,
         keep_dims=3,
-        background_multiplier=1.01):
+        background_multiplier=1.01,
+        working_on_kinect=False,
+        shuffle=True):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -420,8 +437,8 @@ def inputs(
             mask_occluded_joints=mask_occluded_joints,
             num_dims=num_dims,
             keep_dims=keep_dims,
-            background_multiplier=background_multiplier
-            )
+            background_multiplier=background_multiplier,
+            working_on_kinect=working_on_kinect)
         keys = []
         var_list = []
         image = output_data['image']
@@ -438,11 +455,18 @@ def inputs(
             pose = output_data['pose']
             var_list += [pose]
             keys += ['pose']
-        shuffled_var_list = tf.train.shuffle_batch(
-            var_list,
-            batch_size=batch_size,
-            num_threads=2,
-            capacity=1000+3 * batch_size,
-            # Ensures a minimum amount of shuffling of examples.
-            min_after_dequeue=1000)
-        return {k: v for k, v in zip(keys, shuffled_var_list)}
+        if shuffle:
+            var_list = tf.train.shuffle_batch(
+                var_list,
+                batch_size=batch_size,
+                num_threads=2,
+                capacity=1000+3 * batch_size,
+                # Ensures a minimum amount of shuffling of examples.
+                min_after_dequeue=1000)
+        else:
+            var_list = tf.train.batch(
+                var_list,
+                batch_size=batch_size,
+                num_threads=2,
+                capacity=1000+3 * batch_size)
+        return {k: v for k, v in zip(keys, var_list)}

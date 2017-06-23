@@ -280,26 +280,20 @@ def finetune_learning(
                 [config.hold_lr, config.lr],
                 grad_clip=config.grad_clip)
         else:
-            raise RuntimeException('Cannot understand what optimizer you\'re using')
+            raise RuntimeError(
+                'Cannot understand what optimizer you\'re using')
     else:
-        raise RuntimeException('Pass some layers for finetuning')
+        raise RuntimeError('Pass some layers for finetuning')
     return train_op, gvs
 
 
-def ft_optimizer_list(cost, opt_vars, optimizer, lrs, grad_clip=False):
-    """Efficient optimization for fine tuning a net."""
-    ops = []
-    gvs = []
-    for v, l in zip(opt_vars, lrs):
-        if grad_clip:
-            optim = optimizer(l)
-            gvs = optim.compute_gradients(cost, var_list=v)
-            capped_gvs = [
-                (tf.clip_by_norm(grad, 10.), var)
-                if grad is not None else (grad, var) for grad, var in gvs]
-            ops.append(optim.apply_gradients(capped_gvs))
-        else:
-            ops.append(optimizer(l).minimize(cost, var_list=v))
-    return tf.group(*ops), gvs
-
-
+def add_filter_summary(trainables, target_layer):
+    target_filt = []
+    for v in trainables:
+        if target_layer in v.name:
+            vs = [int(x) for x in v.get_shape()]
+            v = tf.reshape(v, [vs[0], vs[1], 1, vs[2] * vs[3]])
+            target_filt += [v]
+    [tf.summary.image(
+        f.name,
+        put_kernels_on_grid(f)) for f in target_filt]

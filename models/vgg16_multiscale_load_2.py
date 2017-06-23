@@ -9,15 +9,19 @@ class model_struct:
     """
 
     def __init__(
-                self, vgg16_npy_path=None, trainable=True,
-                fine_tune_layers=None):
+                self,
+                vgg16_npy_path=None,
+                trainable=True):
         if vgg16_npy_path is not None:
-            print 'Ignoring vgg16_npy_path (not using a vgg!).'
-        self.data_dict = None
+            self.data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
+            print 'Restored model weights from: %s' % vgg16_npy_path
+        else:
+            self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
+        self.fine_tune_layers = []
 
     def __getitem__(self, name):
         return getattr(self, name)
@@ -31,7 +35,7 @@ class model_struct:
             target_variables=None,
             train_mode=None,
             batchnorm=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4', 'lrpool2', 'lrpool3'],
+            hr_fe_keys=['newpool3', 'newpool4', 'lrpool2', 'lrnewpool3'],
             ):
         """
         load variable from npy to build the VGG
@@ -62,13 +66,21 @@ class model_struct:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
 
-        input_bgr = tf.identity(rgb, name="lrp_input")
+        # Convert RGB to BGR
+        rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
+        self.bgr = tf.concat(axis=3, values=[
+            rgb_scaled - self.VGG_MEAN[0],
+            rgb_scaled - self.VGG_MEAN[1],
+            rgb_scaled - self.VGG_MEAN[2],
+        ], name='bgr')
+
+        input_bgr = tf.identity(self.bgr, name="lrp_input")
         layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
-                'filter_size': [5, 5, None]
+                'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -78,22 +90,29 @@ class model_struct:
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
-                'names': ['conv3_1', 'conv3_2', 'pool3'],
+                'weights': [256, 256, None],
+                'names': ['newconv3_1', 'newconv3_2', 'newpool3'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [256, 256, None],
-                'names': ['conv4_1', 'conv4_2', 'pool4'],
+                'names': ['newconv4_1', 'newconv4_2', 'newpool4'],
                 'filter_size': [3, 3, None]
             }]
+        # self.fine_tune_layers += ['conv1_1']
+        # self.fine_tune_layers += ['conv1_2']
+        # self.fine_tune_layers += ['conv2_1']
+        # self.fine_tune_layers += ['conv2_2']
+        # self.fine_tune_layers += ['newconv3_1']
+        # self.fine_tune_layers += ['newconv3_2']
+        self.fine_tune_layers += ['newconv4_1']
+        self.fine_tune_layers += ['newconv4_2']
 
         self.create_conv_tower(
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
-
 
         # Replace this lowres tower with atrous convolutions
         rescaled_shape = [(
@@ -105,7 +124,7 @@ class model_struct:
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['lrconv1_1', 'lrconv1_2', 'lrpool1'],
-                'filter_size': [5, 5, None]
+                'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
@@ -116,9 +135,11 @@ class model_struct:
             {
                 'layers': ['conv', 'conv', 'pool'],
                 'weights': [256, 256, None],
-                'names': ['lrconv3_1', 'lrconv3_2', 'lrpool3'],
+                'names': ['lrnewconv3_1', 'lrnewconv3_2', 'lrnewpool3'],
                 'filter_size': [3, 3, None]
             }]
+        self.fine_tune_layers += ['lrnewconv3_1']
+        self.fine_tune_layers += ['lrnewconv3_2']
 
         self.create_conv_tower(
             res_input_bgr,  # pass input_bgr instead of this
@@ -126,12 +147,12 @@ class model_struct:
             tower_name='lowres_conv')
 
         # Rescale feature maps to the largest in the hr_fe_keys
-        resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
-        resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
+        resize_h = int(self.conv2_1.get_shape()[1])  # np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
+        resize_w = int(self.conv2_1.get_shape()[2]) # np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
         new_size = np.asarray([resize_h, resize_w])
-        high_fe_layers = [self.batchnorm(
+        high_fe_layers = [
             tf.image.resize_bilinear(
-                self[x], new_size)) for x in hr_fe_keys]
+                self[x], new_size) for x in hr_fe_keys]
         self.high_feature_encoder = tf.concat(high_fe_layers, 3)
 
         # High-res 1x1 X 2
@@ -141,6 +162,7 @@ class model_struct:
             256,
             "high_feature_encoder_1x1_0",
             filter_size=1)
+        self.fine_tune_layers += ['high_feature_encoder_1x1_0']
         if train_mode is not None:
             self.high_feature_encoder_1x1_0 = tf.cond(
                 train_mode,
@@ -154,9 +176,11 @@ class model_struct:
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_1x1_0_pool,
             int(self.high_1x1_0_pool.get_shape()[-1]),
-            256,
+            128,
             "high_feature_encoder_1x1_1",
             filter_size=1)
+        self.fine_tune_layers += ['high_feature_encoder_1x1_1']
+
         if train_mode is not None:
             self.high_feature_encoder_1x1_1 = tf.cond(
                 train_mode,
@@ -173,6 +197,8 @@ class model_struct:
             256,
             "high_feature_encoder_1x1_2",
             filter_size=1)
+        self.fine_tune_layers += ['high_feature_encoder_1x1_2']
+
         if train_mode is not None:
             self.high_feature_encoder_1x1_2 = tf.cond(
                 train_mode,
@@ -188,14 +214,7 @@ class model_struct:
                 output_shape,
                 'output')
             self.joint_label_output_keys = ['output']
-
-        if 'size' in target_variables.keys():
-            self.output = self.fc_layer(
-                self.high_1x1_2_pool,
-                int(self.high_1x1_2_pool.get_shape()[-1]),
-                2,
-                'output')
-            self.joint_label_output_keys = ['size']
+            self.fine_tune_layers += ['output']
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
@@ -206,6 +225,7 @@ class model_struct:
                         occlusion_shape,
                         "occlusion")
                     )
+            self.fine_tune_layers += ['occlusion']
 
         if 'pose' in target_variables.keys():
             # Occlusion head
@@ -216,6 +236,8 @@ class model_struct:
                         pose_shape,
                         "pose")
                 )
+            self.fine_tune_layers += ['pose']
+
         self.data_dict = None
 
     def resnet_layer(
@@ -344,7 +366,12 @@ class model_struct:
 
     def get_var(
             self, initial_value, name, idx,
-            var_name, in_size=None, out_size=None):
+            var_name, in_size=None, out_size=None, ms_filt='lr'):
+        # Hardcoding this for the current model... Figure out a better solution later.
+        vd_name = name
+        if ms_filt in name:
+            name = name.strip(ms_filt)
+            print 'Reusing %s for %s' % (name,  var_name)
         if self.data_dict is not None and name in self.data_dict:
             value = self.data_dict[name][idx]
         else:
@@ -360,7 +387,7 @@ class model_struct:
         else:
             var = tf.constant(value, dtype=tf.float32, name=var_name)
 
-        self.var_dict[(name, idx)] = var
+        self.var_dict[(vd_name, idx)] = var
 
         return var
 
