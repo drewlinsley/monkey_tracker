@@ -27,16 +27,16 @@ class monkeyConfig(object):
             '/media/data_cifs/clicktionary/',
             'pretrained_weights',
             'vgg16.npy')
-        use_checkpoint = False
+        use_checkpoint = True
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_11_42_34'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
         else:
             self.resume_from_checkpoint = None
 
         # Tfrecords
-        self.new_tf_names = {'train': 'train.tfrecords' , 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
+        self.new_tf_names = {'train': 'train.tfrecords', 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
@@ -53,7 +53,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'vgg16_multiscale'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        self.model_type = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         # self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
@@ -65,8 +65,8 @@ class monkeyConfig(object):
         self.train_batch = 48
         self.validation_batch = 1
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-6
+        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
