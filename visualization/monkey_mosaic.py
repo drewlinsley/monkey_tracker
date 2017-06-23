@@ -98,15 +98,15 @@ def main(
         # Because normalization was fucked up in the training script
         config = monkeyConfig()
         unnormalize_vec = np.asarray(
-            config.image_target_size[:2] + [config.max_depth]).repeat(
+            config.image_target_size[:config.num_dims] + [config.max_depth]).repeat(
             len(config.joint_order))
         normalize_vec = np.asarray(
-            config.image_target_size[:2] + [config.max_depth]).reshape(
+            config.image_target_size[:config.num_dims] + [config.max_depth]).reshape(
             1, -1).repeat(23, axis=0).reshape(1, -1)
     if normalize:
         config = monkeyConfig()
         normalize_vec = np.asarray(
-            config.image_target_size[:2] + [config.max_depth]).reshape(
+            config.image_target_size[:config.num_dims] + [config.max_depth]).reshape(
             1, -1).repeat(23, axis=0).reshape(1, -1)
     ims = glob(os.path.join(monkey_dir, 'im_*'))
     ims.sort(key=os.path.getmtime)
@@ -150,7 +150,7 @@ if __name__ == '__main__':
         "--monkey_date",
         dest="monkey_date",
         type=str,
-        default='cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05',
+        default='cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05', # 2017_06_18_11_42_34
         help='Date of model directory.')
 
     args = parser.parse_args()

@@ -15,7 +15,7 @@ def train_and_eval(
         train_data,
         validation_data,
         config,
-        uniform_batch_size=2,
+        uniform_batch_size=6,
         swap_datasets=False):
     """Train and evaluate the model."""
 
@@ -114,8 +114,7 @@ def train_and_eval(
         with tf.variable_scope('cnn') as scope:
             print 'Creating training graph:'
             model = model_file.model_struct(
-                vgg16_npy_path=config.vgg16_weight_path,
-                fine_tune_layers=config.initialize_layers)
+                vgg16_npy_path=config.vgg16_weight_path)
             train_mode = tf.get_variable(name='training', initializer=True)
             model.build(
                 rgb=train_data_dict['image'],
