@@ -4,20 +4,21 @@ import numpy as np
 import tensorflow as tf
 import cv2
 import itertools
+import tf_fun
 from glob import glob
-from skimage.morphology import remove_small_objects
-from scipy.ndimage.morphology import binary_opening, binary_closing, \
-                                     binary_fill_holes
 from scipy import misc
-from matplotlib import pyplot as plt
-from matplotlib import animation
+from tqdm import tqdm
+from copy import deepcopy
 from ops.utils import import_cnn
 from ops import data_processing_joints
 from ops import data_loader_joints
-from tqdm import tqdm
 from visualization import monkey_mosaic
 from skimage.transform import resize
-import tf_fun
+from skimage.morphology import remove_small_objects
+from scipy.ndimage.morphology import binary_opening, binary_closing, \
+                                     binary_fill_holes
+from matplotlib import pyplot as plt
+from matplotlib import animation
 
 
 def save_to_numpys(file_dict, path):
@@ -49,7 +50,7 @@ def drop_empty_frames(frames):
     return frames, toss_index
 
 
-def transform_to_renders(frames, config, rotate=True, pad=False):
+def transform_to_renders(frames, config, max_depth_value=None, rotate=True, pad=False):
     '''Transform kinect data to the "Maya-space" that
     our renders were produced in.
 
@@ -80,7 +81,8 @@ def transform_to_renders(frames, config, rotate=True, pad=False):
 
     # 2. Derive wall position then add it to each frame
     wall_mask = np.asarray([(f == 0).astype(np.float32) for f in frames])
-    max_depth_value = np.max(frames)
+    if max_depth_value is None:
+        max_depth_value = np.max(frames)
     wall_position = max_depth_value * config.background_multiplier
     print 'Adding imaginary wall...'
 
@@ -164,6 +166,14 @@ def get_and_trim_frames(
         files = np.asarray(files)
         files = files[start_frame:end_frame]
         data = [np.load(f) for f in files]
+        if len(data[0].shape) > 2 and data[0].shape[-1] > 3:
+            print 'Detected > 2d images. Trimming excess dimensions.'
+        data = [f[:, :, :3] for f in data]
+        for idx, d in enumerate(data):
+            d[d == d.min()] = 0.
+            d[np.isnan(d)] = 0.
+            data[idx] = d.astype(np.float32)
+
         if rotate_frames != 0:
             return np.asarray([np.rot90(d, -1) for d in data]), files
         else:
@@ -425,12 +435,15 @@ def image_batcher(
         images,
         batch_size):
     for b in range(num_batches):
-        yield images[start:start + batch_size]
+        im_batch = np.asarray(images[start:start + batch_size])
+        if batch_size == 1:
+            im_batch = im_batch[None, :, :]
+        yield im_batch[:, :, :, None]
 
 
 def crop_aspect_and_resize_center(img, new_size):
     '''Crop to appropros aspect ratio then resize.'''
-    h, w = img.shape
+    h, w = img.shape[:2]
     ih, iw = new_size
     ideal_aspect = float(iw) / float(ih)
     current_aspect = float(w) / float(h)
@@ -445,11 +458,13 @@ def crop_aspect_and_resize_center(img, new_size):
         crop_h = [offset, h - offset]
         crop_w = [0, w]
     cropped_im = img[crop_h[0]:crop_h[1], crop_w[0]:crop_w[1]]
+    # return misc.imresize(cropped_im, new_size, mode='F')
+    target_dtype = img.dtype
     return resize(
         cropped_im,
         new_size,
         preserve_range=True,
-        order=0)
+        order=0).astype(target_dtype)
 
 
 def process_kinect_tensorflow(model_ckpt, kinect_data, config):
@@ -583,7 +598,7 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
                 if config.normalize_labels:
                     norm_it_yhat = it_yhat * normalize_vec
                 yhat_batch += [it_yhat]
-            y_batch = []
+            y_batch = deepcopy(yhat_batch)
 
     return {
         'yhat': np.concatenate(yhat_batch).squeeze(),
@@ -596,12 +611,13 @@ def overlay_joints_frames(
         # frames,
         # joint_predictions,
         joint_dict,
-        output_folder):
+        output_folder,
+        target_key='yhat'):
     tf_fun.make_dir(output_folder)
     colors, joints, num_joints = monkey_mosaic.get_colors()
     files = []
     frames = joint_dict['im']
-    joint_predictions = joint_dict['yhat']
+    joint_predictions = joint_dict[target_key]
     for idx, (fr, jp) in enumerate(zip(frames, joint_predictions)):
         f, ax = plt.subplots()
         plt.axis('off')
@@ -696,22 +712,21 @@ def create_joint_tf_records_for_kinect(
     print 'Saving tfrecords to: %s' % tf_file
     with tf.python_io.TFRecordWriter(tf_file) as tfrecord_writer:
         for i, depth_image in tqdm(
-                enumerate(
-                    depth_files),
+                enumerate(depth_files),
                 total=num_files):
 
             if depth_image.sum() > 0:
                 # extract depth image
                 max_array += [depth_image.max()]
-                depth_image[depth_image == depth_image.min()] = 0
+                depth_image[depth_image == depth_image.min()] = 0.
                 # set nans to 0
                 depth_image[np.isnan(depth_image)] = 0.
-                if depth_image.shape != tuple(model_config.image_target_size[:2]):
+                if depth_image.shape[:2] != tuple(model_config.image_target_size[:2]):
                     depth_image = resize(
                         depth_image,
                         model_config.image_target_size[:2],
                         preserve_range=True,
-                        order=0)
+                        order=0).astype(np.float32)
                 if len(depth_image.shape) < len(model_config.image_target_size):
                     depth_image = np.repeat(
                         depth_image[:, :, None],

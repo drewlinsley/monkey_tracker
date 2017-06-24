@@ -28,15 +28,17 @@ def save_mosaic(
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
     fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
-    for idx, (im, yhat, y) in enumerate(zip(ims, yhats, ys)):
+    lab_legend_artists = None
+    for idx, (im, yhat) in enumerate(zip(ims, yhats)):
         ax1 = plt.subplot(gs1[idx])
         plt.axis('off')
         ax1.set_xticklabels([])
         ax1.set_yticklabels([])
         ax1.set_aspect('equal')
         ax1.imshow(np.log10(im), cmap='Greys_r')
-        lab_legend_artists = plot_coordinates(
-            ax1, y, colors, marker='.', markersize=1.5)
+        if ys is not None:
+            lab_legend_artists = plot_coordinates(
+                ax1, ys[idx], colors, marker='.', markersize=1.5)
         est_legend_artists = plot_coordinates(
             ax1, yhat, colors,
             linestyle='none',
@@ -47,7 +49,10 @@ def save_mosaic(
     plt.subplots_adjust(top=1, left=0)
 
     # Legend
-    patches = est_legend_artists + lab_legend_artists
+    if lab_legend_artists is not None:
+        patches = est_legend_artists + lab_legend_artists
+    else:
+        patches = est_legend_artists
     fig.legend(
         patches,
         (["" for _ in colors] +

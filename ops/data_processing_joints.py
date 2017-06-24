@@ -111,7 +111,7 @@ def create_joint_tf_records(
                 depth_image = (np.load(depth)[:, :, :3]).astype(np.float32)
             else:
                 depth_image = misc.imread(depth, mode='F')[:, :, :3]
-            depth_image[depth_image == depth_image.min()] = 0
+            depth_image[depth_image == depth_image.min()] = 0.
 
             # set nans to 0
             depth_image[np.isnan(depth_image)] = 0.
