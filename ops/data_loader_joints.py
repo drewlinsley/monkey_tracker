@@ -193,14 +193,17 @@ def read_and_decode(
     # label_scatter = draw_label_coords(
     #     label=label,
     #     canvas_size=[int(x) for x in image.get_shape()[:2]])
+
     output_data = {
         'label': label,
         'image': image
     }
+
     if 'occlusion' in aux_losses:
         occlusion = tf.decode_raw(features['occlusion'], tf.float32)
-        occlusion.set_shape(label_shape // 3)
+        occlusion.set_shape(label_shape // num_dims)
         output_data['occlusion'] = occlusion
+
     if 'pose' in aux_losses:
         res_size = label_shape // num_dims
         pose = tf.split(tf.reshape(label, [res_size, num_dims]), res_size)
@@ -210,6 +213,7 @@ def read_and_decode(
         norm_abdomen = tf.norm(abdomen)
         output_data['pose'] = tf.acos((
             tf.reduce_sum(neck * abdomen)) / (norm_neck * norm_abdomen))
+
     if selected_joints is not None:
         assert len(selected_joints) > 0
         res_size = label_shape // num_dims
@@ -258,16 +262,17 @@ def read_and_decode(
                 split_joints,
                 axis=1),
             [-1])
+
     if 'size' in aux_losses:
-        import ipdb;ipdb.set_trace()
-        res_size = label_shape // keep_dims
-        split_joints = tf.split(
-            tf.reshape(label, [res_size, num_dims]), res_size)
-        monkey_size = []
-        for sj in split_joints:
-            xyz = tf.split(sj, 3, axis=1)
-            monkey_size += [tf.reduce_max(d) - tf.reduce_min(d) for d in xyz]
-        monkey_size = tf.concat(monkey_size, axis=1)
+        # Just do h/w
+        res_size = label_shape // num_dims
+        res_joints = tf.reshape(
+                label, [res_size, keep_dims]
+        split_joints = tf.split(res_joints, keep_dims, axis=1)
+        hw = []
+        for s in split_joints:
+            hw += [tf.reduce_max(s) - tf.reduce_min(s)]
+        output_data['size'] = tf.concat(hw)
 
     return output_data  # , label_scatter
 

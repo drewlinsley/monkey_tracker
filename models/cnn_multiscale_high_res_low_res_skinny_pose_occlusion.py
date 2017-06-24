@@ -195,7 +195,18 @@ class model_struct:
                 int(self.high_1x1_2_pool.get_shape()[-1]),
                 2,
                 'output')
-            self.joint_label_output_keys = ['size']
+
+        if 'z' in target_variables.keys():
+            # z-dim head -- label + activations
+            in_z = self.high_1x1_2_pool + self.output
+            self.z = tf.squeeze(
+                    self.fc_layer(
+                        in_z,
+                        int(in_z.get_shape()[-1]),
+                        occlusion_shape,
+                        'z')
+                )
+            self.joint_label_output_keys = ['z']
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
@@ -216,6 +227,7 @@ class model_struct:
                         pose_shape,
                         "pose")
                 )
+
         self.data_dict = None
 
     def resnet_layer(

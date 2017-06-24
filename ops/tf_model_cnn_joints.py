@@ -131,19 +131,28 @@ def train_and_eval(config):
                         labels=train_data_dict['occlusion'],
                         logits=model.occlusion))]
                 loss_label += ['occlusion head']
+            if 'z' in train_data_dict.keys():
+                # b. Z
+                loss_list += [tf.nn.l2_loss(
+                    train_data_dict['z'] - model.z)]
+                loss_label += ['z head']
+            if 'size' in train_data_dict.keys():
+                # c. Size
+                loss_list += [tf.nn.l2_loss(
+                    train_data_dict['size'] - model.pose)]
+                loss_label += ['size head']
             if 'pose' in train_data_dict.keys():
-                # c. Pose
+                # d. Pose
                 loss_list += [tf.nn.l2_loss(
                     train_data_dict['pose'] - model.pose)]
                 loss_label += ['pose head']
-                tf.summary.scalar()
             if 'deconv' in config.aux_losses:
-                # d. deconvolved image
+                # e. deconvolved image
                 loss_list += [tf.nn.l2_loss(
                     model.deconv - train_data_dict['image'])]
                 loss_label += ['pose head']
             if 'fc' in config.aux_losses:
-                # e. fully convolutional
+                # f. fully convolutional
                 fc_shape = [int(x) for x in model.final_fc.get_shape()[1:3]]
                 res_images = tf.image.resize_bilinear(train_data_dict['image'], fc_shape)
                 # turn background to 0s
