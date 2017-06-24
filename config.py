@@ -31,7 +31,7 @@ class monkeyConfig(object):
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_11_42_34'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_20_31_03'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34/'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_11_42_34'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
         else:
             self.resume_from_checkpoint = None
 
@@ -63,7 +63,7 @@ class monkeyConfig(object):
 
         # Key training settings
         self.train_batch = 48
-        self.validation_batch = 1
+        self.validation_batch = 8
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
@@ -81,7 +81,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = [None]  # ['occlusion']  # ['fc', 'occlusion']  # , 'pose']  #  (i.e. angle between neck and abdomen)
+        self.aux_losses = ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = True
         self.include_validation = True
         self.wd_type = 'l1'

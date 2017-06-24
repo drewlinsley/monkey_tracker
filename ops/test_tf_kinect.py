@@ -83,6 +83,7 @@ def transform_to_renders(frames, config, rotate=True, pad=False):
     max_depth_value = np.max(frames)
     wall_position = max_depth_value * config.background_multiplier
     print 'Adding imaginary wall...'
+
     # modulate wall position and subtract 1 from masking
     wall_mask += ((wall_position - 1) * wall_mask)
     frames += wall_mask  # Because wall_mask is 0s outside of monkey
@@ -175,7 +176,7 @@ def get_and_trim_frames(
         for idx in tqdm(
             range(
                 start_frame, n - end_frame), desc='Trimming frames'):
-            data += [np.load(files[idx])]
+            data += [np.rot90(np.load(files[idx]), rotate_frames)]
         return data, files
 
 
@@ -508,8 +509,7 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
         with tf.variable_scope('cnn'):
             print 'Creating training graph:'
             model = model_file.model_struct(
-                vgg16_npy_path=config.vgg16_weight_path,
-                fine_tune_layers=config.initialize_layers)
+                vgg16_npy_path=config.vgg16_weight_path)
             train_mode = tf.get_variable(name='training', initializer=False)
             model.build(
                 rgb=val_data_dict['image'],
@@ -532,6 +532,7 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
         # Start testing data
         y_batch = []
         yhat_batch = []
+        im_batch = []
         num_joints = len(config.joint_order)
         num_batches = len(kinect_data) // config.validation_batch
         normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
@@ -543,12 +544,13 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
             step = 0
             try:
                 while not coord.should_stop():
-                    import ipdb;ipdb.set_trace()
-                    it_yhat, it_y, score = sess.run(
+                    it_yhat, it_y, score, it_im = sess.run(
                         [
                             predictions,
                             val_data_dict['label'],
-                            tf_fun.l2_loss(predictions, val_data_dict['label'])  # tf.nn.l2_loss(predictions - val_data_dict['label'])
+                            tf_fun.l2_loss(
+                                predictions, val_data_dict['label']),
+                            val_data_dict['image']
                         ])
                     print score
                     if config.normalize_labels:
@@ -556,6 +558,7 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
                         norm_it_y = it_y * normalize_vec
                     yhat_batch += [norm_it_yhat.squeeze()]
                     y_batch += [norm_it_y.squeeze()]
+                    im_batch += [it_im]
                     step += 1
             except tf.errors.OutOfRangeError:
                 print 'Done with %d steps.' % step
@@ -576,20 +579,29 @@ def process_kinect_tensorflow(model_ckpt, kinect_data, config):
                 it_yhat = sess.run(
                     predictions,
                     feed_dict=feed_dict)
-
+                im_batch += [image_batch]
                 if config.normalize_labels:
                     norm_it_yhat = it_yhat * normalize_vec
                 yhat_batch += [it_yhat]
-    return np.asarray(yhat_batch), np.asarray(y_batch)
+            y_batch = []
+
+    return {
+        'yhat': np.concatenate(yhat_batch).squeeze(),
+        'ytrue': np.concatenate(y_batch).squeeze(),
+        'im': np.concatenate(im_batch)
+        }
 
 
 def overlay_joints_frames(
-        frames,
-        joint_predictions,
+        # frames,
+        # joint_predictions,
+        joint_dict,
         output_folder):
     tf_fun.make_dir(output_folder)
     colors, joints, num_joints = monkey_mosaic.get_colors()
     files = []
+    frames = joint_dict['im']
+    joint_predictions = joint_dict['yhat']
     for idx, (fr, jp) in enumerate(zip(frames, joint_predictions)):
         f, ax = plt.subplots()
         plt.axis('off')

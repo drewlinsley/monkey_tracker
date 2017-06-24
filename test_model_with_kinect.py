@@ -7,6 +7,7 @@ from kinect_config import kinectConfig
 from glob import glob
 from ops import test_tf_kinect
 from ops import utils
+from tests.transfer_train_val_test import train_and_eval
 
 
 def main(model_dir, ckpt_name, run_tests=False):
@@ -106,31 +107,42 @@ def main(model_dir, ckpt_name, run_tests=False):
             output=kinect_config['kinect_output_name'])
 
     # Create tfrecords of kinect data
+
+    if not run_tests:
+        # Transform kinect data to Maya data
+        frames, frame_toss_index = test_tf_kinect.transform_to_renders(
+            frames=frames,
+            config=config)
+        in_data = frames
+        use_kinect = True
+
     if kinect_config['use_tfrecords']:
         frame_pointer, _, frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
             depth_files=frames,
             depth_file_names=monkey_files,
             model_config=config,
             kinect_config=kinect_config)
-        # config.max_depth = max_value
-        in_data = frame_pointer
-    else:
-        # Transform kinect data to Maya data
-        frames, frame_toss_index = test_tf_kinect.transform_to_renders(
-            frames=frames,
-            config=config)
-        in_data = frames
+        config.train_batch = 2
+        config.val_batch = 2
+        joint_dict = train_and_eval(
+            frame_pointer,
+            frame_pointer,
+            config,
+            uniform_batch_size=10,
+            swap_datasets=False,
+            working_on_kinect=use_kinect,
+            return_coors=True)
 
-    # Pass each frame through the CNN
-    joint_predictions, joint_gt = test_tf_kinect.process_kinect_tensorflow(
-        model_ckpt=model_ckpt,
-        kinect_data=in_data,
-        config=config)
+    else:
+        # Pass each frame through the CNN
+        joint_dict = test_tf_kinect.process_kinect_tensorflow(
+            model_ckpt=model_ckpt,
+            kinect_data=in_data,
+            config=config)
 
     # Overlay joint predictions onto frames
     overlaid_pred = test_tf_kinect.overlay_joints_frames(
-        frames=frames,
-        joint_predictions=joint_predictions,
+        joint_dict=joint_dict,
         output_folder=kinect_config['prediction_image_folder'])
 
     # Create overlay movie if desired
@@ -139,23 +151,23 @@ def main(model_dir, ckpt_name, run_tests=False):
             files=overlaid_pred,
             output=kinect_config['predicted_output_name'])
 
-    if len(joint_gt) > 0:
-        overlaid_gt = test_tf_kinect.overlay_joints_frames(
-            frames=frames,
-            joint_predictions=joint_gt,
-            output_folder=kinect_config['gt_image_folder'])
+    # if len(joint_dict['ytrue']) > 0:
+    #     overlaid_gt = test_tf_kinect.overlay_joints_frames(
+    #         frames=frames,
+    #         joint_predictions=joint_dict['ytrue'],
+    #         output_folder=kinect_config['gt_image_folder'])
 
-        # Create overlay movie if desired
-        if kinect_config['gt_output_name'] is not None:
-            test_tf_kinect.create_movie(
-                files=overlaid_gt,
-                output=kinect_config['gt_output_name'])
+    #     # Create overlay movie if desired
+    #     if kinect_config['gt_output_name'] is not None:
+    #         test_tf_kinect.create_movie(
+    #             files=overlaid_gt,
+    #             output=kinect_config['gt_output_name'])
 
     # Save results to a npz
     if kinect_config['output_npy_path'] is not None:
         files_to_save = {
             'overlaid_frames': overlaid_pred,
-            'joint_predictions': joint_predictions,
+            'joint_predictions': joint_dict['yhat'],
             'frames': frames,
             'kinect_config': kinect_config,
             'model_config': config,
@@ -173,8 +185,8 @@ if __name__ == '__main__':
         dest="model_dir",
         type=str,
         default='/media/data_cifs/monkey_tracking/results/' + \
-        'TrueDepth100kStore/model_output/' + \
-        'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_21_19_59_55',
+            'TrueDepth100kStore/model_output/' + \
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_20_31_03'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
