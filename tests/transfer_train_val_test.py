@@ -320,8 +320,6 @@ def train_and_eval(
                 val_session_vars.values())
             val_out_dict = {k: v for k, v in zip(
                 val_session_vars.keys(), val_out_dict)}
-            from matplotlib import pyplot as plt
-            plt.imshow(train_out_dict['im'].squeeze()[0]);plt.show()
 
             if config.normalize_labels:
                 # Postlabel normalization
