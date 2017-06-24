@@ -186,7 +186,7 @@ if __name__ == '__main__':
         type=str,
         default='/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_20_31_03'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",

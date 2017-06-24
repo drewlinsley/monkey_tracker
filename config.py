@@ -31,7 +31,7 @@ class monkeyConfig(object):
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34/'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_11_42_34'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_20_31_03'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34/'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_11_42_34'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
         else:
             self.resume_from_checkpoint = None
 
@@ -81,7 +81,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['z']  # 'occlusion' 'pose' 'size' 'z'
+        self.aux_losses = ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = True
         self.include_validation = True
         self.wd_type = 'l1'

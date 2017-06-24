@@ -17,7 +17,7 @@ def train_and_eval(
         config,
         uniform_batch_size=32,
         swap_datasets=False,
-        working_on_kinect=False,
+        working_on_kinect=True,
         return_coors=False):
     """Train and evaluate the model."""
 
@@ -368,7 +368,7 @@ def main(
         validation_data=None,
         train_data=None,
         which_joint=None,
-        working_on_kinect=False):
+        working_on_kinect=True):
 
     config = monkeyConfig()
     if which_joint is not None:

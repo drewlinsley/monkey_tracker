@@ -247,6 +247,13 @@ def read_and_decode(
             tf.equal(occlusion_masks, 0),
             tf.float32)  # find non-occluded joints
 
+    if 'z' in aux_losses:
+        # Just do h/w
+        res_size = label_shape // num_dims
+        res_joints = tf.reshape(
+                output_data['label'], [res_size, num_dims])
+        output_data['z'] = tf.squeeze(tf.split(res_joints, num_dims, axis=1)[-1])
+
     if keep_dims < num_dims:
         print 'Reducing labels from %s to %s dimensions' % (
             num_dims,
@@ -267,12 +274,12 @@ def read_and_decode(
         # Just do h/w
         res_size = label_shape // num_dims
         res_joints = tf.reshape(
-                label, [res_size, keep_dims]
+                output_data['label'], [res_size, keep_dims])
         split_joints = tf.split(res_joints, keep_dims, axis=1)
         hw = []
         for s in split_joints:
             hw += [tf.reduce_max(s) - tf.reduce_min(s)]
-        output_data['size'] = tf.concat(hw)
+        output_data['size'] = tf.stack(hw)
 
     return output_data  # , label_scatter
 
