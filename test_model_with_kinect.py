@@ -37,10 +37,10 @@ def main(model_dir, ckpt_name, run_tests=False):
         test_frames = False
     else:
         monkey_files = utils.get_files(config.depth_dir, config.depth_regex)
-        kinect_config['start_frame'] = 70000
-        kinect_config['end_frame'] = 70010
-        kinect_config['low_threshold'] = 0
-        kinect_config['high_threshold'] = 1e20
+        kinect_config['start_frame'] = 0
+        kinect_config['end_frame'] = 10
+        kinect_config['low_threshold'] = None
+        kinect_config['high_threshold'] = None
         kinect_config['rotate_frames'] = 0
         test_frames = True
 
@@ -53,17 +53,15 @@ def main(model_dir, ckpt_name, run_tests=False):
         end_frame=kinect_config['end_frame'],
         rotate_frames=kinect_config['rotate_frames'],
         test_frames=test_frames)
-    if len(frames[0].shape) > 2:
-        print 'Detected > 2d images. Trimming excess dimensions.'
-        frames = [f[:, :, 0] for f in frames]
 
     # threshold the depths and do some denoising
-    frames = test_tf_kinect.threshold(
-        frames,
-        kinect_config['low_threshold'],
-        kinect_config['high_threshold'],
-        show_result=kinect_config['show_threshold_results'],
-        denoise=True)
+    if kinect_config['low_threshold'] is not None and kinect_config['high_threshold'] is not None:
+        frames = test_tf_kinect.threshold(
+            frames,
+            kinect_config['low_threshold'],
+            kinect_config['high_threshold'],
+            show_result=kinect_config['show_threshold_results'],
+            denoise=True)
 
     # subtract background using MOG and display result
     # this will be very bad, since we're using such a high threshold
@@ -107,7 +105,6 @@ def main(model_dir, ckpt_name, run_tests=False):
             output=kinect_config['kinect_output_name'])
 
     # Create tfrecords of kinect data
-
     if not run_tests:
         # Transform kinect data to Maya data
         frames, frame_toss_index = test_tf_kinect.transform_to_renders(
@@ -115,6 +112,8 @@ def main(model_dir, ckpt_name, run_tests=False):
             config=config)
         in_data = frames
         use_kinect = True
+    else:
+        use_kinect = False
 
     if kinect_config['use_tfrecords']:
         frame_pointer, _, frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
@@ -137,8 +136,9 @@ def main(model_dir, ckpt_name, run_tests=False):
         # Pass each frame through the CNN
         joint_dict = test_tf_kinect.process_kinect_tensorflow(
             model_ckpt=model_ckpt,
-            kinect_data=in_data,
+            kinect_data=frames,
             config=config)
+        frame_toss_index = []
 
     # Overlay joint predictions onto frames
     overlaid_pred = test_tf_kinect.overlay_joints_frames(
@@ -151,12 +151,11 @@ def main(model_dir, ckpt_name, run_tests=False):
             files=overlaid_pred,
             output=kinect_config['predicted_output_name'])
 
-    # if len(joint_dict['ytrue']) > 0:
-    #     overlaid_gt = test_tf_kinect.overlay_joints_frames(
-    #         frames=frames,
-    #         joint_predictions=joint_dict['ytrue'],
-    #         output_folder=kinect_config['gt_image_folder'])
-
+    if len(joint_dict['ytrue']) > 0:
+        overlaid_pred = test_tf_kinect.overlay_joints_frames(
+            joint_dict=joint_dict,
+            output_folder=kinect_config['gt_image_folder'],
+            target_key='ytrue')
     #     # Create overlay movie if desired
     #     if kinect_config['gt_output_name'] is not None:
     #         test_tf_kinect.create_movie(
@@ -186,13 +185,13 @@ if __name__ == '__main__':
         type=str,
         default='/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_20_31_03'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_21_33_30',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default='model_43000.ckpt-43000',
+        default='model_49000.ckpt-49000',
         help='Name of TF checkpoint file.')
     parser.add_argument(
         "--test",

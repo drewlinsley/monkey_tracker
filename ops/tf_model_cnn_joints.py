@@ -132,7 +132,6 @@ def train_and_eval(config):
                         logits=model.occlusion))]
                 loss_label += ['occlusion head']
             if 'z' in train_data_dict.keys():
-                import ipdb;ipdb.set_trace()
                 # b. Z
                 loss_list += [tf.nn.l2_loss(
                     train_data_dict['z'] - model.z)]

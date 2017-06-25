@@ -162,6 +162,7 @@ def read_and_decode(
         # Normalize: must apply max value to image and every 3rd label
         if normalize_labels:
             tile_size = [int(label.get_shape()[0]) / num_dims]
+
             # Normalize x coor
             lab_adjust = tf.cast(
                 tf.tile([image_target_size[0], 1, 1], tile_size), tf.float32)

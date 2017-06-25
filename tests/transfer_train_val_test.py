@@ -15,9 +15,9 @@ def train_and_eval(
         train_data,
         validation_data,
         config,
-        uniform_batch_size=32,
+        uniform_batch_size=2,
         swap_datasets=False,
-        working_on_kinect=True,
+        working_on_kinect=False,
         return_coors=False):
     """Train and evaluate the model."""
 
@@ -59,10 +59,7 @@ def train_and_eval(
 
     # Prepare data on CPU
     config.train_batch = uniform_batch_size
-    if working_on_kinect:
-        num_epochs = 1
-    else:
-        num_epochs = None
+    num_epochs = 1
     with tf.device('/cpu:0'):
         train_data_dict = inputs(
             tfrecord_file=train_data,
@@ -323,7 +320,9 @@ def train_and_eval(
                 val_session_vars.values())
             val_out_dict = {k: v for k, v in zip(
                 val_session_vars.keys(), val_out_dict)}
+
             if config.normalize_labels:
+                # Postlabel normalization
                 train_out_dict['yhat'] *= normalize_vec
                 train_out_dict['ytrue'] *= normalize_vec
                 val_out_dict['val_pred'] *= normalize_vec
@@ -357,11 +356,12 @@ def train_and_eval(
         dt_stamp = get_dt()  # date-time stamp
     coord.join(threads)
     sess.close()
-    return {
-        'yhat': np.concatenate(joint_predictions).squeeze(),
-        'ytrue': np.concatenate(joint_gt).squeeze(),
-        'im': np.concatenate(out_ims)
-        }
+    if return_coors:
+        return {
+            'yhat': np.concatenate(joint_predictions).squeeze(),
+            'ytrue': np.concatenate(joint_gt).squeeze(),
+            'im': np.concatenate(out_ims)
+            }
 
 
 def main(
@@ -386,7 +386,7 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
