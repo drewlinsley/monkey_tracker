@@ -10,6 +10,11 @@ from ops import utils
 from tests.transfer_train_val_test import train_and_eval
 
 
+def create_dir(d):
+    if not os.path.exists(d):
+        os.makedirs(d)
+
+
 def main(model_dir, ckpt_name, run_tests=False):
     '''Skeleton script for preprocessing and
     passing kinect videos through a trained model'''
@@ -25,6 +30,14 @@ def main(model_dir, ckpt_name, run_tests=False):
     model_ckpt = os.path.join(model_dir, ckpt_name)
     kinect_config = kinectConfig()
     kinect_config = kinect_config[kinect_config['selected_video']]()
+    dirs = [
+        kinect_config['output_dir'],
+        kinect_config['tfrecord_name'],
+        kinect_config['prediction_image_folder'],
+        kinect_config['gt_image_folder']
+    ]
+    [create_dir(d) for d in dirs]
+
     if not run_tests:
         monkey_files = glob(
             os.path.join(

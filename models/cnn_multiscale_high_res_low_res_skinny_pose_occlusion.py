@@ -214,15 +214,8 @@ class model_struct:
                         int(self.high_1x1_2_pool.get_shape()[-1]),
                         z_shape,
                         'z_sc')
-		    )
-	    self.z_hw = tf.squeeze(
-                    self.fc_layer(
-                        self.output,
-                        int(self.output.get_shape()[-1]),
-                        z_shape,
-                        'z_hw')
                 )
-            out_z = tf.concat([self.z_scores, self.z_hw], axis=1)
+            out_z = tf.concat([self.z_scores, self.output], axis=1)
             self.z = tf.squeeze(
                     self.fc_layer(
                         out_z,

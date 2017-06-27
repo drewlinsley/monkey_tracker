@@ -7,8 +7,10 @@ class monkeyConfig(object):
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth100kStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth100kStore') #pjoin(self.base_dir, 'walk-all-png') 
+        # self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth100kStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        # self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth100kStore') #pjoin(self.base_dir, 'walk-all-png') 
+        self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth2MilStore') #pjoin(self.base_dir, 'walk-all-png') 
         self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
         self.npy_dir = pjoin(self.base_dir, 'batches', 'test')  # Output for numpys
@@ -20,11 +22,14 @@ class monkeyConfig(object):
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
         self.model_output = pjoin(self.results_dir, 'model_output') 
-        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_drew')
+        # self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_drew')
+        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_fast')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
-        self.weight_npy_path = pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = False
+
+        # Restore from previous weights either through npy or ckpt.
+        self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
+        use_checkpoint = True
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
@@ -46,7 +51,7 @@ class monkeyConfig(object):
         self.sample = {'train': True, 'val': False}  # random sample of feats
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
-        self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
+        self.background_multiplier = 1.01  # 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
 
         # Model settings
         self.epochs = 50
@@ -78,7 +83,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
+        self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = True
         self.include_validation = True
         self.wd_type = 'l1'

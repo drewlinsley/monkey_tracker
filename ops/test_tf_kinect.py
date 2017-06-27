@@ -50,7 +50,7 @@ def drop_empty_frames(frames):
     return frames, toss_index
 
 
-def transform_to_renders(frames, config, max_depth_value=None, rotate=True, pad=False):
+def transform_to_renders(frames, config, max_depth_value=None, rotate=True, pad=None):
     '''Transform kinect data to the "Maya-space" that
     our renders were produced in.
 
@@ -63,12 +63,12 @@ def transform_to_renders(frames, config, max_depth_value=None, rotate=True, pad=
 
     # 0. Trim empty bullshit frames
     frames, toss_index = drop_empty_frames(frames)
-    if pad:
+    if pad is not None:
         padded_frames = []
         for f in frames:
             pre_size = f.shape
             it_frame = np.pad(
-                f, [int(x // 4) for x in f.shape],
+                f, [int(x // pad) for x in f.shape],
                 'constant',
                 constant_values=(0, 0))
             it_frame = resize(
