@@ -101,7 +101,7 @@ def train_and_eval(config):
         with tf.variable_scope('cnn') as scope:
             print 'Creating training graph:'
             model = model_file.model_struct(
-                vgg16_npy_path=config.vgg16_weight_path)
+                weight_npy_path=config.weight_npy_path)
             train_mode = tf.get_variable(name='training', initializer=True)
             model.build(
                 rgb=train_data_dict['image'],
@@ -117,11 +117,15 @@ def train_and_eval(config):
                     label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
                         model=model,
                         train_data_dict=train_data_dict,
-                        config=config)
+                        config=config,
+                        y_key='label',
+                        yhat_key='output')
                     loss_list += [label_loss]
                 else:
-                    loss_list += [tf.add_n([tf.nn.l2_loss(
-                        model[x] - train_data_dict['label']) for x in model.joint_label_output_keys])]
+                    # loss_list += [tf.add_n([tf.nn.l2_loss(
+                    #     model[x] - train_data_dict['label']) for x in model.joint_label_output_keys])]
+                    loss_list += tf.nn.l2_loss(
+                        model['output'] - train_data_dict['label'])
                 loss_label += ['combined head']
             if 'occlusion' in train_data_dict.keys():
                 # 2. Auxillary losses
@@ -139,7 +143,7 @@ def train_and_eval(config):
             if 'size' in train_data_dict.keys():
                 # c. Size
                 loss_list += [tf.nn.l2_loss(
-                    train_data_dict['size'] - model.pose)]
+                    train_data_dict['size'] - model.size)]
                 loss_label += ['size head']
             if 'pose' in train_data_dict.keys():
                 # d. Pose
@@ -240,8 +244,9 @@ def train_and_eval(config):
 
                 # Calculate validation accuracy
                 if 'label' in val_data_dict.keys():
-                    val_score = tf.nn.l2_loss(
-                        val_model.output - val_data_dict['label'])
+                    # val_score = tf.nn.l2_loss(
+                    #     val_model.output - val_data_dict['label'])
+                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
@@ -309,6 +314,20 @@ def train_and_eval(config):
         save_training_vars += [key]
         key = 'posetrue'
         train_session_vars[key] = train_data_dict['pose']
+        save_training_vars += [key]
+    if 'size' in train_data_dict.keys():
+        key = 'sizehat'
+        train_session_vars[key] = model.size,
+        save_training_vars += [key]
+        key = 'sizetrue'
+        train_session_vars[key] = train_data_dict['size']
+        save_training_vars += [key]
+    if 'z' in train_data_dict.keys():
+        key = 'zhat'
+        train_session_vars[key] = model.z,
+        save_training_vars += [key]
+        key = 'ztrue'
+        train_session_vars[key] = train_data_dict['z']
         save_training_vars += [key]
 
     # Start training loop

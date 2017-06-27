@@ -23,11 +23,8 @@ class monkeyConfig(object):
         self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_drew')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
-        self.vgg16_weight_path = pjoin(
-            '/media/data_cifs/clicktionary/',
-            'pretrained_weights',
-            'vgg16.npy')
-        use_checkpoint = True
+        self.weight_npy_path = pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
+        use_checkpoint = False
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
@@ -63,7 +60,7 @@ class monkeyConfig(object):
 
         # Key training settings
         self.train_batch = 48
-        self.validation_batch = 8
+        self.validation_batch = 48
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
@@ -81,7 +78,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = [None]  #  ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
+        self.aux_losses = ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = True
         self.include_validation = True
         self.wd_type = 'l1'

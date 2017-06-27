@@ -151,7 +151,7 @@ def l2_loss(yhat, y):
     return tf.reduce_mean(tf.pow(yhat - y, 2), axis=-1)
 
 
-def thomas_l1_loss(model, train_data_dict, config):
+def thomas_l1_loss(model, train_data_dict, config, yhat_key='output', y_key='label'):
     if config.selected_joints is None:
         use_joints = config.joint_order
     else:
@@ -166,15 +166,22 @@ def thomas_l1_loss(model, train_data_dict, config):
             'Cannot understand your selected loss type. Needs to be implemented?')
 
     res_gt = tf.reshape(
-        train_data_dict['label'],
+        train_data_dict[y_key],
         [config.train_batch, len(use_joints), config.keep_dims])
+    # res_pred = [tf.reshape(
+    #     model[x],
+    #     [
+    #         config.train_batch,
+    #         len(use_joints),
+    #         config.keep_dims]
+    #         ) for x in model.joint_label_output_keys]
     res_pred = [tf.reshape(
-        model[x],
+        model[yhat_key],
         [
             config.train_batch,
             len(use_joints),
             config.keep_dims]
-            ) for x in model.joint_label_output_keys]
+            )]
     label_losses = [loss(x, res_gt) for x in res_pred]
 
     # Return variance for tf.summary
