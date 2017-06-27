@@ -21,7 +21,7 @@ class kinectConfig():
              'show_threshold_results': False,
 
              # Background GMM params
-             'run_gmm': False,
+             'run_gmm': True,
              'bgsub_wraps': 1,  # Set to None if you don't want this
              'bgsub_quorum': 1,
              'bgsub_mog_bg_theshold': 10,

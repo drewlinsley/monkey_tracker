@@ -9,17 +9,15 @@ class model_struct:
     """
 
     def __init__(
-                self, weight_npy_path=None, trainable=True,
+                self, vgg16_npy_path=None, trainable=True,
                 fine_tune_layers=None):
-        if weight_npy_path is not None:
-            self.data_dict = np.load(weight_npy_path, encoding='latin1').item()
-        else:
-            self.data_dict = None
+        if vgg16_npy_path is not None:
+            print 'Ignoring vgg16_npy_path (not using a vgg!).'
+        self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
-        self.joint_label_output_keys = []
 
     def __getitem__(self, name):
         return getattr(self, name)
@@ -57,14 +55,6 @@ class model_struct:
                 occlusion_shape = int(
                     target_variables['occlusion'].get_shape()[-1])
 
-        if 'z' in target_variables.keys():
-            z_shape = int(
-                target_variables['z'].get_shape()[-1])
-
-        if 'size' in target_variables.keys():
-            size_shape = int(
-                target_variables['size'].get_shape()[-1])
-
         if 'pose' in target_variables.keys():
             if len(target_variables['pose'].get_shape()) == 1:
                 pose_shape = 1
@@ -85,24 +75,37 @@ class model_struct:
                 'weights': [128, 128, None],
                 'names': ['conv2_1', 'conv2_2', 'pool2'],
                 'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
-                'names': ['conv3_1', 'conv3_2', 'pool3'],
-                'filter_size': [3, 3, None]
-            },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
-                'names': ['conv4_1', 'conv4_2', 'pool4'],
-                'filter_size': [3, 3, None]
             }]
 
         self.create_conv_tower(
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
+
+        # Replace this lowres tower with atrous convolutions
+        rescaled_shape = [(
+            int(x) - 1) // 2 + 1 for x in input_bgr.get_shape()[1:3]]
+        res_input_bgr = tf.image.resize_bilinear(input_bgr, rescaled_shape)
+
+        layer_structure = [
+            {
+                'layers': ['conv', 'conv', 'pool'],
+                'weights': [64, 64, None],
+                'names': ['mrconv1_1', 'mrconv1_2', 'mrpool1'],
+                'filter_size': [5, 5, None]
+            },
+            {
+                'layers': ['conv', 'conv', 'pool'],
+                'weights': [128, 128, None],
+                'names': ['mrconv2_1', 'mrconv2_2', 'mrpool2'],
+                'filter_size': [3, 3, None]
+            },
+            ]
+
+        self.create_conv_tower(
+            res_input_bgr,  # pass input_bgr instead of this
+            layer_structure,
+            tower_name='midres_conv')
 
 
         # Replace this lowres tower with atrous convolutions
@@ -123,12 +126,7 @@ class model_struct:
                 'names': ['lrconv2_1', 'lrconv2_2', 'lrpool2'],
                 'filter_size': [3, 3, None]
             },
-            {
-                'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
-                'names': ['lrconv3_1', 'lrconv3_2', 'lrpool3'],
-                'filter_size': [3, 3, None]
-            }]
+            ]
 
         self.create_conv_tower(
             res_input_bgr,  # pass input_bgr instead of this
@@ -136,6 +134,7 @@ class model_struct:
             tower_name='lowres_conv')
 
         # Rescale feature maps to the largest in the hr_fe_keys
+        hr_fe_keys = ['pool2', 'mrpool2', 'lrpool2']
         resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
         resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
         new_size = np.asarray([resize_h, resize_w])
@@ -148,7 +147,7 @@ class model_struct:
         self.high_feature_encoder_1x1_0 = self.conv_layer(
             self.high_feature_encoder,
             int(self.high_feature_encoder.get_shape()[-1]),
-            256,
+            64,
             "high_feature_encoder_1x1_0",
             filter_size=1)
         if train_mode is not None:
@@ -164,7 +163,7 @@ class model_struct:
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_1x1_0_pool,
             int(self.high_1x1_0_pool.get_shape()[-1]),
-            256,
+            128,
             "high_feature_encoder_1x1_1",
             filter_size=1)
         if train_mode is not None:
@@ -180,7 +179,7 @@ class model_struct:
         self.high_feature_encoder_1x1_2 = self.conv_layer(
             self.high_1x1_1_pool,
             int(self.high_1x1_1_pool.get_shape()[-1]),
-            256,
+            64,
             "high_feature_encoder_1x1_2",
             filter_size=1)
         if train_mode is not None:
@@ -197,40 +196,26 @@ class model_struct:
                 int(self.high_1x1_2_pool.get_shape()[-1]),
                 output_shape,
                 'output')
-            self.joint_label_output_keys += ['output']
+            self.joint_label_output_keys = ['output']
 
         if 'size' in target_variables.keys():
-            self.size = self.fc_layer(
+            self.output = self.fc_layer(
                 self.high_1x1_2_pool,
                 int(self.high_1x1_2_pool.get_shape()[-1]),
-                size_shape,
-                'size')
+                2,
+                'output')
 
         if 'z' in target_variables.keys():
             # z-dim head -- label + activations
-            self.z_scores = tf.squeeze(
-                    self.fc_layer(
-                        self.high_1x1_2_pool,
-                        int(self.high_1x1_2_pool.get_shape()[-1]),
-                        z_shape,
-                        'z_sc')
-		    )
-	    self.z_hw = tf.squeeze(
-                    self.fc_layer(
-                        self.output,
-                        int(self.output.get_shape()[-1]),
-                        z_shape,
-                        'z_hw')
-                )
-            out_z = tf.concat([self.z_scores, self.z_hw], axis=1)
+            in_z = self.high_1x1_2_pool + self.output
             self.z = tf.squeeze(
                     self.fc_layer(
-                        out_z,
-                        int(out_z.get_shape()[-1]),
-                        z_shape,
+                        in_z,
+                        int(in_z.get_shape()[-1]),
+                        occlusion_shape,
                         'z')
                 )
-            self.joint_label_output_keys += ['z']
+            self.joint_label_output_keys = ['z']
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head

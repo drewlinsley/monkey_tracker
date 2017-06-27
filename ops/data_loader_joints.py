@@ -425,7 +425,8 @@ def inputs(
         keep_dims=3,
         background_multiplier=1.01,
         working_on_kinect=False,
-        shuffle=True):
+        shuffle=True,
+        num_threads=2):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -468,11 +469,19 @@ def inputs(
             pose = output_data['pose']
             var_list += [pose]
             keys += ['pose']
+        if 'z' in aux_losses:
+            z = output_data['z']
+            var_list += [z]
+            keys += ['z']
+        if 'size' in aux_losses:
+            size = output_data['size']
+            var_list += [size]
+            keys += ['size']
         if shuffle:
             var_list = tf.train.shuffle_batch(
                 var_list,
                 batch_size=batch_size,
-                num_threads=2,
+                num_threads=num_threads,
                 capacity=1000+3 * batch_size,
                 # Ensures a minimum amount of shuffling of examples.
                 min_after_dequeue=1000)
@@ -480,6 +489,6 @@ def inputs(
             var_list = tf.train.batch(
                 var_list,
                 batch_size=batch_size,
-                num_threads=2,
+                num_threads=num_threads,
                 capacity=1000+3 * batch_size)
         return {k: v for k, v in zip(keys, var_list)}

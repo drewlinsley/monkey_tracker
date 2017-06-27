@@ -9,16 +9,20 @@ from ops.utils import get_dt, import_cnn
 import argparse
 from config import monkeyConfig
 from visualization import monkey_mosaic
+from scipy.stats import linregress
+import ipdb
+from matplotlib import pyplot as plt
 
 
 def train_and_eval(
         train_data,
         validation_data,
         config,
-        uniform_batch_size=2,
-        swap_datasets=False,
+        uniform_batch_size=5,
+        swap_datasets=True,
         working_on_kinect=False,
-        return_coors=False):
+        return_coors=False,
+        check_stats=False):
     """Train and evaluate the model."""
 
     # Import your model
@@ -83,7 +87,8 @@ def train_and_eval(
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
             working_on_kinect=working_on_kinect,
-            shuffle=False)
+            shuffle=False,
+            num_threads=1)
 
         val_data_dict = inputs(
             tfrecord_file=validation_data,
@@ -106,7 +111,8 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            shuffle=False)
+            shuffle=False,
+            num_threads=1)
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -316,6 +322,15 @@ def train_and_eval(
                 train_session_vars.keys(), train_out_dict)}
             assert not np.isnan(
                 train_out_dict['loss_value']), 'Model diverged with loss = NaN'
+            if check_stats:
+                slopes, intercepts = [], []
+                for yhat, y in zip(train_out_dict['yhat'], train_out_dict['ytrue']):
+                    slope, intercept, r_v, p_v, std = linregress(yhat, y)
+                    slopes += [slope]
+                    intercepts += [intercept]
+                plt.hist(slopes, 100);plt.show(); plt.hist(intercepts);plt.show()
+                ipdb.set_trace()
+
             val_out_dict = sess.run(
                 val_session_vars.values())
             val_out_dict = {k: v for k, v in zip(
@@ -386,7 +401,7 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
