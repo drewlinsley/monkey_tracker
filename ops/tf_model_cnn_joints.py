@@ -133,7 +133,6 @@ def train_and_eval(config):
                 train_data_dict=train_data_dict,
                 model=model,
                 aux_loss_dict=al)
-
         loss = tf.add_n(loss_list)
 
         # Add wd if necessary
@@ -256,12 +255,12 @@ def train_and_eval(config):
         'yhat']
 
     for al in loss_helper.potential_aux_losses():
-        if al.key() in train_data_dict.keys():
-            y_key = '%s' % al.key()
+        if al.keys()[0] in train_data_dict.keys():
+            y_key = '%s' % al.keys()[0]
             train_session_vars[y_key] = al.values()[0]['y_name']
             save_training_vars += [y_key]
 
-            yhat_key = '%s_hat' % al.key()
+            yhat_key = '%s_hat' % al.keys()[0]
             train_session_vars[yhat_key] = al.values()[0]['model_name']
             save_training_vars += [yhat_key]
 

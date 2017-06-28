@@ -7,42 +7,42 @@ def potential_aux_losses():
         'y_name': 'occlusion',
         'model_name': 'occlusion',
         'loss_function': 'sigmoid',
-        'var_label': 'occlusionhead']
+        'var_label': 'occlusionhead'
         }
     },
     {'z': {
         'y_name': 'z',
         'model_name': 'z',
         'loss_function': 'l2',
-        'var_label': 'z head']
+        'var_label': 'z head'
         }
     },
     {'size': {
         'y_name': 'size',
         'model_name': 'size',
         'loss_function': 'l2',
-        'var_label': 'size head']
+        'var_label': 'size head'
         }
     },
     {'pose': {
         'y_name': 'pose',
         'model_name': 'pose',
         'loss_function': 'l2',
-        'var_label': 'pose head']
+        'var_label': 'pose head'
         }
     },
     {'deconv': {
         'y_name': 'image',
         'model_name': 'deconv',
         'loss_function': 'l2',
-        'var_label': 'deconv head']
+        'var_label': 'deconv head'
         }
     },
     {'im_label': {
         'y_name': 'im_label',
         'model_name': 'rgb',
         'loss_function': 'l2',
-        'var_label': 'deconv head']
+        'var_label': 'deconv head'
         }
     }
     ]
@@ -54,19 +54,20 @@ def get_aux_losses(
         model,
         aux_loss_dict):
     aux_dict = aux_loss_dict.values()[0]
-    y = train_data_dict[aux_dict['y_name']]
-    yhat = model[aux_dict['model_name']]
-    output_label = aux_dict['var_label']
-    loss_function = aux_dict['loss_function']
-    if loss_function == 'sigmoid':
-        loss_list += [tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(
-                labels=y,
-                logits=yhat))]
-    elif loss_function == 'l2':
-        loss_list += [tf.nn.l2_loss(
-            y - yhat)]
-    loss_label += [output_label]
+    if aux_loss_dict.keys()[0] in train_data_dict.keys():
+        y = train_data_dict[aux_dict['y_name']]
+        yhat = model[aux_dict['model_name']]
+        output_label = aux_dict['var_label']
+        loss_function = aux_dict['loss_function']
+        if loss_function == 'sigmoid':
+            loss_list += [tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    labels=y,
+                    logits=yhat))]
+        elif loss_function == 'l2':
+            loss_list += [tf.nn.l2_loss(
+                y - yhat)]
+        loss_label += [output_label]
     return loss_list, loss_label
 
 
