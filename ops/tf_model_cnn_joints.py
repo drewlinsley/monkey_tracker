@@ -66,7 +66,8 @@ def train_and_eval(config):
             num_dims=config.num_dims,
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
-            background_multiplier=config.background_multiplier)
+            background_multiplier=config.background_multiplier,
+            randomize_background=config.randomize_background)
 
         val_data_dict = inputs(
             tfrecord_file=validation_data,
@@ -88,7 +89,8 @@ def train_and_eval(config):
             num_dims=config.num_dims,
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
-            background_multiplier=config.background_multiplier)
+            background_multiplier=config.background_multiplier,
+            randomize_background=config.randomize_background)
 
         # Check output_shape
         if config.selected_joints is not None:

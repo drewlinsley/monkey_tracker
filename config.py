@@ -7,8 +7,8 @@ class monkeyConfig(object):
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth100kStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth100kStore') #pjoin(self.base_dir, 'walk-all-png') 
+        self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth2MilStore') #pjoin(self.base_dir, 'walk-all-png') 
         self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
         self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
         self.npy_dir = pjoin(self.base_dir, 'batches', 'test')  # Output for numpys
@@ -20,11 +20,11 @@ class monkeyConfig(object):
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
         self.model_output = pjoin(self.results_dir, 'model_output') 
-        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_drew')
+        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_fast')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
         self.weight_npy_path = pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = True
+        use_checkpoint = False
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth2MilStore/model_output/' + \
@@ -47,6 +47,7 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
+        self.randomize_background = 2
 
         # Model settings
         self.epochs = 50
@@ -62,7 +63,7 @@ class monkeyConfig(object):
         self.train_batch = 48
         self.validation_batch = 48
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
