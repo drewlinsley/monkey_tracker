@@ -1,5 +1,5 @@
 import argparse
-from ops.tf_model_cnn_joints import train_and_eval
+from ops.tf_model_cnn_joints_multi_gpu import train_and_eval
 from ops.data_processing_joints import process_data
 from config import monkeyConfig
 

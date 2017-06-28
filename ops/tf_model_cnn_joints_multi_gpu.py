@@ -188,7 +188,7 @@ def train_and_eval(config, num_gpus=4):
     train_ops = []
     for gpu in range(num_gpus):
         with tf.device('/gpu:%s' % gpu):
-            with tf.variable_scope('cnn') as scope:
+            with tf.variable_scope('cnn_%s' % gpu) as scope:
                 print 'Creating training graph:'
                 model = model_file.model_struct(
                     weight_npy_path=config.weight_npy_path)
@@ -257,7 +257,7 @@ def train_and_eval(config, num_gpus=4):
                     # Op to update all variables according to their gradient
                     train_op = optimizer.apply_gradients(
                         grads_and_vars=grads)
-                train_ops += train_op
+                train_ops += [train_op]
 
                 # Summarize all gradients and weights
                 [tf.summary.histogram(
@@ -371,7 +371,7 @@ def train_and_eval(config, num_gpus=4):
         normalize_vec)
     train_threads = []
     for train_op in train_ops:
-        train_threads.append(threading.Thread(target=train_function, args=train_args)
+        train_threads.append(threading.Thread(target=train_function, args=train_args))
 
     # Start the threads, and block on their completion.
     for t in train_threads:
