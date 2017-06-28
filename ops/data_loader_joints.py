@@ -104,6 +104,7 @@ def read_and_decode(
         aux_losses=False,
         selected_joints=None,
         background_multiplier=1.01,
+        randomize_background=None,
         num_dims=3,
         keep_dims=3,
         clip_z=False,
@@ -127,7 +128,8 @@ def read_and_decode(
     image = tf.reshape(image, np.asarray(target_size))
 
     # Insert augmentation and preprocessing here
-    # image, crop_coors = augment_data(image, model_input_shape, im_size, train)
+    # image, crop_coors = augment_data(
+    #     image, model_input_shape, im_size, train)
     crop_coors = None
     label.set_shape(label_shape)
 
@@ -151,6 +153,15 @@ def read_and_decode(
     if not working_on_kinect:
         print 'Normalizing and adjusting rendered data'
         # Convert background values
+        if randomize_background is not None:
+            max_value = tf.constant(max_value)
+            background_multiplier = tf.constant(
+                background_multiplier) + tf.random_uniform(
+                (),
+                minval=0,
+                maxval=randomize_background,
+                dtype=tf.float32)
+
         background_mask = tf.cast(tf.equal(image, 0), tf.float32)
         background_constant = (background_multiplier * max_value)
         background_mask *= background_constant
@@ -253,7 +264,8 @@ def read_and_decode(
         res_size = label_shape // num_dims
         res_joints = tf.reshape(
                 output_data['label'], [res_size, num_dims])
-        output_data['z'] = tf.squeeze(tf.split(res_joints, num_dims, axis=1)[-1])
+        output_data['z'] = tf.squeeze(
+            tf.split(res_joints, num_dims, axis=1)[-1])
 
     if keep_dims < num_dims:
         print 'Reducing labels from %s to %s dimensions' % (
@@ -425,6 +437,7 @@ def inputs(
         keep_dims=3,
         background_multiplier=1.01,
         working_on_kinect=False,
+        randomize_background=None,
         shuffle=True,
         num_threads=2):
     with tf.name_scope('input'):
@@ -452,6 +465,7 @@ def inputs(
             num_dims=num_dims,
             keep_dims=keep_dims,
             background_multiplier=background_multiplier,
+            randomize_background=randomize_background,
             working_on_kinect=working_on_kinect)
         keys = []
         var_list = []

@@ -19,7 +19,7 @@ def train_and_eval(
         validation_data,
         config,
         uniform_batch_size=5,
-        swap_datasets=True,
+        swap_datasets=False,
         working_on_kinect=False,
         return_coors=False,
         check_stats=False):
@@ -125,8 +125,7 @@ def train_and_eval(
     with tf.device('/gpu:0'):
         with tf.variable_scope('cnn') as scope:
             print 'Creating training graph:'
-            model = model_file.model_struct(
-                vgg16_npy_path=config.vgg16_weight_path)
+            model = model_file.model_struct()
             train_mode = tf.get_variable(name='training', initializer=True)
             model.build(
                 rgb=train_data_dict['image'],
@@ -314,7 +313,7 @@ def train_and_eval(
             print 'Evaluating checkpoint: %s' % ckpt
             saver.restore(sess, ckpt)
     else:
-        raise RuntimeError('Set resume_from_checkoint=True in the config')
+        raise RuntimeError('Set resume_from_checkpoint field in the config.')
     try:
         while not coord.should_stop():
             train_out_dict = sess.run(train_session_vars.values())
@@ -349,7 +348,7 @@ def train_and_eval(
                 monkey_mosaic.save_mosaic(
                     train_out_dict['im'].squeeze(),
                     train_out_dict['yhat'],
-                    train_out_dict['ytrue'],
+                    None,  # train_out_dict['ytrue'],
                     save_fig=False)
             format_str = (
                 '%s: step %d | ckpt: %s | validation tf: %s | Train l2 loss = %.8f | '
