@@ -42,6 +42,7 @@ def main(model_dir, ckpt_name, run_tests=False):
         kinect_config['low_threshold'] = None
         kinect_config['high_threshold'] = None
         kinect_config['rotate_frames'] = 0
+        kinect_config['run_gmm'] = False
         test_frames = True
 
     if len(monkey_files) == 0:
@@ -110,7 +111,6 @@ def main(model_dir, ckpt_name, run_tests=False):
         frames, frame_toss_index = test_tf_kinect.transform_to_renders(
             frames=frames,
             config=config)
-        in_data = frames
         use_kinect = True
     else:
         use_kinect = False
@@ -185,7 +185,7 @@ if __name__ == '__main__':
         type=str,
         default='/media/data_cifs/monkey_tracking/results/' + \
             'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_21_33_30',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
+            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_27_18_36_53', # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_21_33_30',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",

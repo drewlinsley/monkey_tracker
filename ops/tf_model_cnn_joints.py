@@ -7,6 +7,7 @@ import tensorflow as tf
 import cPickle as pickle
 from ops.data_loader_joints import inputs
 from ops import tf_fun
+from ops import loss_helper
 from ops.utils import get_dt, import_cnn, save_training_data
 
 
@@ -109,66 +110,30 @@ def train_and_eval(config):
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
 
-            # Prepare the loss functions:::
-            loss_list, loss_label = [], []
-            if 'label' in train_data_dict.keys():
-                # 1. Joint localization loss
-                if config.calculate_per_joint_loss:
-                    label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
-                        model=model,
-                        train_data_dict=train_data_dict,
-                        config=config,
-                        y_key='label',
-                        yhat_key='output')
-                    loss_list += [label_loss]
-                else:
-                    # loss_list += [tf.add_n([tf.nn.l2_loss(
-                    #     model[x] - train_data_dict['label']) for x in model.joint_label_output_keys])]
-                    loss_list += tf.nn.l2_loss(
-                        model['output'] - train_data_dict['label'])
-                loss_label += ['combined head']
-            if 'occlusion' in train_data_dict.keys():
-                # 2. Auxillary losses
-                # a. Occlusion
-                loss_list += [tf.reduce_mean(
-                    tf.nn.sigmoid_cross_entropy_with_logits(
-                        labels=train_data_dict['occlusion'],
-                        logits=model.occlusion))]
-                loss_label += ['occlusion head']
-            if 'z' in train_data_dict.keys():
-                # b. Z
-                loss_list += [tf.nn.l2_loss(
-                    train_data_dict['z'] - model.z)]
-                loss_label += ['z head']
-            if 'size' in train_data_dict.keys():
-                # c. Size
-                loss_list += [tf.nn.l2_loss(
-                    train_data_dict['size'] - model.size)]
-                loss_label += ['size head']
-            if 'pose' in train_data_dict.keys():
-                # d. Pose
-                loss_list += [tf.nn.l2_loss(
-                    train_data_dict['pose'] - model.pose)]
-                loss_label += ['pose head']
-            if 'deconv' in config.aux_losses:
-                # e. deconvolved image
-                loss_list += [tf.nn.l2_loss(
-                    model.deconv - train_data_dict['image'])]
-                loss_label += ['pose head']
-            if 'fc' in config.aux_losses:
-                # f. fully convolutional
-                fc_shape = [int(x) for x in model.final_fc.get_shape()[1:3]]
-                res_images = tf.image.resize_bilinear(train_data_dict['image'], fc_shape)
-                # turn background to 0s
-                background_mask_value = tf.cast(
-                    tf.less(res_images, config.max_depth), tf.float32)
-                masked_fc = model.final_fc * background_mask_value
-                masked_images = res_images * background_mask_value
-                loss_list += [config.fc_lambda * tf.nn.l2_loss(
-                    masked_fc - masked_images)]
-                loss_label += ['pose head']
-                tf.summary.image('FC training activations', model.final_fc)
+        # Prepare the loss functions:::
+        loss_list, loss_label = [], []
+        if 'label' in train_data_dict.keys():
+            # 1. Joint localization loss
+            if config.calculate_per_joint_loss:
+                label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
+                    model=model,
+                    train_data_dict=train_data_dict,
+                    config=config,
+                    y_key='label',
+                    yhat_key='output')
+                loss_list += [label_loss]
+            else:
+                loss_list += tf.nn.l2_loss(
+                    model['output'] - train_data_dict['label'])
+            loss_label += ['combined head']
 
+            for al in loss_helper.potential_aux_losses():
+                loss_list, loss_label = loss_helper.get_aux_losses(
+                    loss_list=loss_list,
+                    loss_label=loss_label,
+                    train_data_dict=train_data_dict,
+                    model=model,
+                    aux_loss_dict=al)
             loss = tf.add_n(loss_list)
 
             # Add wd if necessary
@@ -180,25 +145,12 @@ def train_and_eval(config):
                 if config.wd_type == 'l1':
                     loss += (config.wd_penalty * tf.add_n(
                             [tf.reduce_sum(tf.abs(x)) for x in l2_wd_layers]))
-                elif config.wd_type == 'l2':    
+                elif config.wd_type == 'l2':
                     loss += (config.wd_penalty * tf.add_n(
                             [tf.nn.l2_loss(x) for x in l2_wd_layers]))
 
-            if config.optimizer == 'adam':
-                optimizer = tf.train.AdamOptimizer
-            elif config.optimizer == 'sgd':
-                optimizer = tf.train.GradientDescentOptimizer
-            elif config.optimizer == 'momentum':
-                #  momentum_var = tf.placeholder(tf.float32, shape=(1))
-                optimizer = lambda x: tf.train.MomentumOptimizer(x, momentum=0.1)
-            elif config.optimizer == 'rms':
-                optimizer = tf.train.RMSPropOptimizer
-            else:
-                raise 'Unidentified optimizer'
-
-            # Gradient Descent
-            optimizer = optimizer(
-                config.lr)
+            optimizer = loss_helper.return_optimizer(config.optimizer)
+            optimizer = optimizer(config.lr)
 
             if hasattr(model, 'fine_tune_layers'):
                 train_op, grads = tf_fun.finetune_learning(
@@ -301,34 +253,15 @@ def train_and_eval(config):
         'yhat'
         ]
 
-    if 'occlusion' in train_data_dict.keys():
-        key = 'occhat'
-        train_session_vars[key] = model.occlusion,
-        save_training_vars += [key]
-        key = 'occtrue'
-        train_session_vars[key] = train_data_dict['occlusion'],
-        save_training_vars += [key]
-    if 'pose' in train_data_dict.keys():
-        key = 'posehat'
-        train_session_vars[key] = model.pose,
-        save_training_vars += [key]
-        key = 'posetrue'
-        train_session_vars[key] = train_data_dict['pose']
-        save_training_vars += [key]
-    if 'size' in train_data_dict.keys():
-        key = 'sizehat'
-        train_session_vars[key] = model.size,
-        save_training_vars += [key]
-        key = 'sizetrue'
-        train_session_vars[key] = train_data_dict['size']
-        save_training_vars += [key]
-    if 'z' in train_data_dict.keys():
-        key = 'zhat'
-        train_session_vars[key] = model.z,
-        save_training_vars += [key]
-        key = 'ztrue'
-        train_session_vars[key] = train_data_dict['z']
-        save_training_vars += [key]
+    for al in loss_helper.potential_aux_losses():
+        if al.keys()[0] in train_data_dict.keys():
+            y_key = '%s' % al.keys()[0]
+            train_session_vars[y_key] = al.values()[0]['y_name']
+            save_training_vars += [y_key]
+
+            yhat_key = '%s_hat' % al.keys()[0]
+            train_session_vars[yhat_key] = al.values()[0]['model_name']
+            save_training_vars += [yhat_key]
 
     # Start training loop
     np.save(config.train_checkpoint, config)

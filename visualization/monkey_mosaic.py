@@ -176,7 +176,7 @@ def main(
         save_mosaic(
             ims=val_images_list[:, :, :, 0],
             yhats=val_yhats_list,
-            ys=np.zeros_like(val_yhats_list),
+            ys=np.copy(val_yhats_list),  # np.zeros_like(val_yhats_list),
             output='val_%s' % output_file)
 
 
