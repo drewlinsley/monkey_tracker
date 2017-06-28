@@ -7,6 +7,7 @@ import tensorflow as tf
 import cPickle as pickle
 from ops.data_loader_joints import inputs
 from ops import tf_fun
+from ops import loss_helper
 from ops.utils import get_dt, import_cnn, save_training_data
 
 
@@ -97,163 +98,117 @@ def train_and_eval(config):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
 
-    with tf.device('/gpu:0'):
-        with tf.variable_scope('cnn') as scope:
-            print 'Creating training graph:'
-            model = model_file.model_struct(
-                weight_npy_path=config.weight_npy_path)
-            train_mode = tf.get_variable(name='training', initializer=True)
-            model.build(
-                rgb=train_data_dict['image'],
-                target_variables=train_data_dict,
-                train_mode=train_mode,
-                batchnorm=config.batch_norm)
+    with tf.variable_scope('cnn') as scope:
+        print 'Creating training graph:'
+        model = model_file.model_struct(
+            weight_npy_path=config.weight_npy_path)
+        train_mode = tf.get_variable(name='training', initializer=True)
+        model.build(
+            rgb=train_data_dict['image'],
+            target_variables=train_data_dict,
+            train_mode=train_mode,
+            batchnorm=config.batch_norm)
 
-            # Prepare the loss functions:::
-            loss_list, loss_label = [], []
-            if 'label' in train_data_dict.keys():
-                # 1. Joint localization loss
-                if config.calculate_per_joint_loss:
-                    label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
-                        model=model,
-                        train_data_dict=train_data_dict,
-                        config=config,
-                        y_key='label',
-                        yhat_key='output')
-                    loss_list += [label_loss]
-                else:
-                    # loss_list += [tf.add_n([tf.nn.l2_loss(
-                    #     model[x] - train_data_dict['label']) for x in model.joint_label_output_keys])]
-                    loss_list += tf.nn.l2_loss(
-                        model['output'] - train_data_dict['label'])
-                loss_label += ['combined head']
-            if 'occlusion' in train_data_dict.keys():
-                # 2. Auxillary losses
-                # a. Occlusion
-                loss_list += [tf.reduce_mean(
-                    tf.nn.sigmoid_cross_entropy_with_logits(
-                        labels=train_data_dict['occlusion'],
-                        logits=model.occlusion))]
-                loss_label += ['occlusion head']
-            if 'z' in train_data_dict.keys():
-                # b. Z
-                loss_list += [tf.nn.l2_loss(
-                    train_data_dict['z'] - model.z)]
-                loss_label += ['z head']
-            if 'size' in train_data_dict.keys():
-                # c. Size
-                loss_list += [tf.nn.l2_loss(
-                    train_data_dict['size'] - model.size)]
-                loss_label += ['size head']
-            if 'pose' in train_data_dict.keys():
-                # d. Pose
-                loss_list += [tf.nn.l2_loss(
-                    train_data_dict['pose'] - model.pose)]
-                loss_label += ['pose head']
-            if 'deconv' in config.aux_losses:
-                # e. deconvolved image
-                loss_list += [tf.nn.l2_loss(
-                    model.deconv - train_data_dict['image'])]
-                loss_label += ['pose head']
-            if 'fc' in config.aux_losses:
-                # f. fully convolutional
-                fc_shape = [int(x) for x in model.final_fc.get_shape()[1:3]]
-                res_images = tf.image.resize_bilinear(train_data_dict['image'], fc_shape)
-                # turn background to 0s
-                background_mask_value = tf.cast(
-                    tf.less(res_images, config.max_depth), tf.float32)
-                masked_fc = model.final_fc * background_mask_value
-                masked_images = res_images * background_mask_value
-                loss_list += [config.fc_lambda * tf.nn.l2_loss(
-                    masked_fc - masked_images)]
-                loss_label += ['pose head']
-                tf.summary.image('FC training activations', model.final_fc)
-
-            loss = tf.add_n(loss_list)
-
-            # Add wd if necessary
-            if config.wd_penalty is not None:
-                _, l2_wd_layers = tf_fun.fine_tune_prepare_layers(
-                    tf.trainable_variables(), config.wd_layers)
-                l2_wd_layers = [
-                    x for x in l2_wd_layers if 'biases' not in x.name]
-                if config.wd_type == 'l1':
-                    loss += (config.wd_penalty * tf.add_n(
-                            [tf.reduce_sum(tf.abs(x)) for x in l2_wd_layers]))
-                elif config.wd_type == 'l2':    
-                    loss += (config.wd_penalty * tf.add_n(
-                            [tf.nn.l2_loss(x) for x in l2_wd_layers]))
-
-            if config.optimizer == 'adam':
-                optimizer = tf.train.AdamOptimizer
-            elif config.optimizer == 'sgd':
-                optimizer = tf.train.GradientDescentOptimizer
-            elif config.optimizer == 'momentum':
-                #  momentum_var = tf.placeholder(tf.float32, shape=(1))
-                optimizer = lambda x: tf.train.MomentumOptimizer(x, momentum=0.1)
-            elif config.optimizer == 'rms':
-                optimizer = tf.train.RMSPropOptimizer
+        # Prepare the loss functions:::
+        loss_list, loss_label = [], []
+        if 'label' in train_data_dict.keys():
+            # 1. Joint localization loss
+            if config.calculate_per_joint_loss:
+                label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
+                    model=model,
+                    train_data_dict=train_data_dict,
+                    config=config,
+                    y_key='label',
+                    yhat_key='output')
+                loss_list += [label_loss]
             else:
-                raise 'Unidentified optimizer'
+                loss_list += tf.nn.l2_loss(
+                    model['output'] - train_data_dict['label'])
+            loss_label += ['combined head']
 
-            # Gradient Descent
-            optimizer = optimizer(
-                config.lr)
+        for al in loss_helper.potential_aux_losses():
+            loss_list, loss_label = loss_helper.get_aux_losses(
+                loss_list=loss_list,
+                loss_label=loss_label,
+                train_data_dict=train_data_dict,
+                model=model,
+                aux_loss_dict=al)
 
-            if hasattr(model, 'fine_tune_layers'):
-                train_op, grads = tf_fun.finetune_learning(
-                    loss,
-                    trainables=tf.trainable_variables(),
-                    fine_tune_layers=model.fine_tune_layers,
-                    config=config
-                    )
-            else:
-                # Op to calculate every variable gradient
-                grads = optimizer.compute_gradients(
-                    loss, tf.trainable_variables())
-                # Op to update all variables according to their gradient
-                train_op = optimizer.apply_gradients(
-                    grads_and_vars=grads)
+        loss = tf.add_n(loss_list)
 
-            # Summarize all gradients and weights
-            [tf.summary.histogram(
-                var.name + '/gradient', grad)
-                for grad, var in grads if grad is not None]
-            # train_op = optimizer.minimize(loss)
+        # Add wd if necessary
+        if config.wd_penalty is not None:
+            _, l2_wd_layers = tf_fun.fine_tune_prepare_layers(
+                tf.trainable_variables(), config.wd_layers)
+            l2_wd_layers = [
+                x for x in l2_wd_layers if 'biases' not in x.name]
+            if config.wd_type == 'l1':
+                loss += (
+                    config.wd_penalty * tf.add_n(
+                        [tf.reduce_sum(tf.abs(x)) for x in l2_wd_layers]))
+            elif config.wd_type == 'l2':
+                loss += (
+                    config.wd_penalty * tf.add_n(
+                        [tf.nn.l2_loss(x) for x in l2_wd_layers]))
 
-            # Summarize losses
-            [tf.summary.scalar(lab, il) for lab, il in zip(
-                loss_label, loss_list)]
+        optimizer = loss_helper.return_optimizer(config.optimizer)
+        optimizer = optimizer(config.lr)
 
-            # Summarize images and l1 weights
-            tf.summary.image(
-                'train images',
-                tf.cast(train_data_dict['image'], tf.float32))
-            tf_fun.add_filter_summary(
+        if hasattr(model, 'fine_tune_layers'):
+            train_op, grads = tf_fun.finetune_learning(
+                loss,
                 trainables=tf.trainable_variables(),
-                target_layer='conv1_1_filters')
+                fine_tune_layers=model.fine_tune_layers,
+                config=config)
+        else:
+            # Op to calculate every variable gradient
+            grads = optimizer.compute_gradients(
+                loss, tf.trainable_variables())
+            # Op to update all variables according to their gradient
+            train_op = optimizer.apply_gradients(
+                grads_and_vars=grads)
 
-            # Setup validation op
-            if validation_data is not False:
-                scope.reuse_variables()
-                print 'Creating validation graph:'
-                val_model = model_file.model_struct()
-                val_model.build(
-                    rgb=val_data_dict['image'],
-                    target_variables=val_data_dict)
+        # Summarize all gradients and weights
+        [tf.summary.histogram(
+            var.name + '/gradient', grad)
+            for grad, var in grads if grad is not None]
+        # train_op = optimizer.minimize(loss)
 
-                # Calculate validation accuracy
-                if 'label' in val_data_dict.keys():
-                    # val_score = tf.nn.l2_loss(
-                    #     val_model.output - val_data_dict['label'])
-                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
-                    tf.summary.scalar("validation mse", val_score)
-                if 'fc' in config.aux_losses:
-                    tf.summary.image('FC val activations', val_model.final_fc)
-                tf.summary.image(
-                    'validation images',
-                    tf.cast(val_data_dict['image'], tf.float32))
+        # Summarize losses
+        [tf.summary.scalar(lab, il) for lab, il in zip(
+            loss_label, loss_list)]
 
+        # Summarize images and l1 weights
+        tf.summary.image(
+            'train images',
+            tf.cast(train_data_dict['image'], tf.float32))
+        tf_fun.add_filter_summary(
+            trainables=tf.trainable_variables(),
+            target_layer='conv1_1_filters')
+
+        # Setup validation op
+        if validation_data is not False:
+            scope.reuse_variables()
+            print 'Creating validation graph:'
+            val_model = model_file.model_struct()
+            val_model.build(
+                rgb=val_data_dict['image'],
+                target_variables=val_data_dict)
+
+            # Calculate validation accuracy
+            if 'label' in val_data_dict.keys():
+                # val_score = tf.nn.l2_loss(
+                #     val_model.output - val_data_dict['label'])
+                val_score = tf.reduce_mean(
+                    tf_fun.l2_loss(
+                        val_model.output,
+                        val_data_dict['label']))
+                tf.summary.scalar("validation mse", val_score)
+            if 'fc' in config.aux_losses:
+                tf.summary.image('FC val activations', val_model.final_fc)
+            tf.summary.image(
+                'validation images',
+                tf.cast(val_data_dict['image'], tf.float32))
 
     # Set up summaries and saver
     saver = tf.train.Saver(
@@ -298,37 +253,17 @@ def train_and_eval(config):
         'im',
         'yhat',
         'ytrue',
-        'yhat'
-        ]
+        'yhat']
 
-    if 'occlusion' in train_data_dict.keys():
-        key = 'occhat'
-        train_session_vars[key] = model.occlusion,
-        save_training_vars += [key]
-        key = 'occtrue'
-        train_session_vars[key] = train_data_dict['occlusion'],
-        save_training_vars += [key]
-    if 'pose' in train_data_dict.keys():
-        key = 'posehat'
-        train_session_vars[key] = model.pose,
-        save_training_vars += [key]
-        key = 'posetrue'
-        train_session_vars[key] = train_data_dict['pose']
-        save_training_vars += [key]
-    if 'size' in train_data_dict.keys():
-        key = 'sizehat'
-        train_session_vars[key] = model.size,
-        save_training_vars += [key]
-        key = 'sizetrue'
-        train_session_vars[key] = train_data_dict['size']
-        save_training_vars += [key]
-    if 'z' in train_data_dict.keys():
-        key = 'zhat'
-        train_session_vars[key] = model.z,
-        save_training_vars += [key]
-        key = 'ztrue'
-        train_session_vars[key] = train_data_dict['z']
-        save_training_vars += [key]
+    for al in loss_helper.potential_aux_losses():
+        if al.key() in train_data_dict.keys():
+            y_key = '%s' % al.key()
+            train_session_vars[y_key] = al.values()[0]['y_name']
+            save_training_vars += [y_key]
+
+            yhat_key = '%s_hat' % al.key()
+            train_session_vars[yhat_key] = al.values()[0]['model_name']
+            save_training_vars += [yhat_key]
 
     # Start training loop
     np.save(config.train_checkpoint, config)
