@@ -169,8 +169,18 @@ def read_and_decode(
         if augment_background == 'perlin':
             # Add 3D noise
             pnoise = tf.abs(tf.expand_dims(
-                tf_perlin.get_noise(h=target_size[1], w=target_size[0]), axis=2)) / 2
-            max_p = tf.reduce_max(pnoise)
+                tf_perlin.get_noise(
+                    h=target_size[1],
+                    w=target_size[0]),
+                axis=2)) / 2
+            background_mask = (background_mask - pnoise) * background_constant
+        elif augment_background == 'perlin_2':
+            # Add 3D noise
+            pnoise = tf.concat([tf.abs(tf.expand_dims(
+                tf_perlin.get_noise(
+                    h=target_size[1], w=target_size[0]),
+                axis=2)) / 2 for x in range(2)], axis=2)
+            pnoise = tf.reduce_mean(pnoise, axis=2, keep_dims=True)
             background_mask = (background_mask - pnoise) * background_constant
         elif augment_background == 'constant':
             # Add an "invisible wall"
@@ -178,7 +188,7 @@ def read_and_decode(
         elif augment_background == 'rescale':
             # Rescale depth to [0, 1]
             background_mask *= 0
-            background_constant = tf.reduce_max(image) 
+            background_constant = tf.reduce_max(image)
         image += background_mask
 
         # Normalize intensity

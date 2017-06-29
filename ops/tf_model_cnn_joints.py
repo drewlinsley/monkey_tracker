@@ -285,8 +285,6 @@ def train_and_eval(config):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
-            import ipdb;ipdb.set_trace()
-            from matplotlib import pyplot as plt
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(
