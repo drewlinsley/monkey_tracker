@@ -84,7 +84,7 @@ class monkeyConfig(object):
         self.mean_file = 'mean_file'  # Double check: used in training?
 
         # Auxillary training settings
-        self.normalize_labels = True
+        self.normalize_labels = False
         self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = False
         self.include_validation = True
