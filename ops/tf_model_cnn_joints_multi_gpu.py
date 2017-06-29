@@ -20,8 +20,8 @@ def training_op(
         config,
         train_data_dict):
     with tf.device('/gpu:%s' % gpu):
-        if iteration != 0:
-            scope.reuse_variables()
+        # if iteration != 0:
+        #     scope.reuse_variables()
         print 'Creating training graph:'
         model = model_file.model_struct(
             weight_npy_path=config.weight_npy_path)
@@ -31,6 +31,7 @@ def training_op(
             target_variables=train_data_dict,
             train_mode=train_mode,
             batchnorm=config.batch_norm)
+        tf.get_variable_scope().reuse_variables()
 
         # Prepare the loss functions:::
         loss_list, loss_label = [], []
@@ -76,41 +77,43 @@ def training_op(
                         [tf.nn.l2_loss(
                             x) for x in l2_wd_layers]))
 
-        optimizer = loss_helper.return_optimizer(config.optimizer)
-        optimizer = optimizer(config.lr)
+        # optimizer = loss_helper.return_optimizer(config.optimizer)
+        # optimizer = optimizer(config.lr)
 
-        if hasattr(model, 'fine_tune_layers'):
-            train_op, grads = tf_fun.finetune_learning(
-                loss,
-                trainables=tf.trainable_variables(),
-                fine_tune_layers=model.fine_tune_layers,
-                config=config)
-        else:
-            # Op to calculate every variable gradient
-            grads = optimizer.compute_gradients(
-                loss, tf.trainable_variables())
-            # Op to update all variables according to their gradient
-            train_op = optimizer.apply_gradients(
-                grads_and_vars=grads)
+        # if hasattr(model, 'fine_tune_layers'):
+        #     train_op, grads = tf_fun.finetune_learning(
+        #         loss,
+        #         trainables=tf.trainable_variables(),
+        #         fine_tune_layers=model.fine_tune_layers,
+        #         config=config)
+        # else:
+        # Op to calculate every variable gradient
+        # grads = optimizer.compute_gradients(
+        #     loss, tf.trainable_variables())
+        # Op to update all variables according to their gradient
+        # global_step = tf.contrib.framework.get_or_create_global_step()
+        # train_op = optimizer.apply_gradients(
+        #     grads_and_vars=grads,
+        #     global_step=global_step)
 
         # Summarize all gradients and weights
-        [tf.summary.histogram(
-            '%s/gradient_gpu_%s' % (var.name, gpu), grad)
-            for grad, var in grads if grad is not None]
+        # [tf.summary.histogram(
+        #     '%s/gradient_gpu_%s' % (var.name, gpu), grad)
+        #     for grad, var in grads if grad is not None]
         # train_op = optimizer.minimize(loss)
 
         # Summarize losses
-        [tf.summary.scalar('gpu_%s_%s' % (gpu, lab), il) for lab, il in zip(
-            loss_label, loss_list)]
+        # [tf.summary.scalar('gpu_%s_%s' % (gpu, lab), il) for lab, il in zip(
+        #     loss_label, loss_list)]
 
         # Summarize images and l1 weights
-        tf.summary.image(
-            'train images gpu_%s' % gpu,
-            tf.cast(train_data_dict['image'], tf.float32))
-        tf_fun.add_filter_summary(
-            trainables=tf.trainable_variables(),
-            target_layer='conv1_1_filters')
-        return train_op, loss, model
+        # tf.summary.image(
+        #     'train images gpu_%s' % gpu,
+        #     tf.cast(train_data_dict['image'], tf.float32))
+        # tf_fun.add_filter_summary(
+        #     trainables=tf.trainable_variables(),
+        #     target_layer='conv1_1_filters')
+        return loss, model
 
 
 def validation_op(
@@ -146,11 +149,13 @@ def build_graph(
         selected_gpus,
         model_file,
         train_data_dict,
+        opt,
         config):
-    train_list_of_dicts = []
+    train_list_of_dicts = {}
+    grad_list = []
     with tf.variable_scope('cnn') as scope:
         for idx, g in enumerate(selected_gpus):
-            train_op, loss, model = training_op(
+            loss, model = training_op(
                 iteration=idx,
                 gpu=g,
                 scope=scope,
@@ -163,14 +168,13 @@ def build_graph(
             # 'im': train_data_dict['image'],
             # 'yhat': model.output,
             # 'ytrue': train_data_dict['label']
-            train_list_of_dicts += [{
-                'train_op': train_op,
-                'loss_value': loss,
-                'im': train_data_dict['image'],
-                'yhat': model.output,
-                'ytrue': train_data_dict['label']
-            }]
-    return train_list_of_dicts
+            grads = opt.compute_gradients(loss)
+            grad_list += [grads]
+            train_list_of_dicts['loss_value_%s' % g] = loss
+            train_list_of_dicts['im_%s' % g] = train_data_dict['image']
+            train_list_of_dicts['yhat_%s' % g] = model.output
+            train_list_of_dicts['ytrue_%s' % g] = train_data_dict['label']
+    return train_list_of_dicts, grad_list
 
 
 def train_function(
@@ -315,7 +319,8 @@ def train_and_eval(config, selected_gpus=range(2)):
             num_dims=config.num_dims,
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
-            background_multiplier=config.background_multiplier)
+            background_multiplier=config.background_multiplier,
+            augment_background=config.augment_background)
 
         # if config.include_validation:
         #     validation_data = os.path.join(
@@ -346,6 +351,23 @@ def train_and_eval(config, selected_gpus=range(2)):
         #     mask_occluded_joints=config.mask_occluded_joints,
         #     background_multiplier=config.background_multiplier)
 
+        global_step = tf.get_variable(
+            'global_step',
+            [],
+            initializer=tf.constant_initializer(0),
+            trainable=False)
+
+        # Calculate the learning rate schedule.
+        num_batches_per_epoch = ((2000000. * .9) / config.train_batch)
+        decay_steps = int(num_batches_per_epoch * 300)
+        lr = tf.train.exponential_decay(
+            config.lr,
+            global_step,
+            decay_steps,
+            0.1,
+            staircase=True)
+        opt = tf.train.GradientDescentOptimizer(lr)
+
         # Check output_shape
         if config.selected_joints is not None:
             print 'Targeting joint: %s' % config.selected_joints
@@ -354,19 +376,47 @@ def train_and_eval(config, selected_gpus=range(2)):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
 
-    train_session_vars = build_graph(
+    train_session_vars, grad_list = build_graph(
         selected_gpus,
         model_file,
         train_data_dict,
+        opt,
         config)
+    grads = loss_helper.average_gradients(grad_list)
+
+    # Add histograms for gradients.
+    for grad, var in grads:
+        if grad is not None:
+            tf.summary.histogram(var.op.name + '/gradients', grad)
+
+    # Apply the gradients to adjust the shared variables.
+    apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
+
+    # Add histograms for trainable variables.
+    for var in tf.trainable_variables():
+        tf.summary.histogram(var.op.name, var)
+
+    # Track the moving averages of all trainable variables.
+    variable_averages = tf.train.ExponentialMovingAverage(
+        0.9999,
+        global_step)
+    variables_averages_op = variable_averages.apply(tf.trainable_variables())
+
+    # Group all updates to into a single train op.
+    train_op = tf.group(apply_gradient_op, variables_averages_op)
+    train_session_vars['train_op'] = train_op
 
     # Set up summaries and saver
     saver = tf.train.Saver(
-        tf.global_variables(), max_to_keep=config.keep_checkpoints)
+        tf.global_variables(),
+        max_to_keep=config.keep_checkpoints)
     summary_op = tf.summary.merge_all()
 
     # Initialize the graph
-    sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+    sess = tf.Session(
+        config=tf.ConfigProto(
+            allow_soft_placement=True,
+            log_device_placement=True))
 
     # Need to initialize both of these if supplying num_epochs to inputs
     sess.run(tf.group(tf.global_variables_initializer(),
@@ -383,13 +433,14 @@ def train_and_eval(config, selected_gpus=range(2)):
 
     # Create list of variables to save to numpys
     save_training_vars = [
-        'im',
-        'yhat',
-        'ytrue',
-        'yhat']
+        'im_0',
+        'yhat_0',
+        'ytrue_0',
+        'yhat_0']
 
     for al in loss_helper.potential_aux_losses():
         if al.keys()[0] in train_data_dict.keys():
+            # Need to fix this
             y_key = '%s' % al.keys()[0]
             train_session_vars[y_key] = al.values()[0]['y_name']
             save_training_vars += [y_key]
@@ -404,29 +455,17 @@ def train_and_eval(config, selected_gpus=range(2)):
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
     normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
 
-    # Create multiple threads to run `train_function()` in parallel
-    train_threads = []
-    for ts in train_session_vars:
-        train_args = (
-            ts,
-            None, # val_session_vars,
-            save_training_vars,
-            sess,
-            saver,
-            coord,
-            threads,
-            summary_op,
-            summary_writer,
-            normalize_vec,
-            config,
-            results_dir)
-        train_threads.append(
-            threading.Thread(
-                target=train_function,
-                args=train_args))
+    train_function(
+        train_session_vars,
+        None,
+        save_training_vars,
+        sess,
+        saver,
+        coord,
+        threads,
+        summary_op,
+        summary_writer,
+        normalize_vec,
+        config,
+        results_dir)
 
-    # Start the threads, and block on their completion.
-    for t in train_threads:
-        t.start()
-    for t in train_threads:
-        t.join()

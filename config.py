@@ -7,8 +7,6 @@ class monkeyConfig(object):
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        # self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth100kStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        # self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth100kStore') #pjoin(self.base_dir, 'walk-all-png') 
         self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
         self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth2MilStore') #pjoin(self.base_dir, 'walk-all-png') 
         self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
@@ -22,18 +20,20 @@ class monkeyConfig(object):
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
         self.model_output = pjoin(self.results_dir, 'model_output') 
-        # self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_drew')
         self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_fast')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
-
-        # Restore from previous weights either through npy or ckpt.
         self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = True
         if use_checkpoint:
-            self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
-            'TrueDepth100kStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_21_33_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_20_31_03'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34/'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_11_42_34'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
+            self.ckpt_file = 'model_5000.ckpt-5000'  # None  # 
+            self.resume_from_checkpoint = pjoin(
+                self.model_output,
+                self.model_name)
+            self.saved_config = '%s.npy' % self.resume_from_checkpoint
+            if self.ckpt_file is not None:
+                self.resume_from_checkpoint = pjoin(self.resume_from_checkpoint, self.ckpt_file)
         else:
             self.resume_from_checkpoint = None
 
@@ -51,7 +51,9 @@ class monkeyConfig(object):
         self.sample = {'train': True, 'val': False}  # random sample of feats
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
-        self.background_multiplier = 1.01  # 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
+        self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
+        self.randomize_background = 2
+        self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant'
 
         # Model settings
         self.epochs = 50
@@ -64,8 +66,8 @@ class monkeyConfig(object):
         ]
 
         # Key training settings
-        self.train_batch = 48
-        self.validation_batch = 48
+        self.train_batch = 32
+        self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
         self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
@@ -74,17 +76,18 @@ class monkeyConfig(object):
         self.steps_before_validation = 1000
         self.loss_type = 'l2'
         self.grad_clip = False
+        self.average_gradients = True
 
         # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
         self.early_stopping_rounds = 100
-        self.test_proprtion = 0.1  # TEST_RATIO
+        self.test_proportion = 0.1  # TEST_RATIO
         self.mean_file = 'mean_file'  # Double check: used in training?
 
         # Auxillary training settings
         self.normalize_labels = True
         self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
-        self.calculate_per_joint_loss = True
+        self.calculate_per_joint_loss = False
         self.include_validation = True
         self.wd_type = 'l1'
         self.wd_penalty = None  # 5e-4

@@ -10,7 +10,7 @@ for more advanced scheduling (ex. distributing work through Kubernetes).
 MANUAL STEPS
 
 # Build the image and label it as clickme-example on the Docker registry on p3
-nvidia-docker build -t serrep3.services.brown.edu:5000/clickme-example .
+nvidia-docker build -t serrep3.services.brown.edu:5000/monkey_tracker .
 
 #Run the container
-nvidia-docker run -it --volume /media/data_cifs:/media/data_cifs --workdir /media/data_cifs serrep3.services.brown.edu:5000/clickme-example bash
+nvidia-docker run -it --volume /media/data_cifs:/media/data_cifs --workdir /media/data_cifs serrep3.services.brown.edu:5000/monkey_tracker bash
