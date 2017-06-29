@@ -67,7 +67,7 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            randomize_background=config.randomize_background)
+            augment_background=config.augment_background)
 
         val_data_dict = inputs(
             tfrecord_file=validation_data,
@@ -90,7 +90,7 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            randomize_background=config.randomize_background)
+            augment_background=False)
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -125,8 +125,8 @@ def train_and_eval(config):
                     yhat_key='output')
                 loss_list += [label_loss]
             else:
-                loss_list += tf.nn.l2_loss(
-                    model['output'] - train_data_dict['label'])
+                loss_list += [tf.nn.l2_loss(
+                    model['output'] - train_data_dict['label'])]
             loss_label += ['combined head']
 
             for al in loss_helper.potential_aux_losses():
@@ -285,6 +285,8 @@ def train_and_eval(config):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
+            import ipdb;ipdb.set_trace()
+            from matplotlib import pyplot as plt
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(

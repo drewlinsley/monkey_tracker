@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from scipy import misc
 from glob import glob
+from ops import tf_perlin
 
 
 def get_image_size(config):
@@ -109,7 +110,8 @@ def read_and_decode(
         keep_dims=3,
         clip_z=False,
         mask_occluded_joints=False,
-        working_on_kinect=False):
+        working_on_kinect=False,
+        augment_background=False):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -164,7 +166,19 @@ def read_and_decode(
 
         background_mask = tf.cast(tf.equal(image, 0), tf.float32)
         background_constant = (background_multiplier * max_value)
-        background_mask *= background_constant
+        if augment_background == 'perlin':
+            # Add 3D noise
+            pnoise = tf.abs(tf.expand_dims(
+                tf_perlin.get_noise(h=target_size[1], w=target_size[0]), axis=2)) / 2
+            max_p = tf.reduce_max(pnoise)
+            background_mask = (background_mask - pnoise) * background_constant
+        elif augment_background == 'constant':
+            # Add an "invisible wall"
+            background_mask *= background_constant
+        elif augment_background == 'rescale':
+            # Rescale depth to [0, 1]
+            background_mask *= 0
+            background_constant = tf.reduce_max(image) 
         image += background_mask
 
         # Normalize intensity
@@ -439,7 +453,8 @@ def inputs(
         working_on_kinect=False,
         randomize_background=None,
         shuffle=True,
-        num_threads=2):
+        num_threads=2,
+        augment_background=False):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -466,7 +481,8 @@ def inputs(
             keep_dims=keep_dims,
             background_multiplier=background_multiplier,
             randomize_background=randomize_background,
-            working_on_kinect=working_on_kinect)
+            working_on_kinect=working_on_kinect,
+            augment_background=augment_background)
         keys = []
         var_list = []
         image = output_data['image']
