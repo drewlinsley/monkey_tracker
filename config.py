@@ -24,11 +24,16 @@ class monkeyConfig(object):
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = False
+        use_checkpoint = True
         if use_checkpoint:
-            self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
-            'TrueDepth2MilStore/model_output/' + \
-            'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_27_21_36_20'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_20_31_03'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34/'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_18_11_42_34'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05'
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
+            self.ckpt_file = 'model_5000.ckpt-5000'  # None  # 
+            self.resume_from_checkpoint = pjoin(
+                self.model_output,
+                self.model_name)
+            self.saved_config = '%s.npy' % self.resume_from_checkpoint
+            if self.ckpt_file is not None:
+                self.resume_from_checkpoint = pjoin(self.resume_from_checkpoint, self.ckpt_file)
         else:
             self.resume_from_checkpoint = None
 
@@ -47,7 +52,7 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = None  # 0.5
+        self.randomize_background = 2
         self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant'
 
         # Model settings
@@ -61,10 +66,10 @@ class monkeyConfig(object):
         ]
 
         # Key training settings
-        self.train_batch = 48
-        self.validation_batch = 48
+        self.train_batch = 32
+        self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
+        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -75,7 +80,7 @@ class monkeyConfig(object):
         # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
         self.early_stopping_rounds = 100
-        self.test_proprtion = 0.1  # TEST_RATIO
+        self.test_proportion = 0.1  # TEST_RATIO
         self.mean_file = 'mean_file'  # Double check: used in training?
 
         # Auxillary training settings
