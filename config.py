@@ -23,7 +23,7 @@ class monkeyConfig(object):
         self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_fast')
         self.train_summaries = pjoin(self.results_dir, 'summaries')
         self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
-        self.weight_npy_path = pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
+        self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = False
         if use_checkpoint:
             self.resume_from_checkpoint = '/media/data_cifs/monkey_tracking/results/' + \
@@ -47,7 +47,8 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 2
+        self.randomize_background = None  # 0.5
+        self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant'
 
         # Model settings
         self.epochs = 50
@@ -80,7 +81,7 @@ class monkeyConfig(object):
         # Auxillary training settings
         self.normalize_labels = True
         self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
-        self.calculate_per_joint_loss = True
+        self.calculate_per_joint_loss = False
         self.include_validation = True
         self.wd_type = 'l1'
         self.wd_penalty = None  # 5e-4
