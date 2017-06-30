@@ -261,10 +261,10 @@ def train_function(
                     config._id,
                     config.summary_dir,
                     ckpt_file,
-                    it_loss,
+                    float(it_loss),
                     time_elapsed,
                     step,
-                    val_score)
+                    float(val_score))
 
             else:
                 # Training status
