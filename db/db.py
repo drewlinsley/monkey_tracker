@@ -52,9 +52,9 @@ class db(object):
 
     def __enter__(self):
         forward = sshtunnel.SSHTunnelForwarder(
-            credentials.x7_credentials()['ssh_address'],
-            ssh_username=credentials.x7_credentials()['username'],
-            ssh_password=credentials.x7_credentials()['password'],
+            credentials.machine_credentials()['ssh_address'],
+            ssh_username=credentials.machine_credentials()['username'],
+            ssh_password=credentials.machine_credentials()['password'],
             remote_bind_address=('127.0.0.1', 5432))
         forward.start()
         pgsql_port = forward.local_bind_port
@@ -179,7 +179,7 @@ class db(object):
         self.cur.execute(
             """
             INSERT INTO performance
-            (hp_combo_id, summary_dir, ckpt_file, training_loss, validation_loss, time_elapsed, model_run)
+            (hp_combo_id, summary_dir, ckpt_file, training_loss, validation_loss, time_elapsed, training_step)
             VALUES (%(hp_combo_id)s, %(summary_dir)s, %(ckpt_file)s, %(training_loss)s, %(validation_loss)s, %(time_elapsed)s, %(training_step)s)
             RETURNING _id""",
             {

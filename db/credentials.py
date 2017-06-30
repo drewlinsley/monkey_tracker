@@ -23,9 +23,10 @@ def postgresql_connection(port=''):
     return params
 
 
-def x7_credentials():
+def machine_credentials():
     return {
         'username': 'drew',
         'password': 'serrelab',
-        'ssh_address': 'x7.clps.brown.edu'
+        'ssh_address': 'serrep3.services.brown.edu'
+        # 'ssh_address': 'x7.clps.brown.edu'
        }

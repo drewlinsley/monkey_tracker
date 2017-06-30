@@ -118,6 +118,7 @@ def training_op(
 
 
 def validation_op(
+        gpu,
         scope,
         model_file,
         val_data_dict,
@@ -130,20 +131,25 @@ def validation_op(
         target_variables=val_data_dict)
 
     # Calculate validation accuracy
-    if 'label' in val_data_dict.keys():
-        # val_score = tf.nn.l2_loss(
-        #     val_model.output - val_data_dict['label'])
-        val_score = tf.reduce_mean(
-            tf_fun.l2_loss(
-                val_model.output,
-                val_data_dict['label']))
-        tf.summary.scalar("validation mse", val_score)
+    # val_score = tf.nn.l2_loss(
+    #     val_model.output - val_data_dict['label'])
+    val_score = tf.reduce_mean(
+        tf_fun.l2_loss(
+            val_model.output,
+            val_data_dict['label']))
+    tf.summary.scalar("validation mse", val_score)
     if 'fc' in config.aux_losses:
         tf.summary.image(
             'FC val activations', val_model.final_fc)
     tf.summary.image(
         'validation images',
         tf.cast(val_data_dict['image'], tf.float32))
+    return {
+        'val_acc': val_score,
+        'val_pred': val_model.output,
+        'val_ims': val_data_dict['image']
+    }
+
 
 
 def build_graph(
@@ -175,7 +181,7 @@ def build_graph(
             train_list_of_dicts['im_%s' % g] = train_data_dict['image']
             train_list_of_dicts['yhat_%s' % g] = model.output
             train_list_of_dicts['ytrue_%s' % g] = train_data_dict['label']
-    return train_list_of_dicts, grad_list
+    return train_list_of_dicts, grad_list, scope
 
 
 def train_function(
@@ -351,34 +357,31 @@ def train_and_eval(config):
             augment_background=config.augment_background,
             num_threads=1)
 
-        # if config.include_validation:
-        #     validation_data = os.path.join(
-        #         config.tfrecord_dir,
-        #         config.val_tfrecords)
-        # else:
-        #     validation_data = None
-
-        # val_data_dict = inputs(
-        #     tfrecord_file=validation_data,
-        #     batch_size=config.validation_batch,
-        #     im_size=config.resize,
-        #     target_size=config.image_target_size,
-        #     model_input_shape=config.resize,
-        #     train=config.data_augmentations,
-        #     label_shape=config.num_classes,
-        #     num_epochs=config.epochs,
-        #     image_target_size=config.image_target_size,
-        #     image_input_size=config.image_input_size,
-        #     maya_conversion=config.maya_conversion,
-        #     max_value=config.max_depth,
-        #     normalize_labels=config.normalize_labels,
-        #     aux_losses=config.aux_losses,
-        #     selected_joints=config.selected_joints,
-        #     joint_names=config.joint_order,
-        #     num_dims=config.num_dims,
-        #     keep_dims=config.keep_dims,
-        #     mask_occluded_joints=config.mask_occluded_joints,
-        #     background_multiplier=config.background_multiplier)
+        if config.include_validation:
+            validation_data = os.path.join(
+                config.tfrecord_dir,
+                config.val_tfrecords)
+            val_data_dict = inputs(
+                tfrecord_file=validation_data,
+                batch_size=config.validation_batch,
+                im_size=config.resize,
+                target_size=config.image_target_size,
+                model_input_shape=config.resize,
+                train=config.data_augmentations,
+                label_shape=config.num_classes,
+                num_epochs=config.epochs,
+                image_target_size=config.image_target_size,
+                image_input_size=config.image_input_size,
+                maya_conversion=config.maya_conversion,
+                max_value=config.max_depth,
+                normalize_labels=config.normalize_labels,
+                aux_losses=config.aux_losses,
+                selected_joints=config.selected_joints,
+                joint_names=config.joint_order,
+                num_dims=config.num_dims,
+                keep_dims=config.keep_dims,
+                mask_occluded_joints=config.mask_occluded_joints,
+                background_multiplier=config.background_multiplier)
 
         global_step = tf.get_variable(
             'global_step',
@@ -407,12 +410,22 @@ def train_and_eval(config):
                 print 'New target size: %s' % joint_shape
                 config.num_classes = joint_shape
 
-    train_session_vars, grad_list = build_graph(
+    train_session_vars, grad_list, scope = build_graph(
         config.selected_gpus,
         model_file,
         train_data_dict,
         opt,
         config)
+    if config.include_validation:
+        val_session_vars = validation_op(
+            config.selected_gpus[-1],  # default to last gpu
+            scope,
+            model_file,
+            val_data_dict,
+            config)
+    else:
+        val_session_vars = None
+
     if len(grad_list) > 1:
         grads = loss_helper.average_gradients(grad_list)
     else:
@@ -491,7 +504,7 @@ def train_and_eval(config):
 
     train_function(
         train_session_vars,
-        None,
+        val_session_vars,
         save_training_vars,
         sess,
         saver,
@@ -502,4 +515,3 @@ def train_and_eval(config):
         normalize_vec,
         config,
         results_dir)
-
