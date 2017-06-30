@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 from datetime import datetime
 import numpy as np
@@ -9,6 +10,7 @@ from ops.data_loader_joints import inputs
 from ops import tf_fun
 from ops import loss_helper
 from ops.utils import import_cnn, save_training_data
+from db import db
 
 
 def training_op(
@@ -190,7 +192,7 @@ def train_function(
         config,
         results_dir):
     try:
-        step = 0
+        step, time_elapsed = 0, 0
         while not coord.should_stop():
             start_time = time.time()
             train_out_dict = sess.run(train_session_vars.values())
@@ -207,15 +209,16 @@ def train_function(
                         val_session_vars.values())
                     val_out_dict = {k: v for k, v in zip(
                         val_session_vars.keys(), val_out_dict)}
-                    val_acc = val_out_dict['val_acc']
                     np.savez(
                         os.path.join(
                             results_dir, '%s_val_coors' % step),
                         val_pred=val_out_dict['val_pred'],
                         val_ims=val_out_dict['val_ims'],
                         normalize_vec=normalize_vec)
+                    val_score = val_out_dict['val_acc']
                 else:
-                    val_acc = 0.
+                    val_score = -1.
+
                 with open(
                     os.path.join(
                         results_dir, '%s_config.p' % step), 'wb') as fp:
@@ -233,7 +236,7 @@ def train_function(
                 print (format_str % (
                     datetime.now(), step, it_loss,
                     config.train_batch / duration, float(duration),
-                    val_acc,
+                    val_score,
                     config.summary_dir))
 
                 # Save the model checkpoint if it's the best yet
@@ -244,11 +247,24 @@ def train_function(
                     output_dir=results_dir,
                     data=train_out_dict[k],
                     name='%s_%s' % (k, step)) for k in save_training_vars]
-
-                saver.save(
-                    sess, os.path.join(
+                ckpt_file = os.path.join(
                         config.train_checkpoint,
-                        'model_' + str(step) + '.ckpt'), global_step=step)
+                        'model_' + str(step) + '.ckpt')
+                saver.save(
+                    sess, 
+                    ckpt_file,
+                    global_step=step)
+
+                # Update db
+                time_elapsed += float(duration)
+                db.update_parameters(
+                    config._id,
+                    config.summary_dir,
+                    ckpt_file,
+                    it_loss,
+                    time_elapsed,
+                    step,
+                    val_score)
 
             else:
                 # Training status
@@ -273,6 +289,17 @@ def train_function(
 
 def train_and_eval(config):
     """Train and evaluate the model."""
+    hp_params, hp_combo_id = db.get_parameters()
+    if hp_combo_id is None:
+        print 'Exiting.'
+        sys.exit(1)
+    for k, v in hp_params.iteritems():
+        if k == 'data_augmentations':
+            v = v.strip('{').strip('}').split(',')
+            if not isinstance(v, list):
+                v = [v]
+        setattr(config, k, v)
+    config.selected_gpus = [0]  # To make sure this works
 
     # Import your model
     print 'Model directory: %s' % config.model_output
@@ -368,8 +395,10 @@ def train_and_eval(config):
             decay_steps,
             0.1,
             staircase=True)
-        opt = tf.train.GradientDescentOptimizer(lr)
-
+        if config.optimizer == 'sgd':
+            opt = tf.train.GradientDescentOptimizer(lr)
+        elif config.optimizer == 'adam':
+            opt = tf.train.AdamOptimizer(lr)
         # Check output_shape
         if config.selected_joints is not None:
             print 'Targeting joint: %s' % config.selected_joints
@@ -384,7 +413,10 @@ def train_and_eval(config):
         train_data_dict,
         opt,
         config)
-    grads = loss_helper.average_gradients(grad_list)
+    if len(grad_list) > 1:
+        grads = loss_helper.average_gradients(grad_list)
+    else:
+        grads = grad_list[0]
 
     # Add histograms for gradients.
     for grad, var in grads:

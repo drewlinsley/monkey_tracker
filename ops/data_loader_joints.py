@@ -170,19 +170,46 @@ def read_and_decode(
             # Add 3D noise
             pnoise = tf.abs(tf.expand_dims(
                 tf_perlin.get_noise(h=target_size[1], w=target_size[0]), axis=2)) / 2
-            max_p = tf.reduce_max(pnoise)
             background_mask = (background_mask - pnoise) * background_constant
         elif augment_background == 'constant':
             # Add an "invisible wall"
             background_mask *= background_constant
         elif augment_background == 'rescale':
             # Rescale depth to [0, 1]
-            background_mask *= 0
-            background_constant = tf.reduce_max(image) 
+            # foreground_mask = tf.abs(background_mask - 1)
+            g0_log = tf.cast(tf.greater(image, 0), tf.float32)
+            g0_im = image * g0_log
+            min_vec = tf.gather_nd(g0_im, tf.where(tf.cast(g0_log, tf.bool)))
+            foreground_min = tf.reduce_min(min_vec)
+            background_mask *= foreground_min
+            background_constant = tf.reduce_max(g0_im)
+        elif augment_background == 'rescale_and_perlin':
+            # Rescale depth to [0, 1]
+            # foreground_mask = tf.abs(background_mask - 1)
+            g0_log = tf.cast(tf.greater(image, 0), tf.float32)
+            g0_im = image * g0_log
+            min_vec = tf.gather_nd(g0_im, tf.where(tf.cast(g0_log, tf.bool)))
+            foreground_min = tf.reduce_min(min_vec)
+
+            pnoise = tf.abs(tf.expand_dims(
+                tf_perlin.get_noise(
+                    h=target_size[1],
+                    w=target_size[0]),
+                axis=2)) * tf.random_uniform((), minval=0, maxval=50, dtype=tf.float32)
+            background_constant = tf.reduce_max(g0_im)
+            background_mask *= (background_constant - pnoise)
+
         image += background_mask
 
         # Normalize intensity
-        image /= background_constant
+        if augment_background == 'rescale' or augment_background == 'rescale_and_perlin':
+            image = (
+                image - foreground_min) / (
+                background_constant - foreground_min)
+        else:
+            image /= background_constant
+        image, _ = augment_data(
+            image, model_input_shape, im_size, train)
 
         # Normalize: must apply max value to image and every 3rd label
         if normalize_labels:
@@ -512,7 +539,7 @@ def inputs(
                 var_list,
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=1000+3 * batch_size,
+                capacity=1000+3 * (batch_size * 8),
                 # Ensures a minimum amount of shuffling of examples.
                 min_after_dequeue=1000)
         else:
@@ -520,5 +547,5 @@ def inputs(
                 var_list,
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=1000+3 * batch_size)
+                capacity=1000+3 * (batch_size * 8))
         return {k: v for k, v in zip(keys, var_list)}

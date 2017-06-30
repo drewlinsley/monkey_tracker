@@ -10,4 +10,4 @@ COPY . /tmp/
 
 COPY . .
 
-CMD ["python", "train_and_eval_joints.py"]
+CMD ["cd", "/media/data_cifs/cluster_projects/monkey_tracker"]

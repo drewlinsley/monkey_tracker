@@ -52,8 +52,8 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 2
-        self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant'
+        self.randomize_background = None
+        self.augment_background = 'rescale'  # 'rescale' 'perlin' 'constant'
 
         # Model settings
         self.epochs = 50
@@ -62,15 +62,16 @@ class monkeyConfig(object):
         # self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
-            'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
-        ]
+            'convert_labels_to_pixel_space']  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
+        # 'random_contrast']
 
         # Key training settings
-        self.train_batch = 32
+        self.selected_gpus = [0] # range(1)
+        self.train_batch = 8
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 1e-8
+        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 3e-4
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
@@ -85,11 +86,11 @@ class monkeyConfig(object):
         self.mean_file = 'mean_file'  # Double check: used in training?
 
         # Auxillary training settings
-        self.normalize_labels = True
+        self.normalize_labels = False
         self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = False
         self.include_validation = True
-        self.wd_type = 'l1'
+        self.wd_type = 'l2'
         self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
         self.fc_lambda = 0.01
@@ -192,3 +193,10 @@ class monkeyConfig(object):
         self.n_features = 400  # Tune this 
         self.max_pixels_per_image = 800  # Tune this
         self.cte_depth = 2  # ?? 
+
+
+    def __getitem__(self, name):
+        return getattr(self, name)
+
+    def __contains__(self, name):
+        return hasattr(self, name)

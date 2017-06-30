@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS hp_combos
+DROP TABLE IF EXISTS performance
+DROP TABLE IF EXISTS in_process
+
+CREATE TABLE hp_combos (_id bigserial primary key, loss_type varchar, lrs float, randomize_background float, train_batch int, augment_background varchar, data_augmentations varchar)
+CREATE TABLE performance (_id bigserial primary key, hp_combo_id int, summary_dir varchar, ckpt_file varchar, time_elapsed float, training_step int, validation_loss float, training_loss float)
+CREATE TABLE in_process (hp_combo_id int)
+
+ALTER TABLE hp_combos ADD CONSTRAINT unique_hp UNIQUE (loss_type, lrs, randomize_background, train_batch, augment_background, data_augmentations);
