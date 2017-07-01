@@ -14,7 +14,8 @@ def main(extract_features=False, which_joint=None, hp_optim=False):
         process_data(config)
 
     if hp_optim:
-        from ops.tf_model_cnn_joints_multi_gpu_hp_optim import train_and_eval
+        from ops.tf_model_cnn_joints_hp_optim import train_and_eval
+        # from ops.tf_model_cnn_joints_multi_gpu_hp_optim import train_and_eval
     else:
         from ops.tf_model_cnn_joints_multi_gpu import train_and_eval
 

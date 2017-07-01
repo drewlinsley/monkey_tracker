@@ -112,6 +112,27 @@ def train_and_eval(config):
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
 
+            # Setup validation op
+            if validation_data is not False:
+                scope.reuse_variables()
+                print 'Creating validation graph:'
+                val_model = model_file.model_struct()
+                val_model.build(
+                    rgb=val_data_dict['image'],
+                    target_variables=val_data_dict)
+
+                # Calculate validation accuracy
+                if 'label' in val_data_dict.keys():
+                    # val_score = tf.nn.l2_loss(
+                    #     val_model.output - val_data_dict['label'])
+                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
+                    tf.summary.scalar("validation mse", val_score)
+                if 'fc' in config.aux_losses:
+                    tf.summary.image('FC val activations', val_model.final_fc)
+                tf.summary.image(
+                    'validation images',
+                    tf.cast(val_data_dict['image'], tf.float32))
+
         # Prepare the loss functions:::
         loss_list, loss_label = [], []
         if 'label' in train_data_dict.keys():
@@ -186,28 +207,6 @@ def train_and_eval(config):
             tf_fun.add_filter_summary(
                 trainables=tf.trainable_variables(),
                 target_layer='conv1_1_filters')
-
-            # Setup validation op
-            if validation_data is not False:
-                scope.reuse_variables()
-                print 'Creating validation graph:'
-                val_model = model_file.model_struct()
-                val_model.build(
-                    rgb=val_data_dict['image'],
-                    target_variables=val_data_dict)
-
-                # Calculate validation accuracy
-                if 'label' in val_data_dict.keys():
-                    # val_score = tf.nn.l2_loss(
-                    #     val_model.output - val_data_dict['label'])
-                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
-                    tf.summary.scalar("validation mse", val_score)
-                if 'fc' in config.aux_losses:
-                    tf.summary.image('FC val activations', val_model.final_fc)
-                tf.summary.image(
-                    'validation images',
-                    tf.cast(val_data_dict['image'], tf.float32))
-
 
     # Set up summaries and saver
     saver = tf.train.Saver(

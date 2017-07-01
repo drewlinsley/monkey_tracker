@@ -151,7 +151,6 @@ def validation_op(
     }
 
 
-
 def build_graph(
         selected_gpus,
         model_file,
@@ -221,7 +220,14 @@ def train_function(
                         val_pred=val_out_dict['val_pred'],
                         val_ims=val_out_dict['val_ims'],
                         normalize_vec=normalize_vec)
-                    val_score = val_out_dict['val_acc']
+                    val_scores = [val_out_dict['val_acc']]
+                    for vi in range(config.num_val_evals):
+                        val_out_dict = sess.run(
+                            val_session_vars.values())
+                        val_out_dict = {k: v for k, v in zip(
+                            val_session_vars.keys(), val_out_dict)}
+                        val_scores += [val_out_dict['val_acc']]
+                    val_score = np.mean(val_scores)
                 else:
                     val_score = -1.
 
@@ -381,7 +387,8 @@ def train_and_eval(config):
                 num_dims=config.num_dims,
                 keep_dims=config.keep_dims,
                 mask_occluded_joints=config.mask_occluded_joints,
-                background_multiplier=config.background_multiplier)
+                background_multiplier=config.background_multiplier,
+                num_threads=1)
 
         global_step = tf.get_variable(
             'global_step',

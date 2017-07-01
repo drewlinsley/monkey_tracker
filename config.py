@@ -69,6 +69,7 @@ class monkeyConfig(object):
         self.selected_gpus = [0] # range(1)
         self.train_batch = 8
         self.validation_batch = 32
+        self.num_val_evals = 4
         self.ratio = None  # [0.1, 0.9]
         self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 3e-4

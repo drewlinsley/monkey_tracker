@@ -98,7 +98,7 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background=False)
+            augment_background=config.augment_background)
 
         # Check output_shape
         if config.selected_joints is not None:
