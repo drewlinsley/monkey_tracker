@@ -14,6 +14,20 @@ from ops.utils import get_dt, import_cnn, save_training_data
 def train_and_eval(config):
     """Train and evaluate the model."""
 
+    if config.resume_from_checkpoint is not None:
+        try:
+            rfc = config.resume_from_checkpoint
+            ic = config.include_validation
+            print 'Loading saved config: %s' % config.saved_config
+            config = np.load(config.saved_config).item()
+            config.resume_from_checkpoint = rfc
+            config.include_validation = ic
+            if not hasattr(config, 'augment_background'):
+                config.augment_background = 'constant'
+            results_dir = rfc
+        except:
+            print 'Relying on default config file.'
+
     # Import your model
     print 'Model directory: %s' % config.model_output
     print 'Running model: %s' % config.model_type
@@ -37,12 +51,15 @@ def train_and_eval(config):
 
     # Prepare model inputs
     train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
-    if config.include_validation:
+    if isinstance(config.include_validation,basestring):
+        validation_data = config.include_validation
+    elif config.include_validation == True:
         validation_data = os.path.join(
             config.tfrecord_dir,
             config.val_tfrecords)
     else:
         validation_data = None
+    print 'Using validation set: %s' % validation_data
 
     # Prepare data on CPU
     with tf.device('/cpu:0'):
@@ -90,7 +107,7 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background=False)
+            augment_background=config.augment_background)
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -111,6 +128,27 @@ def train_and_eval(config):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
+
+            # Setup validation op
+            if validation_data is not False:
+                scope.reuse_variables()
+                print 'Creating validation graph:'
+                val_model = model_file.model_struct()
+                val_model.build(
+                    rgb=val_data_dict['image'],
+                    target_variables=val_data_dict)
+
+                # Calculate validation accuracy
+                if 'label' in val_data_dict.keys():
+                    # val_score = tf.nn.l2_loss(
+                    #     val_model.output - val_data_dict['label'])
+                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
+                    tf.summary.scalar("validation mse", val_score)
+                if 'fc' in config.aux_losses:
+                    tf.summary.image('FC val activations', val_model.final_fc)
+                tf.summary.image(
+                    'validation images',
+                    tf.cast(val_data_dict['image'], tf.float32))
 
         # Prepare the loss functions:::
         loss_list, loss_label = [], []
@@ -187,28 +225,6 @@ def train_and_eval(config):
                 trainables=tf.trainable_variables(),
                 target_layer='conv1_1_filters')
 
-            # Setup validation op
-            if validation_data is not False:
-                scope.reuse_variables()
-                print 'Creating validation graph:'
-                val_model = model_file.model_struct()
-                val_model.build(
-                    rgb=val_data_dict['image'],
-                    target_variables=val_data_dict)
-
-                # Calculate validation accuracy
-                if 'label' in val_data_dict.keys():
-                    # val_score = tf.nn.l2_loss(
-                    #     val_model.output - val_data_dict['label'])
-                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
-                    tf.summary.scalar("validation mse", val_score)
-                if 'fc' in config.aux_losses:
-                    tf.summary.image('FC val activations', val_model.final_fc)
-                tf.summary.image(
-                    'validation images',
-                    tf.cast(val_data_dict['image'], tf.float32))
-
-
     # Set up summaries and saver
     saver = tf.train.Saver(
         tf.global_variables(), max_to_keep=config.keep_checkpoints)
@@ -274,11 +290,11 @@ def train_and_eval(config):
     if config.resume_from_checkpoint is not None:
         if '.ckpt' in config.resume_from_checkpoint:
             ckpt = config.resume_from_checkpoint
-            saver.restore(sess, ckpt)
+            'Restoring specified checkpoint: %s' % config.resume_from_checkpoint
         else:
             ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
             print 'Evaluating checkpoint: %s' % ckpt
-            saver.restore(sess, ckpt)
+        saver.restore(sess, ckpt)
     try:
         while not coord.should_stop():
             start_time = time.time()
@@ -329,7 +345,6 @@ def train_and_eval(config):
                     output_dir=results_dir,
                     data=train_out_dict[k],
                     name='%s_%s' % (k, step)) for k in save_training_vars]
-
                 saver.save(
                     sess, os.path.join(
                         config.train_checkpoint,

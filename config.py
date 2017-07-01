@@ -26,8 +26,8 @@ class monkeyConfig(object):
         self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = True
         if use_checkpoint:
-            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
-            self.ckpt_file = 'model_5000.ckpt-5000'  # None  # 
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_30_18_35_08'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_13_39_01'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_22_40_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
+            self.ckpt_file = None  # 
             self.resume_from_checkpoint = pjoin(
                 self.model_output,
                 self.model_name)
@@ -53,7 +53,7 @@ class monkeyConfig(object):
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
         self.randomize_background = 2
-        self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant'
+        self.augment_background = 'rescale_and_perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
 
         # Model settings
         self.epochs = 50
@@ -69,7 +69,7 @@ class monkeyConfig(object):
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -84,10 +84,10 @@ class monkeyConfig(object):
         self.mean_file = 'mean_file'  # Double check: used in training?
 
         # Auxillary training settings
-        self.normalize_labels = False
+        self.normalize_labels = True
         self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = False
-        self.include_validation = True
+        self.include_validation = '/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords'  # True
         self.wd_type = 'l1'
         self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']

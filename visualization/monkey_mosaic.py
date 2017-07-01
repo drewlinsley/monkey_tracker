@@ -36,6 +36,7 @@ def save_mosaic(
         ax1.set_yticklabels([])
         ax1.set_aspect('equal')
         ax1.imshow(np.log10(im), cmap='Greys_r')
+        # ax1.imshow(im, cmap='Greys_r')
         if ys is not None:
             lab_legend_artists = plot_coordinates(
                 ax1, ys[idx], colors, marker='.', markersize=1.5)

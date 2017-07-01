@@ -19,7 +19,7 @@ def train_and_eval(
         validation_data,
         config,
         uniform_batch_size=5,
-        swap_datasets=False,
+        swap_datasets=True,
         working_on_kinect=False,
         return_coors=False,
         check_stats=False):
@@ -31,6 +31,7 @@ def train_and_eval(
         print 'Loading saved config'
         if not hasattr(config, 'augment_background'):
             config.augment_background = 'constant'
+        results_dir = rfc
     except:
         print 'Relying on default config file.'
 
@@ -121,6 +122,7 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
+            working_on_kinect=working_on_kinect,
             shuffle=False,
             num_threads=1,
             augment_background=config.augment_background)
@@ -137,12 +139,28 @@ def train_and_eval(
         with tf.variable_scope('cnn') as scope:
             print 'Creating training graph:'
             model = model_file.model_struct()
-            train_mode = tf.get_variable(name='training', initializer=True)
+            train_mode = tf.get_variable(name='training', initializer=False)
             model.build(
                 rgb=train_data_dict['image'],
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
+
+            # Setup validation op
+            if validation_data is not False:
+                scope.reuse_variables()
+                print 'Creating validation graph:'
+                val_model = model_file.model_struct()
+                val_model.build(
+                    rgb=val_data_dict['image'],
+                    target_variables=val_data_dict,
+                    train_mode=train_mode,
+                    batchnorm=[None])
+
+                # Calculate validation accuracy
+                if 'label' in val_data_dict.keys():
+                    val_score = tf.reduce_mean(tf_fun.l2_loss(
+                        val_data_dict['label'], val_model.output))
 
         # Prepare the loss functions:::
         loss_list, loss_label = [], []
@@ -183,38 +201,6 @@ def train_and_eval(
                     loss += (config.wd_penalty * tf.add_n(
                             [tf.nn.l2_loss(x) for x in l2_wd_layers]))
 
-            optimizer = loss_helper.return_optimizer(config.optimizer)
-            optimizer = optimizer(config.lr)
-
-            if hasattr(model, 'fine_tune_layers'):
-                train_op, grads = tf_fun.finetune_learning(
-                    loss,
-                    trainables=tf.trainable_variables(),
-                    fine_tune_layers=model.fine_tune_layers,
-                    config=config
-                    )
-            else:
-                # Op to calculate every variable gradient
-                grads = optimizer.compute_gradients(
-                    loss, tf.trainable_variables())
-                # Op to update all variables according to their gradient
-                train_op = optimizer.apply_gradients(
-                    grads_and_vars=grads)
-
-            # Setup validation op
-            if validation_data is not False:
-                scope.reuse_variables()
-                print 'Creating validation graph:'
-                val_model = model_file.model_struct()
-                val_model.build(
-                    rgb=val_data_dict['image'],
-                    target_variables=val_data_dict)
-
-                # Calculate validation accuracy
-                if 'label' in val_data_dict.keys():
-                    val_score = tf.reduce_mean(tf_fun.l2_loss(
-                        val_data_dict['label'], val_model.output))
-
     # Set up summaries and saver
     saver = tf.train.Saver(
         tf.global_variables(), max_to_keep=config.keep_checkpoints)
@@ -233,7 +219,6 @@ def train_and_eval(
 
     # Create list of variables to run through training model
     train_session_vars = {
-        'train_op': train_op,
         'loss_value': loss,
         'im': train_data_dict['image'],
         'yhat': model.output,
@@ -274,7 +259,15 @@ def train_and_eval(
     step = 0
     num_joints = int(
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
-    normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
+    # normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
+    normalize_values = (np.asarray(
+            config.image_target_size[:2] + [
+                config.max_depth])[:config.keep_dims])
+    if len(normalize_values) == 1:
+        normalize_values = normalize_values[None, :]
+    normalize_vec = normalize_values.reshape(
+        1, -1).repeat(num_joints, axis=0).reshape(1, -1)
+
     joint_predictions, joint_gt, out_ims = [], [], []
     if config.resume_from_checkpoint is not None:
         if '.ckpt' in config.resume_from_checkpoint:
@@ -300,11 +293,11 @@ def train_and_eval(
                     slopes += [slope]
                     intercepts += [intercept]
                 plt.hist(slopes, 100);plt.show(); plt.hist(intercepts);plt.show()
-
             val_out_dict = sess.run(
                 val_session_vars.values())
             val_out_dict = {k: v for k, v in zip(
                 val_session_vars.keys(), val_out_dict)}
+            import ipdb;ipdb.set_trace()
 
             if config.normalize_labels:
                 # Postlabel normalization
@@ -319,7 +312,12 @@ def train_and_eval(
                 monkey_mosaic.save_mosaic(
                     train_out_dict['im'].squeeze(),
                     train_out_dict['yhat'],
-                    train_out_dict['ytrue'],
+                    None,  # train_out_dict['ytrue'],
+                    save_fig=False)
+                monkey_mosaic.save_mosaic(
+                    val_out_dict['val_ims'].squeeze(),
+                    val_out_dict['val_pred'],
+                    None,  # train_out_dict['ytrue'],
                     save_fig=False)
             format_str = (
                 '%s: step %d | ckpt: %s | validation tf: %s | Train l2 loss = %.8f | '
@@ -371,13 +369,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",
