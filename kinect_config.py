@@ -73,7 +73,7 @@ class kinectConfig():
 
     def monkey_on_pole_2(self):
         monkey_on_pole_2 = self.defaults
-        monkey_on_pole_2['time_threshold'] = 80
+        monkey_on_pole_2['time_threshold'] = 95
         monkey_on_pole_2['output_dir'] = '/home/drew/Desktop/'
         monkey_on_pole_2['data_dir'] = os.path.join(
             monkey_on_pole_2['output_dir'],

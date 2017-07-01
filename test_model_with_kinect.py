@@ -85,7 +85,7 @@ def main(model_dir, ckpt_name, run_tests=False):
             mog_bg_threshold=kinect_config['bgsub_mog_bg_theshold'])
 
     if kinect_config['find_bb']:
-        frames, extents, frame_toss_index = test_tf_kinect.bb_monkey(frames)
+        frames, extents, frame_toss_index = test_tf_kinect.bb_monkey(frames, kinect_config['time_threshold'])
     else:
         extents = []
         frame_toss_index = []
@@ -136,7 +136,7 @@ def main(model_dir, ckpt_name, run_tests=False):
             model_config=config,
             kinect_config=kinect_config)
         frame_toss_index = np.concatenate((frame_toss_index, it_frame_toss_index))
-        config.max_depth = max_array * 1.5
+        config.max_depth = max_array * 2.5
         config.background_constant = config.max_depth * 2
         config.train_batch = 2
         config.val_batch = 2
