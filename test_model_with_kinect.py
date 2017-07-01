@@ -135,8 +135,7 @@ def main(model_dir, ckpt_name, run_tests=False):
             depth_file_names=monkey_files,
             model_config=config,
             kinect_config=kinect_config)
-        import ipdb;ipdb.set_trace()
-        frame_toss_index = np.concatenate(frame_toss_index, it_frame_toss_index)
+        frame_toss_index = np.concatenate((frame_toss_index, it_frame_toss_index))
         config.max_depth = max_array * 1.5
         config.background_constant = config.max_depth * 2
         config.train_batch = 2
