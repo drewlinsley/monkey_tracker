@@ -5,7 +5,6 @@ import tensorflow as tf
 import cv2
 import itertools
 import tf_fun
-from glob import glob
 from scipy import misc
 from tqdm import tqdm
 from copy import deepcopy
@@ -15,8 +14,9 @@ from ops import data_loader_joints
 from visualization import monkey_mosaic
 from skimage.transform import resize
 from skimage.morphology import remove_small_objects
+from skimage import measure
 from scipy.ndimage.morphology import binary_opening, binary_closing, \
-                                     binary_fill_holes
+                                     binary_fill_holes, binary_dilation
 from matplotlib import pyplot as plt
 from matplotlib import animation
 
@@ -30,27 +30,46 @@ def save_to_numpys(file_dict, path):
         print 'Saved: %s' % fp
 
 
-def create_movie(frames=None, output=None, files=None):
+def create_movie(frames=None, output=None, files=None, framerate=30):
     print('Making movie...')
     if files is not None:
         frames = []
         frames = np.asarray([misc.imread(fi) for fi in files])
     f, a = plt.subplots(1, 1)
     f.tight_layout()
-    artists = [[a.imshow(fr)] for fr in frames]
+    artists = []
+    plt.axis('off')
+    a.set_xticklabels([])
+    a.set_yticklabels([])
+    for fr in frames:
+        it_art = a.imshow(fr)
+        artists += [[it_art]]
     ani = animation.ArtistAnimation(f, artists, interval=50)
-    ani.save('%s' % output, 'ffmpeg', 24)
+    ani.save(output, writer='ffmpeg', fps=framerate)
+    # artists = [[a.imshow(fr)] for fr in frames]
+    # ani = animation.ArtistAnimation(f, artists, interval=50)
+    # ani.save(output, 'ffmpeg', framerate)
 
 
-def drop_empty_frames(frames):
-    frames = np.asarray(frames).astype('float32')
-    keep_frames = np.sum(np.sum(frames, axis=-1), axis=-1) > 0
-    frames = frames[keep_frames]
-    toss_index = np.where(keep_frames)[0]
+def drop_empty_frames(frames, list_type=False):
+    if list_type:
+        frame_sum = [np.sum(f) for f in frames]
+        frames = [f for f, s in zip(frames, frame_sum) if s != 0]
+        toss_index = np.where(np.asarray(frame_sum) > 0)[0]
+    else:
+        frames = np.asarray(frames).astype('float32')
+        keep_frames = np.sum(np.sum(frames, axis=-1), axis=-1) > 0
+        frames = frames[keep_frames]
+        toss_index = np.where(keep_frames)[0]
     return frames, toss_index
 
 
-def transform_to_renders(frames, config, max_depth_value=None, rotate=True, pad=False):
+def transform_to_renders(
+        frames,
+        config,
+        max_depth_value=None,
+        rotate=True,
+        pad=False):
     '''Transform kinect data to the "Maya-space" that
     our renders were produced in.
 
@@ -96,6 +115,15 @@ def transform_to_renders(frames, config, max_depth_value=None, rotate=True, pad=
     # 4. Add new dimension
     frames = frames[:, :, :, None]
 
+    return frames, toss_index
+
+
+def rescale_kinect_to_maya(
+        frames,
+        config):
+    frames, toss_index = drop_empty_frames(frames)
+    max_depth = np.max(frames)
+    frames = (frames / (max_depth * 2)) * config.max_depth  # rescaled
     return frames, toss_index
 
 
@@ -196,7 +224,7 @@ def threshold(
         high,
         show_result=False,
         denoise=False,
-        remove_objects_smaller_than=48):
+        remove_objects_smaller_than=400):
     '''threshold
     Zero out values which are greater than `high` or smaller than `low`
     in each frame in `frame`. Do denoising per `denoise` and
@@ -208,15 +236,16 @@ def threshold(
             enumerate(frames), desc='Thresholding frames', total=len(frames)):
         good_ones = (f > low) & (f < high)
         # if denoise, use morphological processing to clean up the mask
+        proc_im = good_ones * f
         if denoise:
-            binary = np.zeros_like(f, dtype=np.int)
-            binary[good_ones] = 1
-            good_ones = binary_closing(
-                binary_opening(binary), iterations=2).astype(np.bool)
+            good_ones = binary_dilation(
+                binary_closing(
+                    binary_opening(good_ones), iterations=2),
+                iterations=2)
         if remove_objects_smaller_than > 0:
             good_ones = remove_small_objects(
                 good_ones, min_size=remove_objects_smaller_than)
-        results[i][good_ones] = f[good_ones]
+        results[i] = proc_im * good_ones
 
     if show_result:
         print('Displaying result...')
@@ -231,6 +260,62 @@ def threshold(
     return results
 
 
+def bb_monkey(
+        frames,
+        max_sigma=100,
+        threshold=.1,
+        denoise=True,
+        time_threshold=95):
+    # Find "movement mask"
+    print 'Deriving movement mask.'
+    mm = np.sum(np.asarray(frames), axis=0).astype(np.float32)
+
+    # Threshold at median
+    mm[mm > np.percentile(mm[mm > 0], time_threshold)] = 0
+    mm = mm > 0
+
+    # Prepare bb stuff
+    f_size = frames[0].shape
+    crop_frames = []
+    bb_size = [f_size[0] / 4, f_size[1] / 4]
+    xye = []
+    for f in tqdm(frames, total=len(frames)):
+        f *= mm  # Mask the image w/ movement
+        rprops = measure.regionprops(f)
+        areas = np.argsort([r.area for r in rprops])[::-1]
+        x0, y0 = rprops[areas[0]].centroid
+        x0 = int(x0)
+        y0 = int(y0)
+        minr = np.min([0, x0 - bb_size[0]])
+        minc = np.min([0, x0 - bb_size[1]])
+        maxr = np.max([f_size[0], x0 + bb_size[0]])
+        maxc = np.max([f_size[1], x0 + bb_size[1]])
+        f = f[minr:maxr, minc:maxc]
+        if denoise:
+            good_ones = f > 0
+            good_ones = binary_dilation(
+                binary_closing(
+                    binary_opening(good_ones), iterations=2),
+                iterations=2)
+            f *= good_ones
+
+        crop_frames += [f]
+        xye += [{
+            'x': x0,
+            'y': y0,
+            'h': bb_size[0],
+            'w': bb_size[1]
+        }]
+        # crop_frames += [resize(
+        #     f,
+        #     f_size,
+        #     preserve_range=True,
+        #     order=0).astype(np.float32)]
+    crop_frames, toss_index = drop_empty_frames(crop_frames, list_type=True)
+    xye = [d for idx, (d, t) in enumerate(zip(xye, toss_index)) if idx != t]
+    return crop_frames, xye, toss_index
+
+
 def trim_and_threshold(
         data_path,
         skip_frames_beg,
@@ -239,7 +324,7 @@ def trim_and_threshold(
         high,
         show_result=False,
         denoise=False,
-        remove_objects_smaller_than=48):
+        remove_objects_smaller_than=400):
     '''trim_and_threshold
     Get data and remove start and end frames with `get_and_trim_frames`,
     and then pass all that to `threshold`.

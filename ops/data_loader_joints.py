@@ -187,12 +187,40 @@ def read_and_decode(
             background_mask *= background_constant
         elif augment_background == 'rescale':
             # Rescale depth to [0, 1]
-            background_mask *= 0
-            background_constant = tf.reduce_max(image)
+            # foreground_mask = tf.abs(background_mask - 1)
+            g0_log = tf.cast(tf.greater(image, 0), tf.float32)
+            g0_im = image * g0_log
+            min_vec = tf.gather_nd(g0_im, tf.where(tf.cast(g0_log, tf.bool)))
+            foreground_min = tf.reduce_min(min_vec)
+            background_mask *= foreground_min
+            background_constant = tf.reduce_max(g0_im)
+        elif augment_background == 'rescale_and_perlin':
+            # Rescale depth to [0, 1]
+            # foreground_mask = tf.abs(background_mask - 1)
+            g0_log = tf.cast(tf.greater(image, 0), tf.float32)
+            g0_im = image * g0_log
+            min_vec = tf.gather_nd(g0_im, tf.where(tf.cast(g0_log, tf.bool)))
+            foreground_min = tf.reduce_min(min_vec)
+
+            pnoise = tf.abs(tf.expand_dims(
+                tf_perlin.get_noise(
+                    h=target_size[1],
+                    w=target_size[0]),
+                axis=2)) * tf.random_uniform((), minval=0, maxval=50, dtype=tf.float32)
+            background_constant = tf.reduce_max(g0_im)
+            background_mask *= (background_constant - pnoise)
+
         image += background_mask
 
         # Normalize intensity
-        image /= background_constant
+        if augment_background == 'rescale' or augment_background == 'rescale_and_perlin':
+            image = (
+                image - foreground_min) / (
+                background_constant - foreground_min)
+        else:
+            image /= background_constant
+        image, _ = augment_data(
+            image, model_input_shape, im_size, train)
 
         # Normalize: must apply max value to image and every 3rd label
         if normalize_labels:
@@ -411,9 +439,9 @@ def augment_data(
         if 'up_down' in train:
             image = tf.image.random_flip_up_down(image)
         if 'random_contrast' in train:
-            image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+            image = tf.image.random_contrast(image, lower=0.0, upper=0.1)
         if 'random_brightness' in train:
-            image = tf.image.random_brightness(image, max_delta=32./255.)
+            image = tf.image.random_brightness(image, max_delta=.1)
         if 'rotate' in train:
             image = tf.image.rot90(image, k=np.random.randint(4))
         if 'random_crop' in train:
@@ -430,12 +458,12 @@ def augment_data(
              }
             for name in []:
                 crop_coors[name] = eval(name)
-        else:
-            image = tf.image.resize_image_with_crop_or_pad(
-                image, model_input_shape[0], model_input_shape[1])
-    else:
-        image = tf.image.resize_image_with_crop_or_pad(
-            image, model_input_shape[0], model_input_shape[1])
+        # else:
+        #     image = tf.image.resize_image_with_crop_or_pad(
+        #         image, model_input_shape[0], model_input_shape[1])
+    # else:
+    #     image = tf.image.resize_image_with_crop_or_pad(
+    #         image, model_input_shape[0], model_input_shape[1])
     return image, crop_coors
 
 
