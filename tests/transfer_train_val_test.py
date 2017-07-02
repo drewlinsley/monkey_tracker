@@ -22,7 +22,8 @@ def train_and_eval(
         swap_datasets=True,
         working_on_kinect=False,
         return_coors=False,
-        check_stats=False):
+        check_stats=False,
+        get_kinect_masks=False):
     # Try loading saved config
     try:
         rfc = config.resume_from_checkpoint
@@ -222,8 +223,18 @@ def train_and_eval(
         'loss_value': loss,
         'im': train_data_dict['image'],
         'yhat': model.output,
-        'ytrue': train_data_dict['label']
+        'ytrue': train_data_dict['label'],
     }
+
+    if get_kinect_masks:
+        var_a = model.high_feature_encoder_1x1_0
+        var_b = tf.image.resize_bilinear(
+            model.high_feature_encoder_1x1_1, [int(
+                x) for x in model.high_feature_encoder_1x1_0.get_shape()[1:3]])
+        var_c = tf.image.resize_bilinear(
+            model.high_feature_encoder_1x1_1, [int(
+                x) for x in model.high_feature_encoder_1x1_0.get_shape()[1:3]])
+        train_session_vars['monkey_mask'] = tf.reduce_mean(tf.pow(var_a + var_b + var_c, 2), axis=3)
     if hasattr(model, 'deconv'):
         train_session_vars['deconv'] = model.deconv
     if hasattr(model, 'final_fc'):
@@ -259,16 +270,8 @@ def train_and_eval(
     step = 0
     num_joints = int(
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
-    # normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
-    normalize_values = (np.asarray(
-            config.image_target_size[:2] + [
-                config.max_depth])[:config.keep_dims])
-    if len(normalize_values) == 1:
-        normalize_values = normalize_values[None, :]
-    normalize_vec = normalize_values.reshape(
-        1, -1).repeat(num_joints, axis=0).reshape(1, -1)
-
-    joint_predictions, joint_gt, out_ims = [], [], []
+    normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
+    joint_predictions, joint_gt, out_ims, monkey_masks = [], [], [], []
     if config.resume_from_checkpoint is not None:
         if '.ckpt' in config.resume_from_checkpoint:
             ckpt = config.resume_from_checkpoint
@@ -297,28 +300,30 @@ def train_and_eval(
                 val_session_vars.values())
             val_out_dict = {k: v for k, v in zip(
                 val_session_vars.keys(), val_out_dict)}
-            import ipdb;ipdb.set_trace()
 
-            if config.normalize_labels:
-                # Postlabel normalization
-                train_out_dict['yhat'] *= normalize_vec
-                train_out_dict['ytrue'] *= normalize_vec
-                val_out_dict['val_pred'] *= normalize_vec
-            if return_coors:
-                joint_predictions += [train_out_dict['yhat']]
-                joint_gt += [train_out_dict['ytrue']]
-                out_ims += [train_out_dict['im'].squeeze()]
+            if get_kinect_masks: 
+                monkey_masks += [train_out_dict['monkey_mask']]
             else:
-                monkey_mosaic.save_mosaic(
-                    train_out_dict['im'].squeeze(),
-                    train_out_dict['yhat'],
-                    None,  # train_out_dict['ytrue'],
-                    save_fig=False)
-                monkey_mosaic.save_mosaic(
-                    val_out_dict['val_ims'].squeeze(),
-                    val_out_dict['val_pred'],
-                    None,  # train_out_dict['ytrue'],
-                    save_fig=False)
+                if config.normalize_labels:
+                    # Postlabel normalization
+                    train_out_dict['yhat'] *= normalize_vec
+                    train_out_dict['ytrue'] *= normalize_vec
+                    val_out_dict['val_pred'] *= normalize_vec
+                if return_coors:
+                    joint_predictions += [train_out_dict['yhat']]
+                    joint_gt += [train_out_dict['ytrue']]
+                    out_ims += [train_out_dict['im'].squeeze()]
+                else:
+                    monkey_mosaic.save_mosaic(
+                        train_out_dict['im'].squeeze(),
+                        train_out_dict['yhat'],
+                        None,  # train_out_dict['ytrue'],
+                        save_fig=False)
+                    monkey_mosaic.save_mosaic(
+                        val_out_dict['val_ims'].squeeze(),
+                        val_out_dict['val_pred'],
+                        None,  # train_out_dict['ytrue'],
+                        save_fig=False)
             format_str = (
                 '%s: step %d | ckpt: %s | validation tf: %s | Train l2 loss = %.8f | '
                 'Validation l2 loss = %.8f')
@@ -345,13 +350,16 @@ def train_and_eval(
             'ytrue': np.concatenate(joint_gt).squeeze(),
             'im': np.concatenate(out_ims)
             }
+    elif get_kinect_masks:
+        return monkey_masks
 
 
 def main(
         validation_data=None,
         train_data=None,
         which_joint=None,
-        working_on_kinect=True):
+        working_on_kinect=True,
+        uniform_batch_size=5):
 
     config = monkeyConfig()
     if which_joint is not None:
@@ -360,7 +368,8 @@ def main(
         train_data=train_data,
         validation_data=validation_data,
         config=config,
-        working_on_kinect=working_on_kinect)
+        working_on_kinect=working_on_kinect,
+        uniform_batch_size=uniform_batch_size)
 
 
 if __name__ == '__main__':
@@ -375,7 +384,7 @@ if __name__ == '__main__':
         "--val",
         dest="validation_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_2/monkey_on_pole.tfrecords',
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",
@@ -387,5 +396,10 @@ if __name__ == '__main__':
         dest="working_on_kinect",
         action='store_true',
         help='You are passing kinect data as training.')
+    parser.add_argument(
+        "--bs",
+        dest="uniform_batch_size",
+        type=int,
+        help='Specify a batch size')
     args = parser.parse_args()
     main(**vars(args))

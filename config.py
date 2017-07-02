@@ -26,14 +26,17 @@ class monkeyConfig(object):
         self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = True
         if use_checkpoint:
-            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_13_39_01'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_22_40_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
+            self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_13_39_01'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_22_40_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
             self.ckpt_file = None  # 
             self.resume_from_checkpoint = pjoin(
                 self.model_output,
                 self.model_name)
             self.saved_config = '%s.npy' % self.resume_from_checkpoint
-            if self.ckpt_file is not None:
-                self.resume_from_checkpoint = pjoin(self.resume_from_checkpoint, self.ckpt_file)
+            self.segmentation_model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'
+            self.segmentation_resume_from_checkpoint = pjoin(
+                self.model_output,
+                self.segmentation_model_name)
+            self.segmentation_saved_config = '%s.npy' % self.resume_from_checkpoint
         else:
             self.resume_from_checkpoint = None
 
@@ -42,7 +45,8 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 1300.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.max_depth = 1300. * 0.75  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.min_depth = 300.  # prev- 300 Use for normalizing the kinect data
         self.background_constant = self.max_depth * 2  # HIGH_NUMBER
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_input_size = [480, 640]  # Maya render output
@@ -87,7 +91,7 @@ class monkeyConfig(object):
         self.normalize_labels = True
         self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = False
-        self.include_validation = '/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords'  # True
+        self.include_validation = '/media/data_cifs/monkey_tracking/tfrecords/monkey_on_pole.tfrecords'  # True
         self.wd_type = 'l1'
         self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']

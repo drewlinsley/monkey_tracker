@@ -21,6 +21,65 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 
 
+def apply_cnn_masks_to_kinect(frames, image_masks, prct=85, crop_and_pad=False):
+    target_shape = frames[0].shape
+    target_aspect = float(target_shape[0]) / float(target_shape[1])
+    of = np.zeros((frames.shape))
+    for idx, (f, m) in enumerate(zip(frames, image_masks)):
+        m = resize(m, target_shape)
+        pm = m > np.percentile(m.ravel(), prct)
+        tf = f * pm
+        if crop_and_pad:
+            # Crop keeping the aspect ratio
+            rp = measure.regionprops(measure.label(pm))
+            areas = np.argsort([r.area for r in rp])[::-1]
+            min_row, min_col, max_row, max_col = rp[areas[0]].bbox
+            cropped_im = tf[min_row:max_row, min_col:max_col]     
+            # Center and pad to the appropriate size
+            canvas = np.zeros((target_shape))
+            cropped_shape = cropped_im.shape
+            if cropped_shape[0] % 2:  # odd number
+                cropped_im = np.concatenate((cropped_im, np.zeros((1, cropped_shape[1]))),axis=0)
+                cropped_shape = cropped_im.shape
+            if cropped_shape[1] % 2:  # odd number
+                cropped_im = np.concatenate((cropped_im, np.zeros((cropped_shape[0], 1))),axis=1)
+                cropped_shape = cropped_im.shape
+            min_row = (target_shape[0] // 2) - (cropped_shape[0] // 2)
+            min_col = (target_shape[1] // 2) - (cropped_shape[1] // 2)
+            max_row = (target_shape[0] // 2) + (cropped_shape[0] // 2)
+            max_col = (target_shape[1] // 2) + (cropped_shape[1] // 2)
+            canvas[min_row:max_row, min_col:max_col] = cropped_im
+            tf = canvas
+        # Remove debris
+        stuff_mask = tf > 0
+        remove_small_objects(stuff_mask, min_size=100, in_place=True)
+        tf *= stuff_mask
+        of[idx, :, :] = tf
+    return of
+
+
+def normalize_frames(frames, max_value, min_value):
+    """ Need to transform kinect -> maya.
+    To do this, for each frame, ID the foreground, then transform its depth to
+    maya space."""
+    delta = max_value - min_value
+    kinect_max = frames.max()
+    kinect_min = frames[frames > 0].min()
+    trans_f = np.zeros((frames.shape))
+    print 'Normalizing kinect to maya.'
+    for idx, f in tqdm(enumerate(frames), total=len(frames)):
+        # Normalize foreground to [0, 1]
+        zeros_mask = (f > 0).astype(np.float32)
+        min_mask = f * kinect_min
+        max_mask = f * kinect_max
+        normalized_f = (f - kinect_min) / (kinect_max - kinect_min)
+        # Convert to maya
+        it_f = (normalized_f * (delta)) + min_value 
+        it_f *= zeros_mask
+        trans_f[idx, :, :] = np.abs(it_f)
+    return trans_f
+
+
 def save_to_numpys(file_dict, path):
     for k, v in file_dict.iteritems():
         fp = os.path.join(path, k)

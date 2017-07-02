@@ -41,7 +41,11 @@ class kinectConfig():
              '_y': 40,
              'x_': 412,
              'y_': 300,
-             'ignore_border_px': 10
+             'ignore_border_px': 10,
+
+             # auto cnn bb
+             'mask_with_model': True,
+             'crop_and_pad': True
         }
 
     def monkey_on_pole_1(self):
@@ -78,15 +82,15 @@ class kinectConfig():
         monkey_on_pole_2['data_dir'] = os.path.join(
             monkey_on_pole_2['output_dir'],
             'predicted_monkey_on_pole_2')
-        monkey_on_pole_2['kinect_output_name'] = os.path.join(
-            monkey_on_pole_2['data_dir'],
-            'vid_int_movie.mp4')
-        monkey_on_pole_2['predicted_output_name'] = os.path.join(
-            monkey_on_pole_2['data_dir'],
-            'predicted_monkey_on_pole_2.mp4')
-        monkey_on_pole_2['gt_output_name'] = os.path.join(
-            monkey_on_pole_2['data_dir'],
-            'gt_monkey_on_pole_2.mp4')
+        monkey_on_pole_2['kinect_output_name'] = None  # os.path.join(
+            # monkey_on_pole_2['data_dir'],
+            # 'vid_int_movie.mp4')
+        monkey_on_pole_2['predicted_output_name'] = None  # os.path.join(
+            # monkey_on_pole_2['data_dir'],
+            # 'predicted_monkey_on_pole_2.mp4')
+        monkey_on_pole_2['gt_output_name'] = None  # os.path.join(
+            #  monkey_on_pole_2['data_dir'],
+            # 'gt_monkey_on_pole_2.mp4')
         monkey_on_pole_2['output_npy_path'] = monkey_on_pole_2['data_dir']
         monkey_on_pole_2['tfrecord_name'] = os.path.join(
             monkey_on_pole_2['data_dir'],
