@@ -352,14 +352,13 @@ def train_and_eval(config):
                 # Update db
                 time_elapsed += float(duration)
                 db.update_parameters(
-                    hp_combo_id,
+                    config._id,
                     config.summary_dir,
                     ckpt_file,
-                    train_out_dict['loss_value'],
+                    float(train_out_dict['loss_value']),
                     time_elapsed,
                     step,
-                    val_score)
-
+                    float(val_score))
             else:
                 # Training status
                 format_str = ('%s: step %d, loss = %.8f (%.1f examples/sec; '
@@ -367,9 +366,9 @@ def train_and_eval(config):
                 print (format_str % (
                     datetime.now(),
                     step,
-                    train_out_dict['loss_value'],
+                    train_out_dict['loss_value']),
                     config.train_batch / duration,
-                    float(duration)))
+                    float(duration))
             # End iteration
             step += 1
 
