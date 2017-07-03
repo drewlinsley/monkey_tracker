@@ -8,7 +8,7 @@ from visualization.preprocess_kinect import \
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'monkey_on_pole_2'
+        self.selected_video = 'monkey_on_pole_3'
         self.defaults = {
              'rotate_frames': -1,
              'use_tfrecords': True,  # Package into tfrecords
@@ -41,7 +41,12 @@ class kinectConfig():
              '_y': 40,
              'x_': 412,
              'y_': 300,
-             'ignore_border_px': 10
+             'ignore_border_px': 10,
+
+             # auto cnn bb
+             'mask_with_model': True,
+             'crop_and_pad': True,
+             'small_object_size': 600
         }
 
     def monkey_on_pole_1(self):
@@ -84,9 +89,9 @@ class kinectConfig():
         monkey_on_pole_2['predicted_output_name'] = os.path.join(
             monkey_on_pole_2['data_dir'],
             'predicted_monkey_on_pole_2.mp4')
-        monkey_on_pole_2['gt_output_name'] = os.path.join(
-            monkey_on_pole_2['data_dir'],
-            'gt_monkey_on_pole_2.mp4')
+        monkey_on_pole_2['gt_output_name'] = None  # os.path.join(
+            #  monkey_on_pole_2['data_dir'],
+            # 'gt_monkey_on_pole_2.mp4')
         monkey_on_pole_2['output_npy_path'] = monkey_on_pole_2['data_dir']
         monkey_on_pole_2['tfrecord_name'] = os.path.join(
             monkey_on_pole_2['data_dir'],
@@ -98,6 +103,34 @@ class kinectConfig():
             monkey_on_pole_2['data_dir'],
             'gt_frames')
         return monkey_on_pole_2
+
+    def monkey_on_pole_3(self):
+        monkey_on_pole_3 = self.defaults
+        monkey_on_pole_3['time_threshold'] = 95
+        monkey_on_pole_3['output_dir'] = '/home/drew/Desktop/'
+        monkey_on_pole_3['data_dir'] = os.path.join(
+            monkey_on_pole_3['output_dir'],
+            'predicted_monkey_on_pole_3')
+        monkey_on_pole_3['kinect_output_name'] = os.path.join(
+            monkey_on_pole_3['data_dir'],
+            'vid_int_movie.mp4')
+        monkey_on_pole_3['predicted_output_name'] = os.path.join(
+            monkey_on_pole_3['data_dir'],
+            'predicted_monkey_on_pole_3.mp4')
+        monkey_on_pole_3['gt_output_name'] = None  # os.path.join(
+            #  monkey_on_pole_2['data_dir'],
+            # 'gt_monkey_on_pole_2.mp4')
+        monkey_on_pole_3['output_npy_path'] = monkey_on_pole_3['data_dir']
+        monkey_on_pole_3['tfrecord_name'] = os.path.join(
+            monkey_on_pole_3['data_dir'],
+            'monkey_on_pole.tfrecords')
+        monkey_on_pole_3['prediction_image_folder'] = os.path.join(
+            monkey_on_pole_3['data_dir'],
+            'prediction_frames')
+        monkey_on_pole_3['gt_image_folder'] = os.path.join(
+            monkey_on_pole_3['data_dir'],
+            'gt_frames')
+        return monkey_on_pole_3
 
     def __getitem__(self, name):
         return getattr(self, name)

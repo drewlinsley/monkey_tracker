@@ -17,8 +17,85 @@ from skimage.morphology import remove_small_objects
 from skimage import measure
 from scipy.ndimage.morphology import binary_opening, binary_closing, \
                                      binary_fill_holes, binary_dilation
+import scipy.ndimage.filters as fi
 from matplotlib import pyplot as plt
 from matplotlib import animation
+
+
+def apply_cnn_masks_to_kinect(frames, image_masks, prct=85, crop_and_pad=True, obj_size=500):
+    target_shape = frames[0].shape
+    target_aspect = float(target_shape[0]) / float(target_shape[1])
+    of = np.zeros((frames.shape))
+    crop_coordinates = []
+    for idx, (f, m) in enumerate(zip(frames, image_masks)):
+        m = resize(m, target_shape)
+        pm = m > np.percentile(m.ravel(), prct)
+        tf = f * pm
+        if crop_and_pad:
+            # Crop keeping the aspect ratio
+            rp = measure.regionprops(measure.label(pm))
+            areas = np.argsort([r.area for r in rp])[::-1]
+            min_row, min_col, max_row, max_col = rp[areas[0]].bbox
+            cropped_im = tf[min_row:max_row, min_col:max_col]     
+            # Center and pad to the appropriate size
+            canvas = np.zeros((target_shape))
+            cropped_shape = cropped_im.shape
+            if cropped_shape[0] % 2:  # odd number
+                cropped_im = np.concatenate((cropped_im, np.zeros((1, cropped_shape[1]))),axis=0)
+                cropped_shape = cropped_im.shape
+            if cropped_shape[1] % 2:  # odd number
+                cropped_im = np.concatenate((cropped_im, np.zeros((cropped_shape[0], 1))),axis=1)
+                cropped_shape = cropped_im.shape
+            min_row = (target_shape[0] // 2) - (cropped_shape[0] // 2)
+            min_col = (target_shape[1] // 2) - (cropped_shape[1] // 2)
+            max_row = (target_shape[0] // 2) + (cropped_shape[0] // 2)
+            max_col = (target_shape[1] // 2) + (cropped_shape[1] // 2)
+            canvas[min_row:max_row, min_col:max_col] = cropped_im
+            tf = canvas
+            crop_coordinates += [min_row, min_col, max_row, max_col]
+        # Remove debris
+        stuff_mask = tf > 0
+        remove_small_objects(stuff_mask, min_size=obj_size, in_place=True)
+        tf *= stuff_mask
+        of[idx, :, :] = tf
+    return of, crop_coordinates
+
+
+def gkern2(kernlen=10, nsig=6):
+    """Returns a 2D Gaussian kernel array."""
+
+    # create nxn zeros
+    inp = np.zeros((kernlen, kernlen))
+    # set element at the middle to one, a dirac delta
+    inp[kernlen//2, kernlen//2] = 1
+    # gaussian-smooth the dirac, resulting in a gaussian filter mask
+    return fi.gaussian_filter(inp, nsig)
+
+
+def normalize_frames(frames, max_value, min_value, min_max_norm=True, max_adj=1., smooth=False):
+    """ Need to transform kinect -> maya.
+    To do this, for each frame, ID the foreground, then transform its depth to
+    maya space."""
+    delta = max_value * max_adj - min_value
+    kinect_max = frames.max()
+    kinect_min = frames[frames > 0].min()
+    trans_f = np.zeros((frames.shape))
+    print 'Normalizing kinect to maya.'
+    for idx, f in tqdm(enumerate(frames), total=len(frames)):
+        # Normalize foreground to [0, 1]
+        zeros_mask = (f > 0).astype(np.float32)
+        if min_max_norm:
+            normalized_f = (f - kinect_min) / (kinect_max - kinect_min)
+            # Convert to maya
+            it_f = (normalized_f * (delta)) + min_value 
+        else:
+            normalized_f = f / kinect_max
+            it_f = (normalized_f * (delta))
+        if smooth:
+            it_f = gkern2(it_f)
+        it_f *= zeros_mask
+        trans_f[idx, :, :] = np.abs(it_f)
+    return trans_f
 
 
 def save_to_numpys(file_dict, path):

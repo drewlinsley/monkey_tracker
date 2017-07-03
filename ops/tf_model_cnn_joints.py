@@ -370,6 +370,6 @@ def train_and_eval(config):
         dt_stamp = get_dt()  # date-time stamp
         np.save(
             os.path.join(
-                config.tfrecord_dir, '%straining_loss' % dt_stamp), losses)
+                config.tfrecord_dir, '%s_training_loss' % dt_stamp), losses)
     coord.join(threads)
     sess.close()
