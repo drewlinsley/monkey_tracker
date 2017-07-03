@@ -35,9 +35,9 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
     if not run_tests:
         monkey_files = glob(
             os.path.join(
-                config.kinect_directory,
-                config.kinect_project,
-                '*%s' % config.kinect_file_ext))
+                kinect_config['kinect_directory'],
+                kinect_config['kinect_project'],
+                '*%s' % kinect_config['kinect_file_ext']))
         monkey_files = sorted(
             monkey_files, key=lambda name: int(
                 re.search('\d+', name.split('/')[-1]).group()))
@@ -159,7 +159,9 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
         frames = test_tf_kinect.normalize_frames(
             frames=frames,
             max_value=config.max_depth,
-            min_value=config.min_depth)
+            min_value=config.min_depth,
+            max_adj=kinect_config['max_adjust'],
+            min_adj=kinect_config['min_adjust'])
 
         if kinect_config['use_tfrecords']:
             frame_pointer, max_array, it_frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(

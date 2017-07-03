@@ -547,16 +547,29 @@ def inputs(
             keys += ['size']
         if shuffle:
             var_list = tf.train.shuffle_batch(
-                var_list,
+                [tf.expand_dims(x, axis=0) for x in var_list],
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=1000+3 * batch_size,
-                # Ensures a minimum amount of shuffling of examples.
-                min_after_dequeue=1000)
+                capacity=100 * batch_size,
+                min_after_dequeue=10 * batch_size,
+                enqueue_many=True)
+            # var_list = tf.train.shuffle_batch(
+            #     var_list,  # Old version ~ half as fast
+            #     batch_size=batch_size,
+            #     num_threads=num_threads,
+            #     capacity=1000+3 * batch_size,
+            #     # Ensures a minimum amount of shuffling of examples.
+            #     min_after_dequeue=10000)
         else:
             var_list = tf.train.batch(
-                var_list,
+                [tf.expand_dims(x, axis=0) for x in var_list],
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=1000+3 * batch_size)
+                capacity=100 * batch_size,
+                enqueue_many=True)
+            # var_list = tf.train.batch(
+            #     var_list,
+            #     batch_size=batch_size,
+            #     num_threads=num_threads,
+            #     capacity=1000+3 * batch_size)
         return {k: v for k, v in zip(keys, var_list)}

@@ -22,12 +22,18 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 
 
-def apply_cnn_masks_to_kinect(frames, image_masks, prct=85, crop_and_pad=True, obj_size=500):
+def apply_cnn_masks_to_kinect(
+        frames,
+        image_masks,
+        prct=85,
+        crop_and_pad=True,
+        obj_size=500):
     target_shape = frames[0].shape
-    target_aspect = float(target_shape[0]) / float(target_shape[1])
     of = np.zeros((frames.shape))
     crop_coordinates = []
-    for idx, (f, m) in enumerate(zip(frames, image_masks)):
+    print 'Using CNN activities to crop the kinect data.'
+    for idx, (f, m) in tqdm(
+            enumerate(zip(frames, image_masks)), total=len(frames)):
         m = resize(m, target_shape)
         pm = m > np.percentile(m.ravel(), prct)
         tf = f * pm
@@ -36,15 +42,17 @@ def apply_cnn_masks_to_kinect(frames, image_masks, prct=85, crop_and_pad=True, o
             rp = measure.regionprops(measure.label(pm))
             areas = np.argsort([r.area for r in rp])[::-1]
             min_row, min_col, max_row, max_col = rp[areas[0]].bbox
-            cropped_im = tf[min_row:max_row, min_col:max_col]     
+            cropped_im = tf[min_row:max_row, min_col:max_col]
             # Center and pad to the appropriate size
             canvas = np.zeros((target_shape))
             cropped_shape = cropped_im.shape
             if cropped_shape[0] % 2:  # odd number
-                cropped_im = np.concatenate((cropped_im, np.zeros((1, cropped_shape[1]))),axis=0)
+                cropped_im = np.concatenate((
+                    cropped_im, np.zeros((1, cropped_shape[1]))), axis=0)
                 cropped_shape = cropped_im.shape
             if cropped_shape[1] % 2:  # odd number
-                cropped_im = np.concatenate((cropped_im, np.zeros((cropped_shape[0], 1))),axis=1)
+                cropped_im = np.concatenate((
+                    cropped_im, np.zeros((cropped_shape[0], 1))), axis=1)
                 cropped_shape = cropped_im.shape
             min_row = (target_shape[0] // 2) - (cropped_shape[0] // 2)
             min_col = (target_shape[1] // 2) - (cropped_shape[1] // 2)
@@ -72,11 +80,19 @@ def gkern2(kernlen=10, nsig=6):
     return fi.gaussian_filter(inp, nsig)
 
 
-def normalize_frames(frames, max_value, min_value, min_max_norm=True, max_adj=1., smooth=False):
+def normalize_frames(
+        frames,
+        max_value,
+        min_value,
+        min_max_norm=True,
+        max_adj=1,
+        min_adj=1,
+        smooth=False):
     """ Need to transform kinect -> maya.
     To do this, for each frame, ID the foreground, then transform its depth to
     maya space."""
-    delta = max_value * max_adj - min_value
+    print 'Adjusting max with: %s. Min with: %s.' % (max_adj, min_adj)
+    delta = (max_value * max_adj) - (min_value * min_adj)
     kinect_max = frames.max()
     kinect_min = frames[frames > 0].min()
     trans_f = np.zeros((frames.shape))
@@ -87,7 +103,7 @@ def normalize_frames(frames, max_value, min_value, min_max_norm=True, max_adj=1.
         if min_max_norm:
             normalized_f = (f - kinect_min) / (kinect_max - kinect_min)
             # Convert to maya
-            it_f = (normalized_f * (delta)) + min_value 
+            it_f = (normalized_f * (delta)) + min_value
         else:
             normalized_f = f / kinect_max
             it_f = (normalized_f * (delta))
@@ -107,7 +123,7 @@ def save_to_numpys(file_dict, path):
         print 'Saved: %s' % fp
 
 
-def create_movie(frames=None, output=None, files=None, framerate=30):
+def create_movie(frames=None, output=None, files=None, framerate=30, crop_coors=None):
     print('Making movie...')
     if files is not None:
         frames = []
@@ -119,10 +135,14 @@ def create_movie(frames=None, output=None, files=None, framerate=30):
     a.set_xticklabels([])
     a.set_yticklabels([])
     for fr in frames:
-        it_art = a.imshow(fr)
+        it_art = a.imshow(fr, cmap='Greys')
         artists += [[it_art]]
     ani = animation.ArtistAnimation(f, artists, interval=50)
-    ani.save(output, writer='ffmpeg', fps=framerate)
+    ani.save(
+        output,
+        writer='ffmpeg',
+        fps=framerate,
+        extra_args=['-vcodec', 'h264'])
     # artists = [[a.imshow(fr)] for fr in frames]
     # ani = animation.ArtistAnimation(f, artists, interval=50)
     # ani.save(output, 'ffmpeg', framerate)
@@ -603,7 +623,11 @@ def image_batcher(
         yield im_batch[:, :, :, None]
 
 
-def crop_aspect_and_resize_center(img, new_size):
+def crop_to_shape(img, h0, h1, w0, w1):
+    return img[h0:h1, w0:w1]
+
+
+def crop_aspect_and_resize_center(img, new_size, resize_or_pad='resize'):
     '''Crop to appropros aspect ratio then resize.'''
     h, w = img.shape[:2]
     ih, iw = new_size
@@ -622,11 +646,29 @@ def crop_aspect_and_resize_center(img, new_size):
     cropped_im = img[crop_h[0]:crop_h[1], crop_w[0]:crop_w[1]]
     # return misc.imresize(cropped_im, new_size, mode='F')
     target_dtype = img.dtype
-    return resize(
+    if resize_or_pad == 'resize':
+        return resize(
+            cropped_im,
+            new_size,
+            preserve_range=True,
+            order=0).astype(target_dtype)
+    elif resize_or_pad == 'pad':
+        return pad_image_to_shape(cropped_im, new_size, constant=0.)
+    else:
+        raise RuntimeError(
+            'Cannot understand if you are trying to resize or pad.')
+
+
+def pad_image_to_shape(cropped_im, new_size, constant=0.):
+    cim_size = cropped_im.shape
+    pad_top = (new_size[0] - cim_size[0]) // 2
+    pad_bottom = (new_size[0] - cim_size[0]) // 2
+    pad_left = (new_size[1] - cim_size[1]) // 2
+    pad_right = (new_size[1] - cim_size[1]) // 2
+    return cv2.copyMakeBorder(
         cropped_im,
-        new_size,
-        preserve_range=True,
-        order=0).astype(target_dtype)
+        pad_top, pad_bottom, pad_left, pad_right,
+        cv2.BORDER_CONSTANT, constant)
 
 
 def process_kinect_tensorflow(model_ckpt, kinect_data, config):

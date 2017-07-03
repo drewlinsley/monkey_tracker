@@ -27,8 +27,10 @@ def train_and_eval(
     # Try loading saved config
     try:
         rfc = config.resume_from_checkpoint
+        md = config.max_depth
         config = np.load(config.saved_config).item()
         config.resume_from_checkpoint = rfc
+        config.max_depth = md
         print 'Loading saved config'
         if not hasattr(config, 'augment_background'):
             config.augment_background = 'constant'
@@ -78,7 +80,7 @@ def train_and_eval(
     print 'Batch size: %s' % uniform_batch_size
     num_epochs = 1
     with tf.device('/cpu:0'):
-        print 'Using train dataset: %s' % train_data
+        print 'Using max of %s on train dataset: %s' % (config.max_depth, train_data)
         train_data_dict = inputs(
             tfrecord_file=train_data,
             batch_size=uniform_batch_size,

@@ -274,11 +274,11 @@ def train_and_eval(config):
     for al in loss_helper.potential_aux_losses():
         if al.keys()[0] in train_data_dict.keys():
             y_key = '%s' % al.keys()[0]
-            train_session_vars[y_key] = al.values()[0]['y_name']
+            train_session_vars[y_key] = train_data_dict[al.values()[0]['y_name']]
             save_training_vars += [y_key]
 
             yhat_key = '%s_hat' % al.keys()[0]
-            train_session_vars[yhat_key] = al.values()[0]['model_name']
+            train_session_vars[yhat_key] = model[al.values()[0]['model_name']]
             save_training_vars += [yhat_key]
 
     # Start training loop

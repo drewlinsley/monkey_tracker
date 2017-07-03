@@ -8,7 +8,7 @@ def potential_aux_losses():
         'model_name': 'occlusion',
         'loss_function': 'sigmoid',
         'var_label': 'occlusionhead',
-        'lambda': None
+        'lambda': 0.1
         }
     },
     {'z': {
@@ -24,7 +24,7 @@ def potential_aux_losses():
         'model_name': 'size',
         'loss_function': 'l2',
         'var_label': 'size head',
-        'lambda': None
+        'lambda': 0.1
         }
     },
     {'pose': {
@@ -32,7 +32,7 @@ def potential_aux_losses():
         'model_name': 'pose',
         'loss_function': 'l2',
         'var_label': 'pose head',
-        'lambda': None
+        'lambda': 0.1
         }
     },
     {'deconv': {
