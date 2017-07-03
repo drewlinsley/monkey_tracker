@@ -37,6 +37,7 @@ def main(model_dir, ckpt_name, run_tests=False):
     model_ckpt = os.path.join(model_dir, ckpt_name)
     kinect_config = kinectConfig()
     kinect_config = kinect_config[kinect_config['selected_video']]()
+    tf_fun.make_dir(kinect_config['data_dir'])
     if not run_tests:
         monkey_files = glob(
             os.path.join(
@@ -117,13 +118,6 @@ def main(model_dir, ckpt_name, run_tests=False):
         frames = [test_tf_kinect.crop_aspect_and_resize_center(
             f, new_size=config.image_target_size[:2]) for f in frames]
 
-    # Create preprocessed kinect movie if desired
-    if kinect_config['kinect_output_name'] is not None:
-        tf_fun.make_dir(kinect_config['kinect_output_name']) 
-        test_tf_kinect.create_movie(
-            frames=frames,
-            output=kinect_config['kinect_output_name'])
-
     # Create tfrecords of kinect data
     if not run_tests:
         # # Transform kinect data to Maya data
@@ -157,10 +151,11 @@ def main(model_dir, ckpt_name, run_tests=False):
         all_masks = np.concatenate(image_masks, axis=0)
         num_masks = len(all_masks)
         frames = frames[:num_masks, :, :]
-        frames = test_tf_kinect.apply_cnn_masks_to_kinect(
+        frames, crop_coors = test_tf_kinect.apply_cnn_masks_to_kinect(
             frames=frames,
             image_masks=all_masks,
-            crop_and_pad=kinect_config['crop_and_pad'])
+            crop_and_pad=kinect_config['crop_and_pad'],
+            obj_size=kinect_config['small_object_size'])
 
     # Normalize frames
     frames = test_tf_kinect.normalize_frames(
@@ -177,8 +172,6 @@ def main(model_dir, ckpt_name, run_tests=False):
         frame_toss_index = np.concatenate((frame_toss_index, it_frame_toss_index))
         config.max_depth = max_array
         config.background_constant = config.max_depth * 2
-        config.train_batch = 2
-        config.val_batch = 2
 
         if kinect_config['mask_with_model']:
             np.savez(
@@ -186,7 +179,14 @@ def main(model_dir, ckpt_name, run_tests=False):
                 frame_toss_index=frame_toss_index,
                 extents=extents,
                 max_array=max_array,
-                use_kinect=use_kinect)
+                use_kinect=use_kinect,
+                crop_coors=crop_coors)
+            print 'Saved files to %s' % kinect_config['tfrecord_name']
+            # Create preprocessed kinect movie if desired
+            if kinect_config['kinect_output_name'] is not None:
+                test_tf_kinect.create_movie(
+                    frames=frames,
+                    output=kinect_config['kinect_output_name'])
             return
         joint_dict = train_and_eval(
             frame_pointer,
@@ -205,6 +205,7 @@ def main(model_dir, ckpt_name, run_tests=False):
         frame_toss_index = []
 
     # Overlay joint predictions onto frames
+    tf_fun.make_dir(monkey_on_pole_3['prediction_image_folder'])
     overlaid_pred = test_tf_kinect.overlay_joints_frames(
         joint_dict=joint_dict,
         output_folder=kinect_config['prediction_image_folder'])

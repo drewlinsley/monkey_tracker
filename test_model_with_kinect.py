@@ -68,7 +68,7 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
             frame_pointer,
             frame_pointer,
             config,
-            uniform_batch_size=10,
+            uniform_batch_size=136,
             swap_datasets=False,
             working_on_kinect=use_kinect,
             return_coors=True)

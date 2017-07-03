@@ -26,7 +26,7 @@ class monkeyConfig(object):
         self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = True
         if use_checkpoint:
-            self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_13_39_01'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_22_40_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_13_39_01'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_22_40_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
             self.ckpt_file = None  # 
             self.resume_from_checkpoint = pjoin(
                 self.model_output,
@@ -45,8 +45,8 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 1300. * 0.75  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
-        self.min_depth = 300.  # prev- 300 Use for normalizing the kinect data
+        self.max_depth = 1200.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.min_depth = 200.  # prev- 300 Use for normalizing the kinect data
         self.background_constant = self.max_depth * 2  # HIGH_NUMBER
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_input_size = [480, 640]  # Maya render output
@@ -73,7 +73,7 @@ class monkeyConfig(object):
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
+        self.lr = 3e-5  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -89,7 +89,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
+        self.aux_losses = ['z', 'size']  # , 'occlusion']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = False
         self.include_validation = '/media/data_cifs/monkey_tracking/tfrecords/monkey_on_pole.tfrecords'  # True
         self.wd_type = 'l1'

@@ -75,6 +75,7 @@ if __name__ == '__main__':
     config = monkeyConfig()
     # file_name = '/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords'
     file_name = None
+    file_name = '/home/drew/Desktop/predicted_monkey_on_pole_2/monkey_on_pole.tfrecords'
     run_tester(
         config=config,
         file_name=file_name)

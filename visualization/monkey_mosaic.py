@@ -34,12 +34,19 @@ def save_mosaic(
         plt.axis('off')
         ax1.set_xticklabels([])
         ax1.set_yticklabels([])
-        ax1.set_aspect('equal')
+        # ax1.set_aspect('equal')
+        # ax1.set_xlim([0, 240])
+        # ax1.set_ylim([0, 320])
         ax1.imshow(np.log10(im), cmap='Greys_r')
         # ax1.imshow(im, cmap='Greys_r')
         if ys is not None:
             lab_legend_artists = plot_coordinates(
                 ax1, ys[idx], colors, marker='.', markersize=1.5)
+            leg_title = 'Predicted | True'
+        else:
+            lab_legend_artists = plot_coordinates(
+                ax1, yhat, colors, marker='.', markersize=1.5)
+            leg_title = 'Predicted position'
         est_legend_artists = plot_coordinates(
             ax1, yhat, colors,
             linestyle='none',
@@ -58,7 +65,7 @@ def save_mosaic(
         patches,
         (["" for _ in colors] +
          [j for j in joints]),
-        title="Estimated / True",
+        title=leg_title,
         loc=1, frameon=False, numpoints=1, ncol=2,
         columnspacing=0, handlelength=0.25, markerscale=2)
     if save_fig:

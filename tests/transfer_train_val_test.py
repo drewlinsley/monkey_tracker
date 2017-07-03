@@ -19,7 +19,7 @@ def train_and_eval(
         validation_data,
         config,
         uniform_batch_size=5,
-        swap_datasets=True,
+        swap_datasets=False,
         working_on_kinect=False,
         return_coors=False,
         check_stats=False,
@@ -73,12 +73,15 @@ def train_and_eval(
         validation_data = str(t_train)
 
     # Prepare data on CPU
-    config.train_batch = uniform_batch_size
+    if uniform_batch_size is None:
+        uniform_batch_size = config.train_batch
+    print 'Batch size: %s' % uniform_batch_size
     num_epochs = 1
     with tf.device('/cpu:0'):
+        print 'Using train dataset: %s' % train_data
         train_data_dict = inputs(
             tfrecord_file=train_data,
-            batch_size=config.train_batch,
+            batch_size=uniform_batch_size,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
@@ -102,9 +105,10 @@ def train_and_eval(
             num_threads=1,
             augment_background=config.augment_background)
 
+        print 'Using validation dataset: %s' % validation_data
         val_data_dict = inputs(
             tfrecord_file=validation_data,
-            batch_size=config.train_batch,
+            batch_size=uniform_batch_size,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
@@ -158,54 +162,13 @@ def train_and_eval(
                     train_mode=train_mode,
                     batchnorm=[None])
 
-                # Calculate validation accuracy
-                if 'label' in val_data_dict.keys():
-                    val_score = tf.reduce_mean(tf_fun.l2_loss(
-                        val_data_dict['label'], val_model.output))
-
-        # Prepare the loss functions:::
-        loss_list, loss_label = [], []
-        if 'label' in train_data_dict.keys():
-            # 1. Joint localization loss
-            if config.calculate_per_joint_loss:
-                label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
-                    model=model,
-                    train_data_dict=train_data_dict,
-                    config=config,
-                    y_key='label',
-                    yhat_key='output')
-                loss_list += [label_loss]
-            else:
-                loss_list += [tf.nn.l2_loss(
-                    model['output'] - train_data_dict['label'])]
-            loss_label += ['combined head']
-
-            for al in loss_helper.potential_aux_losses():
-                loss_list, loss_label = loss_helper.get_aux_losses(
-                    loss_list=loss_list,
-                    loss_label=loss_label,
-                    train_data_dict=train_data_dict,
-                    model=model,
-                    aux_loss_dict=al)
-            loss = tf.add_n(loss_list)
-
-            # Add wd if necessary
-            if config.wd_penalty is not None:
-                _, l2_wd_layers = tf_fun.fine_tune_prepare_layers(
-                    tf.trainable_variables(), config.wd_layers)
-                l2_wd_layers = [
-                    x for x in l2_wd_layers if 'biases' not in x.name]
-                if config.wd_type == 'l1':
-                    loss += (config.wd_penalty * tf.add_n(
-                            [tf.reduce_sum(tf.abs(x)) for x in l2_wd_layers]))
-                elif config.wd_type == 'l2':
-                    loss += (config.wd_penalty * tf.add_n(
-                            [tf.nn.l2_loss(x) for x in l2_wd_layers]))
+                val_score = tf.reduce_mean(tf_fun.l2_loss(
+                    val_data_dict['label'], val_model.output))
 
     # Set up summaries and saver
     saver = tf.train.Saver(
         tf.global_variables(), max_to_keep=config.keep_checkpoints)
-    tf.add_to_collection('output', model.output)
+    # tf.add_to_collection('output', model.output)
 
     # Initialize the graph
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
@@ -220,9 +183,8 @@ def train_and_eval(
 
     # Create list of variables to run through training model
     train_session_vars = {
-        'loss_value': loss,
-        'im': train_data_dict['image'],
         'yhat': model.output,
+        'im': train_data_dict['image'],
         'ytrue': train_data_dict['label'],
     }
 
@@ -255,16 +217,6 @@ def train_and_eval(
         'yhat'
         ]
 
-    for al in loss_helper.potential_aux_losses():
-        if al.keys()[0] in train_data_dict.keys():
-            y_key = '%s' % al.keys()[0]
-            train_session_vars[y_key] = al.values()[0]['y_name']
-            save_training_vars += [y_key]
-
-            yhat_key = '%s_hat' % al.keys()[0]
-            train_session_vars[yhat_key] = al.values()[0]['model_name']
-            save_training_vars += [yhat_key]
-
     # Start training loop
     np.save(config.train_checkpoint, config)
     step = 0
@@ -287,8 +239,6 @@ def train_and_eval(
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
-            assert not np.isnan(
-                train_out_dict['loss_value']), 'Model diverged with loss = NaN'
             if check_stats:
                 slopes, intercepts = [], []
                 for yhat, y in zip(train_out_dict['yhat'], train_out_dict['ytrue']):
@@ -332,7 +282,7 @@ def train_and_eval(
                 step,
                 ckpt,
                 validation_data,
-                train_out_dict['loss_value'],
+                0.,
                 val_out_dict['val_acc']))
             # End iteration
             step += 1
@@ -378,13 +328,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_2/monkey_on_pole.tfrecords',
+        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",
