@@ -57,10 +57,10 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion.py'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
-        # self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
-        self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
+        self.fine_tune_layers = ['z', 'size', 'occlusion']
+        self.batch_norm = [None]
         self.data_augmentations = [
             'convert_labels_to_pixel_space']  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
         # 'random_contrast']
@@ -71,10 +71,10 @@ class monkeyConfig(object):
         self.validation_batch = 32
         self.num_val_evals = 4
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
-        self.hold_lr = 3e-4
+        self.lr = 1e-5  # Tune this -- also try SGD instead of ADAm
+        self.hold_lr = 5e-7
         self.keep_checkpoints = 100
-        self.optimizer = 'adam'
+        self.optimizer = 'sgd'
         self.steps_before_validation = 1000
         self.loss_type = 'l2'
         self.grad_clip = False
@@ -88,7 +88,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = [None]  # ['z', 'size']  # 'occlusion' 'pose' 'size' 'z'
+        self.aux_losses = [None]  # ['z', 'size']  # , 'occlusion']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = False
         self.include_validation = True
         self.wd_type = 'l2'

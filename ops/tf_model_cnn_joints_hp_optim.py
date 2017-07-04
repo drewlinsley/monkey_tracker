@@ -112,7 +112,8 @@ def train_and_eval(config):
         with tf.variable_scope('cnn') as scope:
             print 'Creating training graph:'
             model = model_file.model_struct(
-                weight_npy_path=config.weight_npy_path)
+                weight_npy_path=config.weight_npy_path,
+                fine_tune_layers=config.fine_tune_layers)
             train_mode = tf.get_variable(name='training', initializer=True)
             model.build(
                 rgb=train_data_dict['image'],
@@ -366,9 +367,9 @@ def train_and_eval(config):
                 print (format_str % (
                     datetime.now(),
                     step,
-                    train_out_dict['loss_value']),
+                    train_out_dict['loss_value'],
                     config.train_batch / duration,
-                    float(duration))
+                    float(duration)))
             # End iteration
             step += 1
 

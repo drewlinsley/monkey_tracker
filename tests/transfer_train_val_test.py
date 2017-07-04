@@ -65,6 +65,8 @@ def train_and_eval(
     config.train_batch = uniform_batch_size
     num_epochs = 1
     with tf.device('/cpu:0'):
+        import ipdb;ipbd.set_trace()
+        print 'Using train dataset: %s' % train_data
         train_data_dict = inputs(
             tfrecord_file=train_data,
             batch_size=config.train_batch,

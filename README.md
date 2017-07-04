@@ -1,4 +1,3 @@
-README.md
 
 
 # Create database for hyperparameter optimization
