@@ -6,23 +6,24 @@ import psycopg2.extras
 import psycopg2.extensions
 import credentials
 import itertools as it
+from hp_config import package_parameters
 sshtunnel.DAEMON = True  # Prevent hanging process due to forward thread
 
 
-parameter_dict = {
-    'lrs': [3e-4],
-    'randomize_background': [0, 2],
-    'train_batch': [32],
-    'loss_type': ['l2'],
-    'augment_background': ['rescale', 'perlin', 'rescale_and_perlin'],
-    'data_augmentations': [
-            ['convert_labels_to_pixel_space', 'random_contrast'],
-            ['convert_labels_to_pixel_space'],
-        ]
-}
+# parameter_dict = {
+#     'lr': [3e-4],
+#     'randomize_background': [0, 2],
+#     'train_batch': [32],
+#     'loss_type': ['l2'],
+#     'augment_background': ['rescale', 'perlin', 'rescale_and_perlin'],
+#     'data_augmentations': [
+#             ['convert_labels_to_pixel_space', 'random_contrast'],
+#             ['convert_labels_to_pixel_space'],
+#         ]
+# }
 
 # parameter_dict = {
-#     'lrs': np.logspace(-5, -2, 4, base=10),
+#     'lr': np.logspace(-5, -2, 4, base=10),
 #     'randomize_background': np.arange(3),
 #     'train_batch': np.asarray([16, 32]),
 #     'loss_type': np.asarray(['l2', 'l1']),
@@ -30,16 +31,16 @@ parameter_dict = {
 # }
 
 
-def package_parameters():
-    """
-    Each key in parameter_dict must be manually added to the schema.
-    """
-    keys_sorted = sorted(parameter_dict)
-    values = list(it.product(*(parameter_dict[key] for key in keys_sorted)))
-    combos = tuple({k: v for k, v in zip(keys_sorted, row)} for row in values)
-    # Really dumb but whatever
-    print 'Derived %s combinations.' % len(combos)
-    return combos
+# def package_parameters():
+#     """
+#     Each key in parameter_dict must be manually added to the schema.
+#     """
+#     keys_sorted = sorted(parameter_dict)
+#     values = list(it.product(*(parameter_dict[key] for key in keys_sorted)))
+#     combos = tuple({k: v for k, v in zip(keys_sorted, row)} for row in values)
+#     # Really dumb but whatever
+#     print 'Derived %s combinations.' % len(combos)
+#     return combos
 
 
 class db(object):
@@ -123,9 +124,9 @@ class db(object):
         self.cur.executemany(
             """
             INSERT INTO hp_combos
-            (loss_type, lrs, randomize_background, train_batch, augment_background, data_augmentations)
+            (lr, randomize_background, aux_losses)
             VALUES
-            (%(loss_type)s, %(lrs)s, %(randomize_background)s, %(train_batch)s, %(augment_background)s, %(data_augmentations)s)
+            (%(lr)s, %(randomize_background)s, %(aux_losses)s)
             """,
             namedict)
         if self.status_message:

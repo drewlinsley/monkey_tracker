@@ -13,5 +13,4 @@ MANUAL STEPS
 nvidia-docker build -t serrep3.services.brown.edu:5000/monkey_tracker .
 
 #Run the container
-nvidia-docker run -it --volume /media/data_cifs:/media/data_cifs --workdir /media/data_cifs serrep3.services.brown.edu:5000/monkey_tracker bash
-nvidia-docker run -it --volume /media/data_cifs:/media/data_cifs --workdir /media/data_cifs serrep3.services.brown.edu:5000/monkey_tracker python train_and_eval_joints.py
+nvidia-docker run -it --volume /media/data_cifs:/media/data_cifs --workdir /media/data_cifs/cluster_projects/monkey_tracker serrep3.services.brown.edu:5000/monkey_tracker bash
