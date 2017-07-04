@@ -36,6 +36,7 @@ def apply_cnn_masks_to_kinect(
             enumerate(zip(frames, image_masks)), total=len(frames)):
         m = resize(m, target_shape)
         pm = m > np.percentile(m.ravel(), prct)
+        pm = binary_fill_holes(pm)
         tf = f * pm
         if crop_and_pad:
             # Crop keeping the aspect ratio
@@ -92,9 +93,9 @@ def normalize_frames(
     To do this, for each frame, ID the foreground, then transform its depth to
     maya space."""
     print 'Adjusting max with: %s. Min with: %s.' % (max_adj, min_adj)
-    delta = (max_value * max_adj) - (min_value * min_adj)
-    kinect_max = frames.max()
-    kinect_min = frames[frames > 0].min()
+    delta = max_value - min_value
+    kinect_max = frames.max()  * max_adj
+    kinect_min = frames[frames > 0].min()  * min_adj
     trans_f = np.zeros((frames.shape))
     print 'Normalizing kinect to maya.'
     for idx, f in tqdm(enumerate(frames), total=len(frames)):

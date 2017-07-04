@@ -122,8 +122,11 @@ class kinectConfig():
 
     def monkey_on_pole_3(self):
         container = self.defaults
+        container['start_frame'] = 150
+        container['end_frame'] = 35
         container['time_threshold'] = 90
-        container['low_threshold'] = 1000
+        container['find_bb'] = True
+        container['low_threshold'] = 1400
         container['high_threshold'] = 3350
         container['cnn_threshold'] = 70
         container['crop_and_pad'] = False
@@ -154,8 +157,8 @@ class kinectConfig():
         container['kinect_project'] = 'Xef2Mat_Output_Trial02_np_conversion'
         container['kinect_file_ext'] = '.npy'
         container['kinect_video'] = 'video.mp4'
-        container['max_adjust'] = 2
-        container['min_adjust'] = 1.5
+        container['max_adjust'] = 1
+        container['min_adjust'] = 1
         return container
 
     def monkey_in_cage_1(self):

@@ -1,49 +1,51 @@
-from os.path import join as pjoin
+import os
 
-
-#  Main configuration file for monkey tracking
 class monkeyConfig(object):
     def __init__(self): 
+        '''Main config file for monkey tracking'''
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth2MilStore') #pjoin(self.base_dir, 'walk-all-png') 
-        self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
-        self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
-        self.npy_dir = pjoin(self.base_dir, 'batches', 'test')  # Output for numpys
-        self.pixel_label_dir = pjoin(self.image_dir, 'labels', 'pixel_joint_coords')  # 'joint_coords')
-        self.occlusion_dir = pjoin(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
-        self.im_label_dir = pjoin(self.image_dir, 'labels', 'npyLabels')
+        self.results_dir = os.path.join(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.image_dir = os.path.join(self.base_dir, 'batches', 'TrueDepth2MilStore') #os.path.join(self.base_dir, 'walk-all-png') 
+        self.depth_dir = os.path.join(self.image_dir, 'depth', 'true_depth')
+        self.label_dir = os.path.join(self.image_dir, 'labels', 'joint_coords')
+        self.npy_dir = os.path.join(self.base_dir, 'batches', 'test')  # Output for numpys
+        self.pixel_label_dir = os.path.join(self.image_dir, 'labels', 'pixel_joint_coords')  # 'joint_coords')
+        self.occlusion_dir = os.path.join(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
+        self.im_label_dir = os.path.join(self.image_dir, 'labels', 'npyLabels')
         self.depth_regex = '*[0-9].npy'
         self.image_extension = '.npy'
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
-        self.model_output = pjoin(self.results_dir, 'model_output') 
-        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_fast')
-        self.train_summaries = pjoin(self.results_dir, 'summaries')
-        self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
-        self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
+        self.model_output = os.path.join(self.results_dir, 'model_output') 
+        self.tfrecord_dir = os.path.join(self.image_dir, 'tfrecords_fast')
+        self.train_summaries = os.path.join(self.results_dir, 'summaries')
+        self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
+        self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = True
         if use_checkpoint:
-            self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_13_39_01'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_22_40_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
-            # small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52
-            # small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40
-            # cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53
-            # cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_12
+            self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # OK
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # WORSE THAN 1
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # WORSE THAN 1
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_12'  # WORSE THAN 1
             # Cluster:
-            # small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_45
-            # small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_48
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_45/model_160000.ckpt-160000'  # Equiv to 4 above
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_48/model_185000.ckpt-185000'  # Equiv to 4 above
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_59/model_169000.ckpt-169000'  # As good as 2 above
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_56/model_185000.ckpt-185000' # As good as 3 above
             # Not ready:
-            # cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31
-            # small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_17_38_24
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31'  # Pretty good...
             self.ckpt_file = None  # 
-            self.resume_from_checkpoint = pjoin(
+            self.resume_from_checkpoint = os.path.join(
                 self.model_output,
                 self.model_name)
-            self.saved_config = '%s.npy' % self.resume_from_checkpoint
+            if 'ckpt' in self.resume_from_checkpoint.split('/')[-1]:
+                self.saved_config = '%s.npy' % os.path.sep.join(self.resume_from_checkpoint.split('/')[:-1])
+            else:
+                self.saved_config = '%s.npy' % self.resume_from_checkpoint
             self.segmentation_model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'
-            self.segmentation_resume_from_checkpoint = pjoin(
+            self.segmentation_resume_from_checkpoint = os.path.join(
                 self.model_output,
                 self.segmentation_model_name)
             self.segmentation_saved_config = '%s.npy' % self.resume_from_checkpoint
@@ -67,7 +69,7 @@ class monkeyConfig(object):
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
         self.randomize_background = 2
-        self.augment_background = 'rescale_and_perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
 
         # Model settings
         self.epochs = 50
@@ -115,7 +117,7 @@ class monkeyConfig(object):
             'head':            (199,   0,   0, 254),
             'hip':             (130,  50, 120, 254),
             'left_finger':     (200,   0, 200, 254),
-            'left_foot':       (150, 130, 139, 254),
+            'left_bart':       (150, 130, 139, 254),
             'left_hand':       (250,   0, 250, 254),
             'left_lower_arm':  (0,   250,   0, 254),
             'left_lower_leg':  (0,     0, 250, 254),
@@ -125,7 +127,7 @@ class monkeyConfig(object):
             'left_upper_leg':  (240, 240, 239, 254),
             'neck':            (70,   70,  69, 254),
             'right_finger':    (249,  50,   0, 254),
-            'right_foot':      (0,   150,   0, 254),
+            'right_bart':      (0,   150,   0, 254),
             'right_hand':      (249, 250,   0, 254),
             'right_lower_arm': (249,   0,   0, 254),
             'right_lower_leg': (249, 100,   0, 254),
@@ -183,8 +185,8 @@ class monkeyConfig(object):
             'right knee',
             'left ankle',
             'right ankle',
-            'left foot',
-            'right foot',
+            'left bart',
+            'right bart',
             'left toetips',
             'right toetips'
         ]

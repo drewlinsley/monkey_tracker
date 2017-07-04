@@ -1,4 +1,5 @@
 import tensorflow as tf
+import yellowfin
 
 
 def potential_aux_losses():
@@ -90,6 +91,8 @@ def return_optimizer(optimizer):
         optimizer = lambda x: tf.train.MomentumOptimizer(x, momentum=0.1)
     elif optimizer == 'rms':
         optimizer = tf.train.RMSPropOptimizer
+    elif optimizer == 'yellowfin':
+        optimizer = yellowfin.YFOptimizer
     else:
         raise 'Unidentified optimizer'
     return optimizer

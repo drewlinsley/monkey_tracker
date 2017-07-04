@@ -550,9 +550,9 @@ def inputs(
                 [tf.expand_dims(x, axis=0) for x in var_list],
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=100 * batch_size,
-                min_after_dequeue=10 * batch_size,
-                enqueue_many=True)
+                capacity=10 + batch_size,
+                enqueue_many=True,
+                min_after_dequeue=10)
             # var_list = tf.train.shuffle_batch(
             #     var_list,  # Old version ~ half as fast
             #     batch_size=batch_size,
