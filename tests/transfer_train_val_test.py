@@ -6,7 +6,6 @@ import tensorflow as tf
 from ops.data_loader_joints import inputs
 from ops import tf_fun
 from ops.utils import get_dt, import_cnn
-from ops import loss_helper
 import argparse
 from config import monkeyConfig
 from visualization import monkey_mosaic
@@ -80,7 +79,8 @@ def train_and_eval(
     print 'Batch size: %s' % uniform_batch_size
     num_epochs = 1
     with tf.device('/cpu:0'):
-        print 'Using max of %s on train dataset: %s' % (config.max_depth, train_data)
+        print 'Using max of %s on train dataset: %s' % (
+            config.max_depth, train_data)
         train_data_dict = inputs(
             tfrecord_file=train_data,
             batch_size=uniform_batch_size,
@@ -198,7 +198,8 @@ def train_and_eval(
         var_c = tf.image.resize_bilinear(
             model.high_feature_encoder_1x1_1, [int(
                 x) for x in model.high_feature_encoder_1x1_0.get_shape()[1:3]])
-        train_session_vars['monkey_mask'] = tf.reduce_mean(tf.pow(var_a + var_b + var_c, 2), axis=3)
+        train_session_vars['monkey_mask'] = tf.reduce_mean(
+            tf.pow(var_a + var_b + var_c, 2), axis=3)
     if hasattr(model, 'deconv'):
         train_session_vars['deconv'] = model.deconv
     if hasattr(model, 'final_fc'):
@@ -210,14 +211,6 @@ def train_and_eval(
         'val_pred': val_model.output,
         'val_ims': val_data_dict['image']
     }
-
-    # Create list of variables to save to numpys
-    save_training_vars = [
-        'im',
-        'yhat',
-        'ytrue',
-        'yhat'
-        ]
 
     # Start training loop
     np.save(config.train_checkpoint, config)
@@ -243,17 +236,21 @@ def train_and_eval(
                 train_session_vars.keys(), train_out_dict)}
             if check_stats:
                 slopes, intercepts = [], []
-                for yhat, y in zip(train_out_dict['yhat'], train_out_dict['ytrue']):
+                for yhat, y in zip(
+                        train_out_dict['yhat'],
+                        train_out_dict['ytrue']):
                     slope, intercept, r_v, p_v, std = linregress(yhat, y)
                     slopes += [slope]
                     intercepts += [intercept]
-                plt.hist(slopes, 100);plt.show(); plt.hist(intercepts);plt.show()
+                plt.hist(slopes, 100)
+                plt.show()
+                plt.hist(intercepts)
+                plt.show()
             val_out_dict = sess.run(
                 val_session_vars.values())
             val_out_dict = {k: v for k, v in zip(
                 val_session_vars.keys(), val_out_dict)}
-
-            if get_kinect_masks: 
+            if get_kinect_masks:
                 monkey_masks += [train_out_dict['monkey_mask']]
             else:
                 if config.normalize_labels:
@@ -296,6 +293,7 @@ def train_and_eval(
         dt_stamp = get_dt()  # date-time stamp
     coord.join(threads)
     sess.close()
+    tf.reset_default_graph()
     if return_coors:
         return {
             'yhat': np.concatenate(joint_predictions).squeeze(),

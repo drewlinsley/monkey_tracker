@@ -292,7 +292,7 @@ def get_and_trim_frames(
     if test_frames:
         files = np.asarray(files)
         files = files[start_frame:end_frame]
-        data = [np.load(f) for f in files]
+        data = [np.load(f).squeeze() for f in files]  # squeeze singletons
         if len(data[0].shape) > 2 and data[0].shape[-1] > 3:
             print 'Detected > 2d images. Trimming excess dimensions.'
         data = [f[:, :, :3] for f in data]
@@ -631,6 +631,12 @@ def crop_to_shape(img, h0, h1, w0, w1):
     return img[h0:h1, w0:w1]
 
 
+def mask_to_shape(img, h0, h1, w0, w1):
+    mask = np.zeros((img.shape))
+    mask[h0:h1, w0:w1] = 1
+    return img * mask
+
+
 def crop_aspect_and_resize_center(img, new_size, resize_or_pad='resize'):
     '''Crop to appropros aspect ratio then resize.'''
     h, w = img.shape[:2]
@@ -826,7 +832,8 @@ def overlay_joints_frames(
     files = []
     frames = joint_dict['im']
     joint_predictions = joint_dict[target_key]
-    for idx, (fr, jp) in enumerate(zip(frames, joint_predictions)):
+    for idx, (fr, jp) in tqdm(
+            enumerate(zip(frames, joint_predictions)), total=len(frames)):
         f, ax = plt.subplots()
         plt.axis('off')
         ax.set_xticklabels([])

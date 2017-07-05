@@ -4,55 +4,62 @@ import yellowfin
 
 def potential_aux_losses():
  return [
-    {'occlusion': {
-        'y_name': 'occlusion',
-        'model_name': 'occlusion',
-        'loss_function': 'sigmoid',
-        'var_label': 'occlusionhead',
-        'lambda': 0.1
-        }
+    {
+        'occlusion': {
+            'y_name': 'occlusion',
+            'model_name': 'occlusion',
+            'loss_function': 'sigmoid',
+            'var_label': 'occlusionhead',
+            'lambda': 0.1
+            }
     },
-    {'z': {
-        'y_name': 'z',
-        'model_name': 'z',
-        'loss_function': 'l2',
-        'var_label': 'z head',
-        'lambda': 0.1
-        }
+    {
+        'z': {
+            'y_name': 'z',
+            'model_name': 'z',
+            'loss_function': 'l2',
+            'var_label': 'z head',
+            'lambda': 0.01
+            }
     },
-    {'size': {
-        'y_name': 'size',
-        'model_name': 'size',
-        'loss_function': 'l2',
-        'var_label': 'size head',
-        'lambda': 0.1
-        }
+    {
+        'size': {
+            'y_name': 'size',
+            'model_name': 'size',
+            'loss_function': 'l2',
+            'var_label': 'size head',
+            'lambda': 0.1
+            }
     },
-    {'pose': {
-        'y_name': 'pose',
-        'model_name': 'pose',
-        'loss_function': 'l2',
-        'var_label': 'pose head',
-        'lambda': 0.1
-        }
+    {
+        'pose': {
+            'y_name': 'pose',
+            'model_name': 'pose',
+            'loss_function': 'l2',
+            'var_label': 'pose head',
+            'lambda': 0.1
+            }
     },
-    {'deconv': {
-        'y_name': 'image',
-        'model_name': 'deconv',
-        'loss_function': 'l2',
-        'var_label': 'deconv head',
-        'lambda': None
-        }
+    {
+        'deconv': {
+            'y_name': 'image',
+            'model_name': 'deconv',
+            'loss_function': 'l2',
+            'var_label': 'deconv head',
+            'lambda': None
+            }
     },
-    {'im_label': {
-        'y_name': 'im_label',
-        'model_name': 'rgb',
-        'loss_function': 'l2',
-        'var_label': 'deconv head',
-        'lambda': None
-        }
+    {
+        'im_label': {
+            'y_name': 'im_label',
+            'model_name': 'rgb',
+            'loss_function': 'l2',
+            'var_label': 'deconv head',
+            'lambda': None
+            }
     }
     ]
+
 
 def get_aux_losses(
         loss_list,
@@ -96,6 +103,3 @@ def return_optimizer(optimizer):
     else:
         raise 'Unidentified optimizer'
     return optimizer
-
-
-

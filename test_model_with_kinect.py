@@ -59,20 +59,17 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
         reuse_dict = np.load(npz_file)
         frame_toss_index = reuse_dict['frame_toss_index']
         extents = reuse_dict['extents']
-	max_array = reuse_dict['max_array']
-	use_kinect = reuse_dict['use_kinect']
-        config.max_depth = max_array
-        config.background_constant = config.max_depth * 2
-        config.train_batch = 2
-        config.val_batch = 2
+        max_array = reuse_dict['max_array']
+        use_kinect = reuse_dict['use_kinect']
+        # config.max_depth = max_array
+        # config.background_constant = config.max_depth * 2
         joint_dict = train_and_eval(
             frame_pointer,
             frame_pointer,
             config,
-            uniform_batch_size=136,
             swap_datasets=False,
             working_on_kinect=use_kinect,
-            return_coors=True)
+            return_coors=False)
     else:
         if len(monkey_files) == 0:
             raise RuntimeError('Could not find any files!')

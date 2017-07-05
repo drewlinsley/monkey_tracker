@@ -4,7 +4,7 @@ import os
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'monkey_in_cage_1'  # 'monkey_on_pole_3'
+        self.selected_video = 'monkey_on_pole_3'  # 'monkey_in_cage_1'  #
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -130,7 +130,7 @@ class kinectConfig():
         container['find_bb'] = False  # Do not use when outputting moies
         container['low_threshold'] = 1400  # Keep
         container['high_threshold'] = 3350  # Keep
-        container['cnn_threshold'] = 70  # Keep
+        container['cnn_threshold'] = 60  # Keep
         container['crop_and_pad'] = False
         container['output_dir'] = '/home/drew/Desktop/'
         container['data_dir'] = os.path.join(

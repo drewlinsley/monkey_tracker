@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import json
 import cPickle as pickle
 import numpy as np
 import tensorflow as tf
@@ -120,30 +121,18 @@ def main(model_dir, ckpt_name, run_tests=False):
         frames = [test_tf_kinect.crop_aspect_and_resize_center(
             f, new_size=config.image_target_size[:2]) for f in frames]
     elif kinect_config['crop'] == 'static_and_crop':
-        frames = [test_tf_kinect.crop_to_shape(
+        import ipdb;ipdb.set_trace()
+        frames = [test_tf_kinect.mask_to_shape(
             f,
             h0=kinect_config['h0'],
             h1=kinect_config['h1'],
             w0=kinect_config['w0'],
             w1=kinect_config['w1']) for f in frames]
-        import ipdb;ipdb.set_trace()
         frames = [test_tf_kinect.pad_image_to_shape(
             f,
             config.image_target_size[:2]) for f in frames]
 
     # # Create tfrecords of kinect data
-    # if not run_tests:
-    #     # # Transform kinect data to Maya data
-    #     # frames, frame_toss_index = test_tf_kinect.transform_to_renders(
-    #     #     frames=frames,
-    #     #     config=config)
-    #     # use_kinect = True
-    #     # Transform kinect data to Maya data
-    #     frames, frame_toss_index = test_tf_kinect.rescale_kinect_to_maya(
-    #         frames=frames,
-    #         config=config)
-    #     use_kinect = False
-    # else:
     frames = np.asarray(frames)
     frame_toss_index = []
     use_kinect = False
@@ -157,7 +146,7 @@ def main(model_dir, ckpt_name, run_tests=False):
             frame_pointer,
             frame_pointer,
             config,
-            uniform_batch_size=10,
+            uniform_batch_size=None,
             swap_datasets=False,
             working_on_kinect=use_kinect,
             return_coors=False,
@@ -207,12 +196,11 @@ def main(model_dir, ckpt_name, run_tests=False):
                     frames=frames,
                     output=kinect_config['kinect_output_name'],
                     crop_coors=crop_coors)
-            return
         joint_dict = train_and_eval(
             frame_pointer,
             frame_pointer,
             config,
-            uniform_batch_size=10,
+            uniform_batch_size=None,
             swap_datasets=False,
             working_on_kinect=use_kinect,
             return_coors=True)
@@ -261,6 +249,18 @@ def main(model_dir, ckpt_name, run_tests=False):
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
+
+        # Also save json key/value dicts in the same format as BABAS
+        list_of_yhat_joints = []
+        for yhats in joint_dict['yhat']:
+            res_yhats = yhats.reshape(-1, 2)
+            frame_dict = {}
+            for k, row in zip(config.joint_names, res_yhats):
+                frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
+            list_of_yhat_joints += [frame_dict]
+        with open(kinect_config['output_json_path'], 'w') as fout:
+            json.dump(list_of_yhat_joints, fout)
+        print 'JSON saved to: %s' % kinect_config['output_json_path']
 
 
 if __name__ == '__main__':
