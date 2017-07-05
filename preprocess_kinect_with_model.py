@@ -98,7 +98,7 @@ def main(model_dir, ckpt_name, run_tests=False):
     if kinect_config['find_bb']:
         frames, extents, frame_toss_index = test_tf_kinect.bb_monkey(
             frames,
-            kinect_config['time_threshold'])
+            time_threshold=kinect_config['time_threshold'])
     else:
         extents = []
         frame_toss_index = []
@@ -119,7 +119,7 @@ def main(model_dir, ckpt_name, run_tests=False):
     elif kinect_config['crop'] == 'static':
         frames = [test_tf_kinect.crop_aspect_and_resize_center(
             f, new_size=config.image_target_size[:2]) for f in frames]
-    elif kinect_config['static_and_crop'] == 'static':
+    elif kinect_config['crop'] == 'static_and_crop':
         frames = [test_tf_kinect.crop_to_shape(
             f,
             h0=kinect_config['h0'],
@@ -178,7 +178,9 @@ def main(model_dir, ckpt_name, run_tests=False):
         max_value=config.max_depth,
         min_value=config.min_depth,
         max_adj=kinect_config['max_adjust'],
-        min_adj=kinect_config['min_adjust'])
+        min_adj=kinect_config['min_adjust'],
+        kinect_max_adj=kinect_config['kinect_max_adjust'],
+        kinect_min_adj=kinect_config['kinect_min_adjust'])
 
     if kinect_config['use_tfrecords']:
         frame_pointer, max_array, it_frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(

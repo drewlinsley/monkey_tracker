@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import json
 import cPickle as pickle
 import numpy as np
 import tensorflow as tf
@@ -58,8 +59,8 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
         reuse_dict = np.load(npz_file)
         frame_toss_index = reuse_dict['frame_toss_index']
         extents = reuse_dict['extents']
-        max_array = reuse_dict['max_array']
-        use_kinect = reuse_dict['use_kinect']
+	max_array = reuse_dict['max_array']
+	use_kinect = reuse_dict['use_kinect']
         config.max_depth = max_array
         config.background_constant = config.max_depth * 2
         config.train_batch = 2
@@ -226,6 +227,11 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
+        # Also save json key/value dicts
+        list_of_yhat_joints = [{k: float(v) for k, v in zip(config.joint_names, yhats)} for yhats in joint_dict['yhat']]
+        with open(kinect_config['output_json_path'], 'w') as fout:
+            json.dump(list_of_yhat_joints, fout)
+        print 'JSON saved to: %s' % kinect_config['output_json_path'] 
 
 
 if __name__ == '__main__':
@@ -234,15 +240,13 @@ if __name__ == '__main__':
         "--model_dir",
         dest="model_dir",
         type=str,
-        default=None,  # '/media/data_cifs/monkey_tracking/results/' + \
-            # 'TrueDepth2MilStore/model_output/' + \
-            # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_27_18_36_53', # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_21_33_30',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
+        default=None,
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default=None,  # 'model_49000.ckpt-49000',
+        default=None,
         help='Name of TF checkpoint file.')
     parser.add_argument(
         "--test",

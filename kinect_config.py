@@ -4,7 +4,7 @@ import os
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'monkey_on_pole_3'
+        self.selected_video = 'monkey_in_cage_1'  # 'monkey_on_pole_3'
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -47,6 +47,8 @@ class kinectConfig():
             # Normalization
             'max_adjust': 0.5,
             'min_adjust': 2,
+            'kinect_max_adjust': 0.75,
+            'kinect_min_adjust': 1,
 
             # Kinect file settings
             'base_dir': '/media/data_cifs/monkey_tracking/',
@@ -122,13 +124,13 @@ class kinectConfig():
 
     def monkey_on_pole_3(self):
         container = self.defaults
-        container['start_frame'] = 150
-        container['end_frame'] = 35
-        container['time_threshold'] = 90
-        container['find_bb'] = True
-        container['low_threshold'] = 1400
-        container['high_threshold'] = 3350
-        container['cnn_threshold'] = 70
+        container['start_frame'] = 150  # Keep
+        container['end_frame'] = 35  # Keep
+        container['time_threshold'] = 80
+        container['find_bb'] = False  # Do not use when outputting moies
+        container['low_threshold'] = 1400  # Keep
+        container['high_threshold'] = 3350  # Keep
+        container['cnn_threshold'] = 70  # Keep
         container['crop_and_pad'] = False
         container['output_dir'] = '/home/drew/Desktop/'
         container['data_dir'] = os.path.join(
@@ -137,6 +139,9 @@ class kinectConfig():
         container['kinect_output_name'] = os.path.join(
             '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
             'monkey_on_pole_3.mp4')
+        container['output_json_path'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            'monkey_on_pole_3.json')
         container['predicted_output_name'] = os.path.join(
             container['data_dir'],
             'predicted_monkey_on_pole_3.mp4')
@@ -159,6 +164,8 @@ class kinectConfig():
         container['kinect_video'] = 'video.mp4'
         container['max_adjust'] = 1
         container['min_adjust'] = 1
+        container['kinect_max_adjust'] = 1
+        container['kinect_min_adjust'] = 1
         return container
 
     def monkey_in_cage_1(self):
@@ -174,13 +181,16 @@ class kinectConfig():
         container['output_dir'] = '/home/drew/Desktop/'
         container['data_dir'] = os.path.join(
             container['output_dir'],
-            'predicted_monkey_on_pole_3')
+            'predicted_monkey_in_cage_1')
         container['kinect_output_name'] = os.path.join(
             '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
             'monkey_in_cage_1.mp4')
+        container['output_json_path'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            'monkey_in_cage_1.json')
         container['predicted_output_name'] = os.path.join(
             container['data_dir'],
-            'predicted_monkey_on_pole_3.mp4')
+            'predicted_monkey_in_cage_1.mp4')
         container['gt_output_name'] = None
         container['output_npy_path'] = container['data_dir']
         container['tfrecord_name'] = os.path.join(

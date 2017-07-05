@@ -168,7 +168,6 @@ class monkeyConfig(object):
             'head',
             'neck'
             'abdomen',
-            'abdomen2',
             'left shoulder',
             'right shoulder',
             'left elbow',

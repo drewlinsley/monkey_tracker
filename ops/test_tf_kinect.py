@@ -36,7 +36,9 @@ def apply_cnn_masks_to_kinect(
             enumerate(zip(frames, image_masks)), total=len(frames)):
         m = resize(m, target_shape)
         pm = m > np.percentile(m.ravel(), prct)
+        pm = binary_dilation(pm)
         pm = binary_fill_holes(pm)
+        pm = binary_fill_holes(pm, structure=np.ones((5,5)))
         tf = f * pm
         if crop_and_pad:
             # Crop keeping the aspect ratio
@@ -70,15 +72,10 @@ def apply_cnn_masks_to_kinect(
     return of, crop_coordinates
 
 
-def gkern2(kernlen=10, nsig=6):
+def gkern2(img, kern=3):
     """Returns a 2D Gaussian kernel array."""
-
-    # create nxn zeros
-    inp = np.zeros((kernlen, kernlen))
-    # set element at the middle to one, a dirac delta
-    inp[kernlen//2, kernlen//2] = 1
-    # gaussian-smooth the dirac, resulting in a gaussian filter mask
-    return fi.gaussian_filter(inp, nsig)
+    kernel = np.ones((kern,kern),np.float32)/kern**2
+    return cv2.filter2D(img,-1,kernel)
 
 
 def normalize_frames(
@@ -88,14 +85,18 @@ def normalize_frames(
         min_max_norm=True,
         max_adj=1,
         min_adj=1,
+        kinect_max_adj=1,
+        kinect_min_adj=1,
         smooth=False):
     """ Need to transform kinect -> maya.
     To do this, for each frame, ID the foreground, then transform its depth to
     maya space."""
     print 'Adjusting max with: %s. Min with: %s.' % (max_adj, min_adj)
+    max_value = max_value * max_adj
+    min_value = min_value * min_adj
     delta = max_value - min_value
-    kinect_max = frames.max()  * max_adj
-    kinect_min = frames[frames > 0].min()  * min_adj
+    kinect_max = frames.max() * kinect_max_adj
+    kinect_min = frames[frames > 0].min() * kinect_min_adj
     trans_f = np.zeros((frames.shape))
     print 'Normalizing kinect to maya.'
     for idx, f in tqdm(enumerate(frames), total=len(frames)):
@@ -107,7 +108,7 @@ def normalize_frames(
             it_f = (normalized_f * (delta)) + min_value
         else:
             normalized_f = f / kinect_max
-            it_f = (normalized_f * (delta))
+            it_f = (normalized_f * max_value)
         if smooth:
             it_f = gkern2(it_f)
         it_f *= zeros_mask
@@ -363,7 +364,8 @@ def bb_monkey(
         max_sigma=100,
         threshold=.1,
         denoise=True,
-        time_threshold=95):
+        time_threshold=95,
+        crop_image=False):
     # Find "movement mask"
     print 'Deriving movement mask.'
     mm = np.sum(np.asarray(frames), axis=0).astype(np.float32)
@@ -379,31 +381,32 @@ def bb_monkey(
     xye = []
     for f in tqdm(frames, total=len(frames)):
         f *= mm  # Mask the image w/ movement
-        rprops = measure.regionprops(f)
-        areas = np.argsort([r.area for r in rprops])[::-1]
-        x0, y0 = rprops[areas[0]].centroid
-        x0 = int(x0)
-        y0 = int(y0)
-        minr = np.min([0, x0 - bb_size[0]])
-        minc = np.min([0, x0 - bb_size[1]])
-        maxr = np.max([f_size[0], x0 + bb_size[0]])
-        maxc = np.max([f_size[1], x0 + bb_size[1]])
-        f = f[minr:maxr, minc:maxc]
-        if denoise:
-            good_ones = f > 0
-            good_ones = binary_dilation(
-                binary_closing(
-                    binary_opening(good_ones), iterations=2),
-                iterations=2)
-            f *= good_ones
+        if crop_image:
+            rprops = measure.regionprops(f)
+            areas = np.argsort([r.area for r in rprops])[::-1]
+            x0, y0 = rprops[areas[0]].centroid
+            x0 = int(x0)
+            y0 = int(y0)
+            minr = np.min([0, x0 - bb_size[0]])
+            minc = np.min([0, x0 - bb_size[1]])
+            maxr = np.max([f_size[0], x0 + bb_size[0]])
+            maxc = np.max([f_size[1], x0 + bb_size[1]])
+            f = f[minr:maxr, minc:maxc]
+            if denoise:
+                good_ones = f > 0
+                good_ones = binary_dilation(
+                    binary_closing(
+                        binary_opening(good_ones), iterations=2),
+                    iterations=2)
+                f *= good_ones
 
+            xye += [{
+                'x': x0,
+                'y': y0,
+                'h': bb_size[0],
+                'w': bb_size[1]
+            }]
         crop_frames += [f]
-        xye += [{
-            'x': x0,
-            'y': y0,
-            'h': bb_size[0],
-            'w': bb_size[1]
-        }]
         # crop_frames += [resize(
         #     f,
         #     f_size,
