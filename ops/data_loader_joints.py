@@ -86,6 +86,8 @@ def get_feature_dict(aux_losses):
     }
     if 'occlusion' in aux_losses:
         feature_dict['occlusion'] = tf.FixedLenFeature([], tf.string)
+    if 'deconv_label' in aux_losses:
+        feature_dict['im_label'] = tf.FixedLenFeature([], tf.string)
     return feature_dict
 
 
@@ -267,6 +269,11 @@ def read_and_decode(
         occlusion = tf.decode_raw(features['occlusion'], tf.float32)
         occlusion.set_shape(label_shape // num_dims)
         output_data['occlusion'] = occlusion
+
+    if 'deconv_label' in aux_losses:
+        deconv_label = tf.decode_raw(features['im_label'], tf.float32)
+        deconv_label = tf.reshape(deconv_label, np.asarray(target_size))
+        output_data['deconv_label'] = deconv_label
 
     if 'pose' in aux_losses:
         res_size = label_shape // num_dims
@@ -549,6 +556,10 @@ def inputs(
             deconv = output_data['image']
             var_list += [deconv]
             keys += ['deconv']
+        if 'deconv_label' in aux_losses:
+            deconv_label = output_data['deconv_label']
+            var_list += [deconv_label]
+            keys += ['deconv_label']
         if shuffle:
             var_list = tf.train.shuffle_batch(
                 [tf.expand_dims(x, axis=0) for x in var_list],

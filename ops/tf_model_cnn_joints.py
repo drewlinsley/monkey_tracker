@@ -128,6 +128,8 @@ def train_and_eval(config):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
+            if 'deconv' in config.aux_losses or 'deconv_label' in config.aux_losses:
+                tf.summary.image('Deconv train', model.deconv)
 
             # Setup validation op
             if validation_data is not False:
@@ -137,8 +139,6 @@ def train_and_eval(config):
                 val_model.build(
                     rgb=val_data_dict['image'],
                     target_variables=val_data_dict)
-                if 'deconv' in config.aux_losses:
-                    tf.summary.image('Deconv train', model.deconv)
 
                 # Calculate validation accuracy
                 if 'label' in val_data_dict.keys():
@@ -150,7 +150,7 @@ def train_and_eval(config):
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
-                if 'deconv' in config.aux_losses:
+                if 'deconv' in config.aux_losses or 'deconv_label' in config.aux_losses:
                     tf.summary.image('Deconv val', val_model.deconv)
                 tf.summary.image(
                     'validation images',
@@ -306,6 +306,7 @@ def train_and_eval(config):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
+            import ipdb;ipdb.set_trace()
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(

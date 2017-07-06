@@ -125,17 +125,26 @@ def save_to_numpys(file_dict, path):
         print 'Saved: %s' % fp
 
 
-def create_movie(frames=None, output=None, files=None, framerate=30, crop_coors=None):
+def create_movie(
+        frames=None,
+        output=None,
+        files=None,
+        framerate=30,
+        crop_coors=None):
     print('Making movie...')
     if files is not None:
         frames = []
-        frames = np.asarray([misc.imread(fi) for fi in files])
+        frames = np.asarray([misc.imread(f) for f in files])
     f, a = plt.subplots(1, 1)
     f.tight_layout()
     artists = []
     plt.axis('off')
     a.set_xticklabels([])
     a.set_yticklabels([])
+    f.set_dpi(100)
+    DPI = f.get_dpi()
+    h, w = frames[0].shape
+    f.set_size_inches(w/float(DPI), h/float(DPI))
     for fr in frames:
         it_art = a.imshow(fr, cmap='Greys')
         artists += [[it_art]]
@@ -831,14 +840,18 @@ def overlay_joints_frames(
     colors, joints, num_joints = monkey_mosaic.get_colors()
     files = []
     frames = joint_dict['im']
+    h, w = frames[0].shape
     joint_predictions = joint_dict[target_key]
     for idx, (fr, jp) in tqdm(
             enumerate(zip(frames, joint_predictions)), total=len(frames)):
         f, ax = plt.subplots()
-        plt.axis('off')
+        f.set_dpi(100)
+        DPI = f.get_dpi()
+        f.set_size_inches(w/float(DPI), h/float(DPI))
         ax.set_xticklabels([])
         ax.set_yticklabels([])
-        ax.set_aspect('equal')
+        plt.axis('off')
+        f.set_tight_layout(True)
         xy_coors = monkey_mosaic.xyz_vector_to_xy(jp)
         if len(fr.shape) > 2:
             im = fr[:, :, 0]

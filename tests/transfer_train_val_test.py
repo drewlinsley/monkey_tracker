@@ -258,6 +258,8 @@ def train_and_eval(
                     train_out_dict['yhat'] *= normalize_vec
                     train_out_dict['ytrue'] *= normalize_vec
                     val_out_dict['val_pred'] *= normalize_vec
+                train_out_dict['yhat'][train_out_dict['yhat'] < 0] = 0
+                val_out_dict['val_pred'][val_out_dict['val_pred'] < 0] = 0
                 if return_coors:
                     joint_predictions += [train_out_dict['yhat']]
                     joint_gt += [train_out_dict['ytrue']]

@@ -99,7 +99,6 @@ class model_struct:
             layer_structure,
             tower_name='highres_conv')
 
-        import ipdb;ipdb.set_trace()
         # Deconv to full image
         layer_structure = [
             {
@@ -110,8 +109,14 @@ class model_struct:
             },
             {
                 'layers': ['deconv'],
-                'weights': [1],
+                'weights': ['skip'],  # [output_shape],
                 'names': ['up-conv2'],
+                'filter_size': [4],
+            },
+            {
+                'layers': ['deconv'],
+                'weights': [1],
+                'names': ['up-conv1'],
                 'filter_size': [4]
             },
         ]
@@ -319,13 +324,14 @@ class model_struct:
             shape=None,
             padding='SAME'):
 
-        if isinstance(out_channels, basestring):
-            skip_layer = self[layer_name.strip('up-')]
-            out_channels = int(skip.layer.get_shape()[-1])
-        else:
-            skip_layer = None
         pool_layer = 'pool%s' % re.search('\d+', layer_name).group()
         in_channels = bottom.get_shape()[3].value
+        if isinstance(out_channels, basestring):
+            skip_layer = self[pool_layer]
+            out_channels = int(in_channels)
+        else:
+            skip_layer = None
+
         with tf.variable_scope(layer_name):
 
             if shape is None:

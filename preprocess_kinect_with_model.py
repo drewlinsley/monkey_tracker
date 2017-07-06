@@ -206,7 +206,19 @@ def main(model_dir, ckpt_name, run_tests=False):
             swap_datasets=False,
             working_on_kinect=use_kinect,
             return_coors=True)
+        # Also save json key/value dicts in the same format as BABAS
+        list_of_yhat_joints = []
+        for yhats in joint_dict['yhat']:
+            res_yhats = yhats.reshape(-1, 2)
+            frame_dict = {}
+            for k, row in zip(config.joint_names, res_yhats):
+                frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
+            list_of_yhat_joints += [frame_dict]
+        with open(kinect_config['output_json_path'], 'w') as fout:
+            json.dump(list_of_yhat_joints, fout)
+        print 'JSON saved to: %s' % kinect_config['output_json_path']
     else:
+        raise RuntimeError('Route is not currently implemented.')
         # Pass each frame through the CNN
         joint_dict = test_tf_kinect.process_kinect_tensorflow(
             model_ckpt=model_ckpt,
@@ -251,19 +263,6 @@ def main(model_dir, ckpt_name, run_tests=False):
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
-
-        # Also save json key/value dicts in the same format as BABAS
-        list_of_yhat_joints = []
-        for yhats in joint_dict['yhat']:
-            res_yhats = yhats.reshape(-1, 2)
-            frame_dict = {}
-            for k, row in zip(config.joint_names, res_yhats):
-                frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
-            list_of_yhat_joints += [frame_dict]
-        with open(kinect_config['output_json_path'], 'w') as fout:
-            json.dump(list_of_yhat_joints, fout)
-        print 'JSON saved to: %s' % kinect_config['output_json_path']
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
