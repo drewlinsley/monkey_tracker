@@ -137,15 +137,21 @@ def train_and_eval(config):
                 val_model.build(
                     rgb=val_data_dict['image'],
                     target_variables=val_data_dict)
+                if 'deconv' in config.aux_losses:
+                    tf.summary.image('Deconv train', model.deconv)
 
                 # Calculate validation accuracy
                 if 'label' in val_data_dict.keys():
                     # val_score = tf.nn.l2_loss(
                     #     val_model.output - val_data_dict['label'])
-                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
+                    val_score = tf.reduce_mean(
+                        tf_fun.l2_loss(
+                            val_model.output, val_data_dict['label']))
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
+                if 'deconv' in config.aux_losses:
+                    tf.summary.image('Deconv val', val_model.deconv)
                 tf.summary.image(
                     'validation images',
                     tf.cast(val_data_dict['image'], tf.float32))
