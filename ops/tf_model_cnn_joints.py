@@ -172,7 +172,6 @@ def train_and_eval(config):
                 loss_list += [tf.nn.l2_loss(
                     model['output'] - train_data_dict['label'])]
             loss_label += ['combined head']
-
             for al in loss_helper.potential_aux_losses():
                 loss_list, loss_label = loss_helper.get_aux_losses(
                     loss_list=loss_list,

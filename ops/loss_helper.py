@@ -3,62 +3,68 @@ import yellowfin
 
 
 def potential_aux_losses():
- return [
-    {
-        'occlusion': {
-            'y_name': 'occlusion',
-            'model_name': 'occlusion',
-            'loss_function': 'sigmoid',
-            'var_label': 'occlusionhead',
-            'lambda': 0.1
-            }
-    },
-    {
-        'z': {
-            'y_name': 'z',
-            'model_name': 'z',
-            'loss_function': 'l2',
-            'var_label': 'z head',
-            'lambda': 0.01
-            }
-    },
-    {
-        'size': {
-            'y_name': 'size',
-            'model_name': 'size',
-            'loss_function': 'l2',
-            'var_label': 'size head',
-            'lambda': 0.1
-            }
-    },
-    {
-        'pose': {
-            'y_name': 'pose',
-            'model_name': 'pose',
-            'loss_function': 'l2',
-            'var_label': 'pose head',
-            'lambda': 0.1
-            }
-    },
-    {
-        'deconv': {
-            'y_name': 'image',
-            'model_name': 'deconv',
-            'loss_function': 'l2',
-            'var_label': 'deconv head',
-            'lambda': None
-            }
-    },
-    {
-        'im_label': {
-            'y_name': 'im_label',
-            'model_name': 'rgb',
-            'loss_function': 'l2',
-            'var_label': 'deconv head',
-            'lambda': None
-            }
-    }
-    ]
+    return [
+        {
+            'occlusion': {
+                'y_name': 'occlusion',
+                'model_name': 'occlusion',
+                'loss_function': 'sigmoid',
+                'var_label': 'occlusionhead',
+                'lambda': 0.1,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'z': {
+                'y_name': 'z',
+                'model_name': 'z',
+                'loss_function': 'l2',
+                'var_label': 'z head',
+                'lambda': 0.01,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'size': {
+                'y_name': 'size',
+                'model_name': 'size',
+                'loss_function': 'l2',
+                'var_label': 'size head',
+                'lambda': 0.1,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'pose': {
+                'y_name': 'pose',
+                'model_name': 'pose',
+                'loss_function': 'l2',
+                'var_label': 'pose head',
+                'lambda': 0.1,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'deconv': {
+                'y_name': 'image',
+                'model_name': 'deconv',
+                'loss_function': 'l2',
+                'var_label': 'deconv head',
+                'lambda': None,
+                'aux_fun': 'resize'
+                }
+        },
+        {
+            'im_label': {
+                'y_name': 'im_label',
+                'model_name': 'rgb',
+                'loss_function': 'l2',
+                'var_label': 'deconv head',
+                'lambda': None,
+                'aux_fun': 'resize'
+                }
+        }
+        ]
 
 
 def get_aux_losses(
@@ -74,6 +80,10 @@ def get_aux_losses(
         output_label = aux_dict['var_label']
         loss_function = aux_dict['loss_function']
         reg_weight = aux_dict['lambda']
+        aux_fun = aux_dict['aux_fun']
+        if aux_fun == 'resize':
+            y = tf.image.resize_bilinear(
+                y, [int(x) for x in yhat.get_shape()[1:3]])
         if loss_function == 'sigmoid':
             loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(

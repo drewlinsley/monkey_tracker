@@ -545,6 +545,10 @@ def inputs(
             size = output_data['size']
             var_list += [size]
             keys += ['size']
+        if 'deconv' in aux_losses:
+            deconv = output_data['image']
+            var_list += [deconv]
+            keys += ['deconv']
         if shuffle:
             var_list = tf.train.shuffle_batch(
                 [tf.expand_dims(x, axis=0) for x in var_list],

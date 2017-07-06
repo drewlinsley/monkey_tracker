@@ -195,6 +195,7 @@ def main(model_dir, ckpt_name, run_tests=False):
                     frames=frames,
                     output=kinect_config['kinect_output_name'],
                     crop_coors=crop_coors)
+        print 'Now passing processed frames through selected CNN.'
         joint_dict = train_and_eval(
             frame_pointer,
             frame_pointer,
@@ -223,11 +224,11 @@ def main(model_dir, ckpt_name, run_tests=False):
             files=overlaid_pred,
             output=kinect_config['predicted_output_name'])
 
-    if len(joint_dict['ytrue']) > 0:
-        overlaid_pred = test_tf_kinect.overlay_joints_frames(
-            joint_dict=joint_dict,
-            output_folder=kinect_config['gt_image_folder'],
-            target_key='ytrue')
+    # if len(joint_dict['ytrue']) > 0:
+    #     overlaid_pred = test_tf_kinect.overlay_joints_frames(
+    #         joint_dict=joint_dict,
+    #         output_folder=kinect_config['gt_image_folder'],
+    #         target_key='ytrue')
         # Create overlay movie if desired
         # if kinect_config['gt_output_name'] is not None:
             # test_tf_kinect.create_movie(
