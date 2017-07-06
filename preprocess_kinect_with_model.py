@@ -19,6 +19,8 @@ def main(model_dir, ckpt_name, run_tests=False):
     passing kinect videos through a trained model'''
     # Find config from the trained model
     config = monkeyConfig()
+    if config.resume_from_checkpoint is None:
+        raise RuntimeError('You must pass a trained checkpoint to this script!')
     if model_dir is None:
         model_dir = os.path.join(config.model_output, config.segmentation_model_name)
     config.model_name = config.segmentation_model_name
