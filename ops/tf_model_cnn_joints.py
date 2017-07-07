@@ -84,7 +84,9 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background=config.augment_background)
+            augment_background=config.augment_background,
+            maya_joint_labels=config.labels)
+        train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
             tfrecord_file=validation_data,
@@ -107,7 +109,9 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background=config.augment_background)
+            augment_background=config.augment_background,
+            maya_joint_labels=config.labels)
+        val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
         if config.selected_joints is not None:
@@ -128,8 +132,13 @@ def train_and_eval(config):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
-            if 'deconv' in config.aux_losses or 'deconv_label' in config.aux_losses:
+            if 'deconv' in config.aux_losses:
                 tf.summary.image('Deconv train', model.deconv)
+            if 'deconv_label' in config.aux_losses:
+                tf.summary.image(
+                    'Deconv label train',
+                    tf.expand_dims(
+                        tf.cast(tf.argmax(model.deconv, axis=3), tf.float32), 3))
 
             # Setup validation op
             if validation_data is not False:
@@ -150,8 +159,15 @@ def train_and_eval(config):
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
-                if 'deconv' in config.aux_losses or 'deconv_label' in config.aux_losses:
+                if 'deconv' in config.aux_losses:
                     tf.summary.image('Deconv val', val_model.deconv)
+                if 'deconv_label' in config.aux_losses:
+                    tf.summary.image(
+                        'Deconv label train',
+                        tf.expand_dims(
+                            tf.cast(
+                                tf.argmax(val_model.deconv, axis=3),
+                                tf.float32), 3))
                 tf.summary.image(
                     'validation images',
                     tf.cast(val_data_dict['image'], tf.float32))
@@ -306,7 +322,6 @@ def train_and_eval(config):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
-            import ipdb;ipdb.set_trace()
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(

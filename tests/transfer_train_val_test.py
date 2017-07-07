@@ -105,7 +105,9 @@ def train_and_eval(
             working_on_kinect=working_on_kinect,
             shuffle=False,
             num_threads=1,
-            augment_background=config.augment_background)
+            augment_background=config.augment_background,
+            maya_joint_labels=config.labels)
+        train_data_dict['deconv_label_size'] = len(config.labels)
 
         print 'Using validation dataset: %s' % validation_data
         val_data_dict = inputs(
@@ -132,7 +134,9 @@ def train_and_eval(
             working_on_kinect=working_on_kinect,
             shuffle=False,
             num_threads=1,
-            augment_background=config.augment_background)
+            augment_background='constant',
+            maya_joint_labels=config.labels)
+        val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
         if config.selected_joints is not None:

@@ -129,9 +129,8 @@ def main(model_dir, ckpt_name, run_tests=False):
             h1=kinect_config['h1'],
             w0=kinect_config['w0'],
             w1=kinect_config['w1']) for f in frames]
-        frames = [test_tf_kinect.pad_image_to_shape(
-            f,
-            config.image_target_size[:2]) for f in frames]
+        frames = [test_tf_kinect.crop_aspect_and_resize_center(
+            f, new_size=config.image_target_size[:2]) for f in frames]
 
     # # Create tfrecords of kinect data
     frames = np.asarray(frames)

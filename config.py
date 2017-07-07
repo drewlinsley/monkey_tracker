@@ -25,32 +25,18 @@ class monkeyConfig(object):
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = False
         if use_checkpoint:
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # OK
+            self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # OK
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # WORSE THAN 1
-            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # WORSE THAN 1
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # WORSE THAN 1
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_12'  # WORSE THAN 1
             # Cluster:
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_59/model_169000.ckpt-169000'  # As good as 2 above
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_56/model_185000.ckpt-185000' # As good as 3 above
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_16'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_31'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_13'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_22'
 
-
-
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_25'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_22'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_19'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_08'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_16'
-
-
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_25'  # pgood
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_22'  # pgood
 
             # Not ready:
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31'  # Pretty good... on par w/ 1
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_18_22_23'  # Pretty good... on par w/ 1
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_31'
+            # 
             self.ckpt_file = None  # 
             self.resume_from_checkpoint = os.path.join(
                 self.model_output,
