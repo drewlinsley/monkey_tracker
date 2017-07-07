@@ -10,20 +10,22 @@ class model_struct:
     """
 
     def __init__(
-                self, vgg16_npy_path=None, trainable=True,
+                self, weight_npy_path=None, trainable=True,
                 fine_tune_layers=None):
-        if vgg16_npy_path is not None: 
-            print 'Ignoring vgg16_npy_path (not using a vgg!).'
-        self.data_dict = None
+        if weight_npy_path is not None:
+            self.data_dict = np.load(weight_npy_path, encoding='latin1').item()
+        else:
+            self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
- 
+        self.joint_label_output_keys = []
+
     def __getitem__(self, name):
         return getattr(self, name)
 
-    def __contains__(self, name): 
+    def __contains__(self, name):
         return hasattr(self, name)
 
     def build(
@@ -32,8 +34,7 @@ class model_struct:
             target_variables=None,
             train_mode=None,
             batchnorm=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4'],
-            lr_fe_keys=['lr_pool2', 'lr_pool3']
+            hr_fe_keys=['pool2', 'pool3'],
             ):
         """
         load variable from npy to build the VGG
@@ -57,6 +58,14 @@ class model_struct:
                 occlusion_shape = int(
                     target_variables['occlusion'].get_shape()[-1])
 
+        if 'z' in target_variables.keys():
+            z_shape = int(
+                target_variables['z'].get_shape()[-1])
+
+        if 'size' in target_variables.keys():
+            size_shape = int(
+                target_variables['size'].get_shape()[-1])
+
         if 'pose' in target_variables.keys():
             if len(target_variables['pose'].get_shape()) == 1:
                 pose_shape = 1
@@ -65,81 +74,39 @@ class model_struct:
                     target_variables['pose'].get_shape()[-1])
 
         input_bgr = tf.identity(rgb, name="lrp_input")
-
-        # Initial convolutional
         layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [64, 64, None],
+                'weights': [32, 32, None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
                 'filter_size': [5, 5, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
+                'weights': [32, 32, None],
                 'names': ['conv2_1', 'conv2_2', 'pool2'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
+                'weights': [64, 64, None],
                 'names': ['conv3_1', 'conv3_2', 'pool3'],
                 'filter_size': [3, 3, None]
             }]
+
         output_layer = self.create_conv_tower(
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
-        if train_mode is not None:
-            output_layer = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(output_layer, 0.5),
-                lambda: output_layer)
-        flat_output_layer = tf.contrib.layers.flatten(
-            output_layer, 'output_layer')
-        self.flat_output_1 = self.fc_layer(
-            flat_output_layer,
-            int(flat_output_layer.get_shape()[-1]),
-            4096,
-            'flat_output_1')
-        if train_mode is not None:
-            flat_output_layer = tf.cond(
-                train_mode,
-                lambda: tf.nn.dropout(flat_output_layer, 0.5),
-                lambda: output_layer)
-        self.flat_output_2 = self.fc_layer(
-            self.flat_output_1,
-            int(self.flat_output_1.get_shape()[-1]),
-            4096,
-            'flat_output_2')
-
-        if 'label' in target_variables.keys():
-            self.output = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
-                output_shape,
-                "output")
-            self.joint_label_output_keys = ['output']
-
-
-        if 'occlusion' in target_variables.keys():
-            # Occlusion head
-            self.occlusion = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
-                occlusion_shape,
-                "occlusion")
-        self.data_dict = None
-
-        if 'pose' in target_variables.keys():
-            # Occlusion head
-            self.pose = self.fc_layer(
-                self.flat_output_2,
-                int(self.flat_output_2.get_shape()[-1]),
-                pose_shape,
-                "pose")
 
         # Deconv to full image
+
+        if 'deconv_label' in target_variables.keys():
+            # Set deconv to a n-parts classification layers
+            deconv_output = occlusion_shape
+        else:
+            deconv_output = 1
+
         layer_structure = [
             {
                 'layers': ['deconv'],
@@ -149,15 +116,109 @@ class model_struct:
             },
             {
                 'layers': ['deconv'],
-                'weights': [1],
+                'weights': [deconv_output],
                 'names': ['up-conv1'],
                 'filter_size': [4]
             },
-            ]
+        ]
+
         self.deconv = self.create_conv_tower(
             output_layer,
             layer_structure,
             tower_name='highres_conv')
+
+        # Rescale feature maps to the largest in the hr_fe_keys
+        resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
+        resize_w = np.max([int(self[k].get_shape()[2]) for k in hr_fe_keys])
+        new_size = np.asarray([resize_h, resize_w])
+        high_fe_layers = [tf.image.resize_bilinear(
+                self[x], new_size) for x in hr_fe_keys]
+        self.high_feature_encoder = tf.concat(high_fe_layers, 3)
+
+        # High-res 1x1 X 2
+        self.high_feature_encoder_1x1_0 = self.conv_layer(
+            self.high_feature_encoder,
+            int(self.high_feature_encoder.get_shape()[-1]),
+            256,
+            "high_feature_encoder_1x1_0",
+            filter_size=1)
+        if train_mode is not None:
+            self.high_feature_encoder_1x1_0 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(
+                    self.high_feature_encoder_1x1_0, 0.5),
+                lambda: self.high_feature_encoder_1x1_0)
+        self.high_1x1_0_pool = self.max_pool(
+            self.high_feature_encoder_1x1_0,
+            'high_1x1_0_pool')
+
+        self.high_feature_encoder_1x1_1 = self.conv_layer(
+            self.high_1x1_0_pool,
+            int(self.high_1x1_0_pool.get_shape()[-1]),
+            128,
+            "high_feature_encoder_1x1_1",
+            filter_size=1)
+        if train_mode is not None:
+            self.high_feature_encoder_1x1_1 = tf.cond(
+                train_mode,
+                lambda: tf.nn.dropout(self.high_feature_encoder_1x1_1, 0.5),
+                lambda: self.high_feature_encoder_1x1_1)
+        self.high_1x1_1_pool = tf.contrib.layers.flatten(
+            self.max_pool(self.high_feature_encoder_1x1_1, 'high_1x1_1_pool'))
+
+        if 'label' in target_variables.keys():
+            self.output = self.fc_layer(
+                self.high_1x1_1_pool,
+                int(self.high_1x1_1_pool.get_shape()[-1]),
+                output_shape,
+                'output')
+            self.joint_label_output_keys += ['output']
+
+        if 'size' in target_variables.keys():
+            self.size = self.fc_layer(
+                self.high_1x1_1_pool,
+                int(self.high_1x1_1_pool.get_shape()[-1]),
+                size_shape,
+                'size')
+
+        if 'z' in target_variables.keys():
+            # z-dim head -- label + activations
+            self.z_scores = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_1_pool,
+                        int(self.high_1x1_1_pool.get_shape()[-1]),
+                        z_shape,
+                        'z_sc')
+                )
+            out_z = tf.concat([self.z_scores, self.output], axis=1)
+            self.z = tf.squeeze(
+                    self.fc_layer(
+                        out_z,
+                        int(out_z.get_shape()[-1]),
+                        z_shape,
+                        'z')
+                )
+            self.joint_label_output_keys += ['z']
+
+        if 'occlusion' in target_variables.keys():
+            # Occlusion head
+            self.occlusion = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_1_pool,
+                        int(self.high_1x1_1_pool.get_shape()[-1]),
+                        occlusion_shape,
+                        "occlusion")
+                    )
+
+        if 'pose' in target_variables.keys():
+            # Occlusion head
+            self.pose = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_1_pool,
+                        int(self.high_1x1_1_pool.get_shape()[-1]),
+                        pose_shape,
+                        "pose")
+                )
 
         self.data_dict = None
 
@@ -237,14 +298,9 @@ class model_struct:
             strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def conv_layer(
-            self,
-            bottom,
-            in_channels,
-            out_channels,
-            name,
-            filter_size=3,
-            batchnorm=None,
-            stride=[1, 1, 1, 1]):
+                    self, bottom, in_channels,
+                    out_channels, name, filter_size=3, batchnorm=None,
+                    stride=[1, 1, 1, 1]):
         with tf.variable_scope(name):
             filt, conv_biases = self.get_conv_var(
                 filter_size, in_channels, out_channels, name)
@@ -252,6 +308,7 @@ class model_struct:
             conv = tf.nn.conv2d(bottom, filt, stride, padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
             relu = tf.nn.relu(bias)
+
             if batchnorm is not None:
                 if name in batchnorm:
                     relu = self.batchnorm(relu)
@@ -329,7 +386,8 @@ class model_struct:
 
     def upsample_filt(size):
         """
-        Make a 2D bilinear kernel suitable for upsampling of the given (h, w) size.
+        Make a 2D bilinear kernel suitable for upsampling
+        of the given (h, w) size.
         """
         factor = (size + 1) // 2
         if size % 2 == 1:
@@ -350,25 +408,12 @@ class model_struct:
             return fc
 
     def get_conv_var(
-            self,
-            filter_size,
-            in_channels,
-            out_channels,
-            name,
-            init_type='xavier'):
+            self, filter_size, in_channels, out_channels,
+            name, init_type='xavier'):
         if init_type == 'xavier':
             weight_init = [
                 [filter_size, filter_size, in_channels, out_channels],
                 tf.contrib.layers.xavier_initializer_conv2d(uniform=False)]
-        elif init_type == 'bilinear':
-            weight_init = np.zeros((
-                filter_size,
-                filter_size,
-                in_channels,
-                out_channels), dtype=np.float32)
-            upsample_kernel = self.upsample_filt(filter_size)
-            for i in xrange(out_channels):
-                weight_init[:, :, i, i] = upsample_kernel
         else:
             weight_init = tf.truncated_normal(
                 [filter_size, filter_size, in_channels, out_channels],
@@ -430,7 +475,7 @@ class model_struct:
                 num_files += 1
                 for i, item in enumerate(tf.split(var, 8, 0)):
                     # print(i)
-                    name = 'fc6-'+ str(i)
+                    name = 'fc6-' + str(i)
                     if name not in data_dict.keys():
                         data_dict[name] = {}
                     data_dict[name][idx] = sess.run(item)
@@ -438,7 +483,7 @@ class model_struct:
                     data_dict.clear()
                     gc.collect()
                     num_files += 1
-            else :
+            else:
                 var_out = sess.run(var)
                 if name not in data_dict.keys():
                     data_dict[name] = {}

@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import json
 import cPickle as pickle
 import numpy as np
 import tensorflow as tf
@@ -18,6 +19,8 @@ def main(model_dir, ckpt_name, run_tests=False):
     passing kinect videos through a trained model'''
     # Find config from the trained model
     config = monkeyConfig()
+    if config.resume_from_checkpoint is None:
+        raise RuntimeError('You must pass a trained checkpoint to this script!')
     if model_dir is None:
         model_dir = os.path.join(config.model_output, config.segmentation_model_name)
     config.model_name = config.segmentation_model_name
@@ -41,9 +44,9 @@ def main(model_dir, ckpt_name, run_tests=False):
     if not run_tests:
         monkey_files = glob(
             os.path.join(
-                config.kinect_directory,
-                config.kinect_project,
-                '*%s' % config.kinect_file_ext))
+                kinect_config['kinect_directory'],
+                kinect_config['kinect_project'],
+                '*%s' % kinect_config['kinect_file_ext']))
         monkey_files = sorted(
             monkey_files, key=lambda name: int(
                 re.search('\d+', name.split('/')[-1]).group()))
@@ -96,7 +99,9 @@ def main(model_dir, ckpt_name, run_tests=False):
             mog_bg_threshold=kinect_config['bgsub_mog_bg_theshold'])
 
     if kinect_config['find_bb']:
-        frames, extents, frame_toss_index = test_tf_kinect.bb_monkey(frames, kinect_config['time_threshold'])
+        frames, extents, frame_toss_index = test_tf_kinect.bb_monkey(
+            frames,
+            time_threshold=kinect_config['time_threshold'])
     else:
         extents = []
         frame_toss_index = []
@@ -117,22 +122,21 @@ def main(model_dir, ckpt_name, run_tests=False):
     elif kinect_config['crop'] == 'static':
         frames = [test_tf_kinect.crop_aspect_and_resize_center(
             f, new_size=config.image_target_size[:2]) for f in frames]
+    elif kinect_config['crop'] == 'static_and_crop':
+        frames = [test_tf_kinect.mask_to_shape(
+            f,
+            h0=kinect_config['h0'],
+            h1=kinect_config['h1'],
+            w0=kinect_config['w0'],
+            w1=kinect_config['w1']) for f in frames]
+        frames = [test_tf_kinect.pad_image_to_shape(
+            f,
+            config.image_target_size[:2]) for f in frames]
 
-    # Create tfrecords of kinect data
-    if not run_tests:
-        # # Transform kinect data to Maya data
-        # frames, frame_toss_index = test_tf_kinect.transform_to_renders(
-        #     frames=frames,
-        #     config=config)
-        # use_kinect = True
-        # Transform kinect data to Maya data
-        frames, frame_toss_index = test_tf_kinect.rescale_kinect_to_maya(
-            frames=frames,
-            config=config)
-        use_kinect = False
-    else:
-        use_kinect = False
-
+    # # Create tfrecords of kinect data
+    frames = np.asarray(frames)
+    frame_toss_index = []
+    use_kinect = False
     if kinect_config['mask_with_model']:    
         frame_pointer, max_array, it_frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
             depth_files=frames,
@@ -143,7 +147,7 @@ def main(model_dir, ckpt_name, run_tests=False):
             frame_pointer,
             frame_pointer,
             config,
-            uniform_batch_size=10,
+            uniform_batch_size=None,
             swap_datasets=False,
             working_on_kinect=use_kinect,
             return_coors=False,
@@ -155,13 +159,18 @@ def main(model_dir, ckpt_name, run_tests=False):
             frames=frames,
             image_masks=all_masks,
             crop_and_pad=kinect_config['crop_and_pad'],
-            obj_size=kinect_config['small_object_size'])
+            obj_size=kinect_config['small_object_size'],
+            prct=kinect_config['cnn_threshold'])
 
     # Normalize frames
     frames = test_tf_kinect.normalize_frames(
         frames=frames,
         max_value=config.max_depth,
-        min_value=config.min_depth)
+        min_value=config.min_depth,
+        max_adj=kinect_config['max_adjust'],
+        min_adj=kinect_config['min_adjust'],
+        kinect_max_adj=kinect_config['kinect_max_adjust'],
+        kinect_min_adj=kinect_config['kinect_min_adjust'])
 
     if kinect_config['use_tfrecords']:
         frame_pointer, max_array, it_frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
@@ -186,17 +195,30 @@ def main(model_dir, ckpt_name, run_tests=False):
             if kinect_config['kinect_output_name'] is not None:
                 test_tf_kinect.create_movie(
                     frames=frames,
-                    output=kinect_config['kinect_output_name'])
-            return
+                    output=kinect_config['kinect_output_name'],
+                    crop_coors=crop_coors)
+        print 'Now passing processed frames through selected CNN.'
         joint_dict = train_and_eval(
             frame_pointer,
             frame_pointer,
             config,
-            uniform_batch_size=10,
+            uniform_batch_size=None,
             swap_datasets=False,
             working_on_kinect=use_kinect,
             return_coors=True)
+        # Also save json key/value dicts in the same format as BABAS
+        list_of_yhat_joints = []
+        for yhats in joint_dict['yhat']:
+            res_yhats = yhats.reshape(-1, 2)
+            frame_dict = {}
+            for k, row in zip(config.joint_names, res_yhats):
+                frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
+            list_of_yhat_joints += [frame_dict]
+        with open(kinect_config['output_json_path'], 'w') as fout:
+            json.dump(list_of_yhat_joints, fout)
+        print 'JSON saved to: %s' % kinect_config['output_json_path']
     else:
+        raise RuntimeError('Route is not currently implemented.')
         # Pass each frame through the CNN
         joint_dict = test_tf_kinect.process_kinect_tensorflow(
             model_ckpt=model_ckpt,
@@ -205,7 +227,7 @@ def main(model_dir, ckpt_name, run_tests=False):
         frame_toss_index = []
 
     # Overlay joint predictions onto frames
-    tf_fun.make_dir(monkey_on_pole_3['prediction_image_folder'])
+    tf_fun.make_dir(kinect_config['prediction_image_folder'])
     overlaid_pred = test_tf_kinect.overlay_joints_frames(
         joint_dict=joint_dict,
         output_folder=kinect_config['prediction_image_folder'])
@@ -216,11 +238,11 @@ def main(model_dir, ckpt_name, run_tests=False):
             files=overlaid_pred,
             output=kinect_config['predicted_output_name'])
 
-    if len(joint_dict['ytrue']) > 0:
-        overlaid_pred = test_tf_kinect.overlay_joints_frames(
-            joint_dict=joint_dict,
-            output_folder=kinect_config['gt_image_folder'],
-            target_key='ytrue')
+    # if len(joint_dict['ytrue']) > 0:
+    #     overlaid_pred = test_tf_kinect.overlay_joints_frames(
+    #         joint_dict=joint_dict,
+    #         output_folder=kinect_config['gt_image_folder'],
+    #         target_key='ytrue')
         # Create overlay movie if desired
         # if kinect_config['gt_output_name'] is not None:
             # test_tf_kinect.create_movie(
@@ -241,7 +263,6 @@ def main(model_dir, ckpt_name, run_tests=False):
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -266,4 +287,3 @@ if __name__ == '__main__':
         help='Check to see the pipeline works for our renders before transfering to Kinect.')
     args = parser.parse_args()
     main(**vars(args))
-

@@ -1,39 +1,66 @@
-from os.path import join as pjoin
+import os
 
-
-#  Main configuration file for monkey tracking
 class monkeyConfig(object):
     def __init__(self): 
+        '''Main config file for monkey tracking'''
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = pjoin(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.image_dir = pjoin(self.base_dir, 'batches', 'TrueDepth2MilStore') #pjoin(self.base_dir, 'walk-all-png') 
-        self.depth_dir = pjoin(self.image_dir, 'depth', 'true_depth')
-        self.label_dir = pjoin(self.image_dir, 'labels', 'joint_coords')
-        self.npy_dir = pjoin(self.base_dir, 'batches', 'test')  # Output for numpys
-        self.pixel_label_dir = pjoin(self.image_dir, 'labels', 'pixel_joint_coords')  # 'joint_coords')
-        self.occlusion_dir = pjoin(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
-        self.im_label_dir = pjoin(self.image_dir, 'labels', 'npyLabels')
+        self.results_dir = os.path.join(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.image_dir = os.path.join(self.base_dir, 'batches', 'TrueDepth2MilStore') #os.path.join(self.base_dir, 'walk-all-png') 
+        self.depth_dir = os.path.join(self.image_dir, 'depth', 'true_depth')
+        self.label_dir = os.path.join(self.image_dir, 'labels', 'joint_coords')
+        self.npy_dir = os.path.join(self.base_dir, 'batches', 'test')  # Output for numpys
+        self.pixel_label_dir = os.path.join(self.image_dir, 'labels', 'pixel_joint_coords')  # 'joint_coords')
+        self.occlusion_dir = os.path.join(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
+        self.im_label_dir = os.path.join(self.image_dir, 'labels', 'npyLabels')
         self.depth_regex = '*[0-9].npy'
         self.image_extension = '.npy'
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
-        self.model_output = pjoin(self.results_dir, 'model_output') 
-        self.tfrecord_dir = pjoin(self.image_dir, 'tfrecords_fast')
-        self.train_summaries = pjoin(self.results_dir, 'summaries')
-        self.train_checkpoint = pjoin(self.results_dir, 'checkpoints')
-        self.weight_npy_path = None  # pjoin('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = True
+        self.model_output = os.path.join(self.results_dir, 'model_output') 
+        self.tfrecord_dir = os.path.join(self.image_dir, 'tfrecords_fast')
+        self.train_summaries = os.path.join(self.results_dir, 'summaries')
+        self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
+        self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
+        use_checkpoint = False
         if use_checkpoint:
-            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_13_39_01'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_22_40_30'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # OK
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # WORSE THAN 1
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # WORSE THAN 1
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_12'  # WORSE THAN 1
+            # Cluster:
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_59/model_169000.ckpt-169000'  # As good as 2 above
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_02_19_24_56/model_185000.ckpt-185000' # As good as 3 above
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_16'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_31'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_13'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_16_46_22'
+
+
+
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_25'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_22'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_19'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_08'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_16'
+
+
+
+            # Not ready:
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31'  # Pretty good... on par w/ 1
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_04_18_22_23'  # Pretty good... on par w/ 1
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_31'
             self.ckpt_file = None  # 
-            self.resume_from_checkpoint = pjoin(
+            self.resume_from_checkpoint = os.path.join(
                 self.model_output,
                 self.model_name)
-            self.saved_config = '%s.npy' % self.resume_from_checkpoint
+            if 'ckpt' in self.resume_from_checkpoint.split('/')[-1]:
+                self.saved_config = '%s.npy' % os.path.sep.join(self.resume_from_checkpoint.split('/')[:-1])
+            else:
+                self.saved_config = '%s.npy' % self.resume_from_checkpoint
             self.segmentation_model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'
-            self.segmentation_resume_from_checkpoint = pjoin(
+            self.segmentation_resume_from_checkpoint = os.path.join(
                 self.model_output,
                 self.segmentation_model_name)
             self.segmentation_saved_config = '%s.npy' % self.resume_from_checkpoint
@@ -45,8 +72,8 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 1200.  # Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
-        self.min_depth = 200.  # prev- 300 Use for normalizing the kinect data
+        self.max_depth = 1200.  # Maya: 1200. --note: prepare kinect with lower value than during testing (e.g. 900train/1800test). Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.min_depth = 200.  # Maya: 200. Use for normalizing the kinect data
         self.background_constant = self.max_depth * 2  # HIGH_NUMBER
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_input_size = [480, 640]  # Maya render output
@@ -57,11 +84,11 @@ class monkeyConfig(object):
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
         self.randomize_background = 2
-        self.augment_background = 'rescale_and_perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        self.model_type = 'small_conv_deconv'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         # self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
@@ -73,7 +100,7 @@ class monkeyConfig(object):
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 3e-5  # Tune this -- also try SGD instead of ADAm
+        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -89,19 +116,13 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['z', 'size']  # , 'occlusion']  # 'occlusion' 'pose' 'size' 'z'
+        self.aux_losses = ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
         self.include_validation = '/media/data_cifs/monkey_tracking/tfrecords/monkey_on_pole.tfrecords'  # True
         self.wd_type = 'l1'
         self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
         self.fc_lambda = 0.01
-
-        # Kinect file settings
-        self.kinect_directory = pjoin(self.base_dir, 'extracted_kinect_depth')
-        self.kinect_project = 'Xef2Mat_Output_Trial02_np_conversion'
-        self.kinect_file_ext = '.npy'
-        self.kinect_video = 'video.mp4'
 
         # Labels for the rendered images
         self.labels = {
@@ -111,7 +132,7 @@ class monkeyConfig(object):
             'head':            (199,   0,   0, 254),
             'hip':             (130,  50, 120, 254),
             'left_finger':     (200,   0, 200, 254),
-            'left_foot':       (150, 130, 139, 254),
+            'left_bart':       (150, 130, 139, 254),
             'left_hand':       (250,   0, 250, 254),
             'left_lower_arm':  (0,   250,   0, 254),
             'left_lower_leg':  (0,     0, 250, 254),
@@ -121,7 +142,7 @@ class monkeyConfig(object):
             'left_upper_leg':  (240, 240, 239, 254),
             'neck':            (70,   70,  69, 254),
             'right_finger':    (249,  50,   0, 254),
-            'right_foot':      (0,   150,   0, 254),
+            'right_bart':      (0,   150,   0, 254),
             'right_hand':      (249, 250,   0, 254),
             'right_lower_arm': (249,   0,   0, 254),
             'right_lower_leg': (249, 100,   0, 254),
@@ -160,9 +181,8 @@ class monkeyConfig(object):
 
         self.joint_names = [
             'head',
-            'neck'
+            'neck',
             'abdomen',
-            'abdomen2',
             'left shoulder',
             'right shoulder',
             'left elbow',
@@ -179,8 +199,8 @@ class monkeyConfig(object):
             'right knee',
             'left ankle',
             'right ankle',
-            'left foot',
-            'right foot',
+            'left bart',
+            'right bart',
             'left toetips',
             'right toetips'
         ]
@@ -192,6 +212,6 @@ class monkeyConfig(object):
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
-        self.n_features = 400  # Tune this 
+        self.n_features = 400  # Tune this
         self.max_pixels_per_image = 800  # Tune this
-        self.cte_depth = 2  # ?? 
+        self.cte_depth = 2  # ??

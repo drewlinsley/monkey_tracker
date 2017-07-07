@@ -86,6 +86,8 @@ def get_feature_dict(aux_losses):
     }
     if 'occlusion' in aux_losses:
         feature_dict['occlusion'] = tf.FixedLenFeature([], tf.string)
+    if 'deconv_label' in aux_losses:
+        feature_dict['im_label'] = tf.FixedLenFeature([], tf.string)
     return feature_dict
 
 
@@ -267,6 +269,11 @@ def read_and_decode(
         occlusion = tf.decode_raw(features['occlusion'], tf.float32)
         occlusion.set_shape(label_shape // num_dims)
         output_data['occlusion'] = occlusion
+
+    if 'deconv_label' in aux_losses:
+        deconv_label = tf.decode_raw(features['im_label'], tf.float32)
+        deconv_label = tf.reshape(deconv_label, np.asarray(target_size))
+        output_data['deconv_label'] = deconv_label
 
     if 'pose' in aux_losses:
         res_size = label_shape // num_dims
@@ -545,18 +552,39 @@ def inputs(
             size = output_data['size']
             var_list += [size]
             keys += ['size']
+        if 'deconv' in aux_losses:
+            deconv = output_data['image']
+            var_list += [deconv]
+            keys += ['deconv']
+        if 'deconv_label' in aux_losses:
+            deconv_label = output_data['deconv_label']
+            var_list += [deconv_label]
+            keys += ['deconv_label']
         if shuffle:
             var_list = tf.train.shuffle_batch(
-                var_list,
+                [tf.expand_dims(x, axis=0) for x in var_list],
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=1000+3 * batch_size,
-                # Ensures a minimum amount of shuffling of examples.
-                min_after_dequeue=1000)
+                capacity=10 + batch_size,
+                enqueue_many=True,
+                min_after_dequeue=10)
+            # var_list = tf.train.shuffle_batch(
+            #     var_list,  # Old version ~ half as fast
+            #     batch_size=batch_size,
+            #     num_threads=num_threads,
+            #     capacity=1000+3 * batch_size,
+            #     # Ensures a minimum amount of shuffling of examples.
+            #     min_after_dequeue=10000)
         else:
             var_list = tf.train.batch(
-                var_list,
+                [tf.expand_dims(x, axis=0) for x in var_list],
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=1000+3 * batch_size)
+                capacity=100 * batch_size,
+                enqueue_many=True)
+            # var_list = tf.train.batch(
+            #     var_list,
+            #     batch_size=batch_size,
+            #     num_threads=num_threads,
+            #     capacity=1000+3 * batch_size)
         return {k: v for k, v in zip(keys, var_list)}

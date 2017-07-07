@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import json
 import cPickle as pickle
 import numpy as np
 import tensorflow as tf
@@ -35,9 +36,9 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
     if not run_tests:
         monkey_files = glob(
             os.path.join(
-                config.kinect_directory,
-                config.kinect_project,
-                '*%s' % config.kinect_file_ext))
+                kinect_config['kinect_directory'],
+                kinect_config['kinect_project'],
+                '*%s' % kinect_config['kinect_file_ext']))
         monkey_files = sorted(
             monkey_files, key=lambda name: int(
                 re.search('\d+', name.split('/')[-1]).group()))
@@ -60,18 +61,15 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
         extents = reuse_dict['extents']
         max_array = reuse_dict['max_array']
         use_kinect = reuse_dict['use_kinect']
-        config.max_depth = max_array
-        config.background_constant = config.max_depth * 2
-        config.train_batch = 2
-        config.val_batch = 2
+        # config.max_depth = max_array
+        # config.background_constant = config.max_depth * 2
         joint_dict = train_and_eval(
             frame_pointer,
             frame_pointer,
             config,
-            uniform_batch_size=136,
             swap_datasets=False,
             working_on_kinect=use_kinect,
-            return_coors=True)
+            return_coors=False)
     else:
         if len(monkey_files) == 0:
             raise RuntimeError('Could not find any files!')
@@ -159,7 +157,9 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
         frames = test_tf_kinect.normalize_frames(
             frames=frames,
             max_value=config.max_depth,
-            min_value=config.min_depth)
+            min_value=config.min_depth,
+            max_adj=kinect_config['max_adjust'],
+            min_adj=kinect_config['min_adjust'])
 
         if kinect_config['use_tfrecords']:
             frame_pointer, max_array, it_frame_toss_index = test_tf_kinect.create_joint_tf_records_for_kinect(
@@ -224,6 +224,11 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
+        # Also save json key/value dicts
+        list_of_yhat_joints = [{k: float(v) for k, v in zip(config.joint_names, yhats)} for yhats in joint_dict['yhat']]
+        with open(kinect_config['output_json_path'], 'w') as fout:
+            json.dump(list_of_yhat_joints, fout)
+        print 'JSON saved to: %s' % kinect_config['output_json_path'] 
 
 
 if __name__ == '__main__':
@@ -232,15 +237,13 @@ if __name__ == '__main__':
         "--model_dir",
         dest="model_dir",
         type=str,
-        default=None,  # '/media/data_cifs/monkey_tracking/results/' + \
-            # 'TrueDepth2MilStore/model_output/' + \
-            # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_27_18_36_53', # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_21_33_30',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
+        default=None,
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default=None,  # 'model_49000.ckpt-49000',
+        default=None,
         help='Name of TF checkpoint file.')
     parser.add_argument(
         "--test",

@@ -128,6 +128,8 @@ def train_and_eval(config):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
+            if 'deconv' in config.aux_losses or 'deconv_label' in config.aux_losses:
+                tf.summary.image('Deconv train', model.deconv)
 
             # Setup validation op
             if validation_data is not False:
@@ -142,10 +144,14 @@ def train_and_eval(config):
                 if 'label' in val_data_dict.keys():
                     # val_score = tf.nn.l2_loss(
                     #     val_model.output - val_data_dict['label'])
-                    val_score = tf.reduce_mean(tf_fun.l2_loss(val_model.output, val_data_dict['label']))
+                    val_score = tf.reduce_mean(
+                        tf_fun.l2_loss(
+                            val_model.output, val_data_dict['label']))
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
+                if 'deconv' in config.aux_losses or 'deconv_label' in config.aux_losses:
+                    tf.summary.image('Deconv val', val_model.deconv)
                 tf.summary.image(
                     'validation images',
                     tf.cast(val_data_dict['image'], tf.float32))
@@ -166,7 +172,6 @@ def train_and_eval(config):
                 loss_list += [tf.nn.l2_loss(
                     model['output'] - train_data_dict['label'])]
             loss_label += ['combined head']
-
             for al in loss_helper.potential_aux_losses():
                 loss_list, loss_label = loss_helper.get_aux_losses(
                     loss_list=loss_list,
@@ -274,11 +279,11 @@ def train_and_eval(config):
     for al in loss_helper.potential_aux_losses():
         if al.keys()[0] in train_data_dict.keys():
             y_key = '%s' % al.keys()[0]
-            train_session_vars[y_key] = al.values()[0]['y_name']
+            train_session_vars[y_key] = train_data_dict[al.values()[0]['y_name']]
             save_training_vars += [y_key]
 
             yhat_key = '%s_hat' % al.keys()[0]
-            train_session_vars[yhat_key] = al.values()[0]['model_name']
+            train_session_vars[yhat_key] = model[al.values()[0]['model_name']]
             save_training_vars += [yhat_key]
 
     # Start training loop
@@ -301,6 +306,7 @@ def train_and_eval(config):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
+            import ipdb;ipdb.set_trace()
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(

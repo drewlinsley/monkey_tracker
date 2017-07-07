@@ -22,29 +22,40 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 
 
-def apply_cnn_masks_to_kinect(frames, image_masks, prct=85, crop_and_pad=True, obj_size=500):
+def apply_cnn_masks_to_kinect(
+        frames,
+        image_masks,
+        prct=85,
+        crop_and_pad=True,
+        obj_size=500):
     target_shape = frames[0].shape
-    target_aspect = float(target_shape[0]) / float(target_shape[1])
     of = np.zeros((frames.shape))
     crop_coordinates = []
-    for idx, (f, m) in enumerate(zip(frames, image_masks)):
+    print 'Using CNN activities to crop the kinect data.'
+    for idx, (f, m) in tqdm(
+            enumerate(zip(frames, image_masks)), total=len(frames)):
         m = resize(m, target_shape)
         pm = m > np.percentile(m.ravel(), prct)
+        pm = binary_dilation(pm)
+        pm = binary_fill_holes(pm)
+        pm = binary_fill_holes(pm, structure=np.ones((5,5)))
         tf = f * pm
         if crop_and_pad:
             # Crop keeping the aspect ratio
             rp = measure.regionprops(measure.label(pm))
             areas = np.argsort([r.area for r in rp])[::-1]
             min_row, min_col, max_row, max_col = rp[areas[0]].bbox
-            cropped_im = tf[min_row:max_row, min_col:max_col]     
+            cropped_im = tf[min_row:max_row, min_col:max_col]
             # Center and pad to the appropriate size
             canvas = np.zeros((target_shape))
             cropped_shape = cropped_im.shape
             if cropped_shape[0] % 2:  # odd number
-                cropped_im = np.concatenate((cropped_im, np.zeros((1, cropped_shape[1]))),axis=0)
+                cropped_im = np.concatenate((
+                    cropped_im, np.zeros((1, cropped_shape[1]))), axis=0)
                 cropped_shape = cropped_im.shape
             if cropped_shape[1] % 2:  # odd number
-                cropped_im = np.concatenate((cropped_im, np.zeros((cropped_shape[0], 1))),axis=1)
+                cropped_im = np.concatenate((
+                    cropped_im, np.zeros((cropped_shape[0], 1))), axis=1)
                 cropped_shape = cropped_im.shape
             min_row = (target_shape[0] // 2) - (cropped_shape[0] // 2)
             min_col = (target_shape[1] // 2) - (cropped_shape[1] // 2)
@@ -61,24 +72,31 @@ def apply_cnn_masks_to_kinect(frames, image_masks, prct=85, crop_and_pad=True, o
     return of, crop_coordinates
 
 
-def gkern2(kernlen=10, nsig=6):
+def gkern2(img, kern=3):
     """Returns a 2D Gaussian kernel array."""
-
-    # create nxn zeros
-    inp = np.zeros((kernlen, kernlen))
-    # set element at the middle to one, a dirac delta
-    inp[kernlen//2, kernlen//2] = 1
-    # gaussian-smooth the dirac, resulting in a gaussian filter mask
-    return fi.gaussian_filter(inp, nsig)
+    kernel = np.ones((kern,kern),np.float32)/kern**2
+    return cv2.filter2D(img,-1,kernel)
 
 
-def normalize_frames(frames, max_value, min_value, min_max_norm=True, max_adj=1., smooth=False):
+def normalize_frames(
+        frames,
+        max_value,
+        min_value,
+        min_max_norm=True,
+        max_adj=1,
+        min_adj=1,
+        kinect_max_adj=1,
+        kinect_min_adj=1,
+        smooth=False):
     """ Need to transform kinect -> maya.
     To do this, for each frame, ID the foreground, then transform its depth to
     maya space."""
-    delta = max_value * max_adj - min_value
-    kinect_max = frames.max()
-    kinect_min = frames[frames > 0].min()
+    print 'Adjusting max with: %s. Min with: %s.' % (max_adj, min_adj)
+    max_value = max_value * max_adj
+    min_value = min_value * min_adj
+    delta = max_value - min_value
+    kinect_max = frames.max() * kinect_max_adj
+    kinect_min = frames[frames > 0].min() * kinect_min_adj
     trans_f = np.zeros((frames.shape))
     print 'Normalizing kinect to maya.'
     for idx, f in tqdm(enumerate(frames), total=len(frames)):
@@ -87,10 +105,10 @@ def normalize_frames(frames, max_value, min_value, min_max_norm=True, max_adj=1.
         if min_max_norm:
             normalized_f = (f - kinect_min) / (kinect_max - kinect_min)
             # Convert to maya
-            it_f = (normalized_f * (delta)) + min_value 
+            it_f = (normalized_f * (delta)) + min_value
         else:
             normalized_f = f / kinect_max
-            it_f = (normalized_f * (delta))
+            it_f = (normalized_f * max_value)
         if smooth:
             it_f = gkern2(it_f)
         it_f *= zeros_mask
@@ -107,22 +125,35 @@ def save_to_numpys(file_dict, path):
         print 'Saved: %s' % fp
 
 
-def create_movie(frames=None, output=None, files=None, framerate=30):
+def create_movie(
+        frames=None,
+        output=None,
+        files=None,
+        framerate=30,
+        crop_coors=None):
     print('Making movie...')
     if files is not None:
         frames = []
-        frames = np.asarray([misc.imread(fi) for fi in files])
+        frames = np.asarray([misc.imread(f) for f in files])
     f, a = plt.subplots(1, 1)
     f.tight_layout()
     artists = []
     plt.axis('off')
     a.set_xticklabels([])
     a.set_yticklabels([])
+    f.set_dpi(100)
+    DPI = f.get_dpi()
+    h, w = frames[0].shape
+    f.set_size_inches(w/float(DPI), h/float(DPI))
     for fr in frames:
-        it_art = a.imshow(fr)
+        it_art = a.imshow(fr, cmap='Greys')
         artists += [[it_art]]
     ani = animation.ArtistAnimation(f, artists, interval=50)
-    ani.save(output, writer='ffmpeg', fps=framerate)
+    ani.save(
+        output,
+        writer='ffmpeg',
+        fps=framerate,
+        extra_args=['-vcodec', 'h264'])
     # artists = [[a.imshow(fr)] for fr in frames]
     # ani = animation.ArtistAnimation(f, artists, interval=50)
     # ani.save(output, 'ffmpeg', framerate)
@@ -270,7 +301,7 @@ def get_and_trim_frames(
     if test_frames:
         files = np.asarray(files)
         files = files[start_frame:end_frame]
-        data = [np.load(f) for f in files]
+        data = [np.load(f).squeeze() for f in files]  # squeeze singletons
         if len(data[0].shape) > 2 and data[0].shape[-1] > 3:
             print 'Detected > 2d images. Trimming excess dimensions.'
         data = [f[:, :, :3] for f in data]
@@ -342,7 +373,8 @@ def bb_monkey(
         max_sigma=100,
         threshold=.1,
         denoise=True,
-        time_threshold=95):
+        time_threshold=95,
+        crop_image=False):
     # Find "movement mask"
     print 'Deriving movement mask.'
     mm = np.sum(np.asarray(frames), axis=0).astype(np.float32)
@@ -358,31 +390,32 @@ def bb_monkey(
     xye = []
     for f in tqdm(frames, total=len(frames)):
         f *= mm  # Mask the image w/ movement
-        rprops = measure.regionprops(f)
-        areas = np.argsort([r.area for r in rprops])[::-1]
-        x0, y0 = rprops[areas[0]].centroid
-        x0 = int(x0)
-        y0 = int(y0)
-        minr = np.min([0, x0 - bb_size[0]])
-        minc = np.min([0, x0 - bb_size[1]])
-        maxr = np.max([f_size[0], x0 + bb_size[0]])
-        maxc = np.max([f_size[1], x0 + bb_size[1]])
-        f = f[minr:maxr, minc:maxc]
-        if denoise:
-            good_ones = f > 0
-            good_ones = binary_dilation(
-                binary_closing(
-                    binary_opening(good_ones), iterations=2),
-                iterations=2)
-            f *= good_ones
+        if crop_image:
+            rprops = measure.regionprops(f)
+            areas = np.argsort([r.area for r in rprops])[::-1]
+            x0, y0 = rprops[areas[0]].centroid
+            x0 = int(x0)
+            y0 = int(y0)
+            minr = np.min([0, x0 - bb_size[0]])
+            minc = np.min([0, x0 - bb_size[1]])
+            maxr = np.max([f_size[0], x0 + bb_size[0]])
+            maxc = np.max([f_size[1], x0 + bb_size[1]])
+            f = f[minr:maxr, minc:maxc]
+            if denoise:
+                good_ones = f > 0
+                good_ones = binary_dilation(
+                    binary_closing(
+                        binary_opening(good_ones), iterations=2),
+                    iterations=2)
+                f *= good_ones
 
+            xye += [{
+                'x': x0,
+                'y': y0,
+                'h': bb_size[0],
+                'w': bb_size[1]
+            }]
         crop_frames += [f]
-        xye += [{
-            'x': x0,
-            'y': y0,
-            'h': bb_size[0],
-            'w': bb_size[1]
-        }]
         # crop_frames += [resize(
         #     f,
         #     f_size,
@@ -603,7 +636,17 @@ def image_batcher(
         yield im_batch[:, :, :, None]
 
 
-def crop_aspect_and_resize_center(img, new_size):
+def crop_to_shape(img, h0, h1, w0, w1):
+    return img[h0:h1, w0:w1]
+
+
+def mask_to_shape(img, h0, h1, w0, w1):
+    mask = np.zeros((img.shape))
+    mask[h0:h1, w0:w1] = 1
+    return img * mask
+
+
+def crop_aspect_and_resize_center(img, new_size, resize_or_pad='resize'):
     '''Crop to appropros aspect ratio then resize.'''
     h, w = img.shape[:2]
     ih, iw = new_size
@@ -622,11 +665,29 @@ def crop_aspect_and_resize_center(img, new_size):
     cropped_im = img[crop_h[0]:crop_h[1], crop_w[0]:crop_w[1]]
     # return misc.imresize(cropped_im, new_size, mode='F')
     target_dtype = img.dtype
-    return resize(
+    if resize_or_pad == 'resize':
+        return resize(
+            cropped_im,
+            new_size,
+            preserve_range=True,
+            order=0).astype(target_dtype)
+    elif resize_or_pad == 'pad':
+        return pad_image_to_shape(cropped_im, new_size, constant=0.)
+    else:
+        raise RuntimeError(
+            'Cannot understand if you are trying to resize or pad.')
+
+
+def pad_image_to_shape(cropped_im, new_size, constant=0.):
+    cim_size = cropped_im.shape
+    pad_top = (new_size[0] - cim_size[0]) // 2
+    pad_bottom = (new_size[0] - cim_size[0]) // 2
+    pad_left = (new_size[1] - cim_size[1]) // 2
+    pad_right = (new_size[1] - cim_size[1]) // 2
+    return cv2.copyMakeBorder(
         cropped_im,
-        new_size,
-        preserve_range=True,
-        order=0).astype(target_dtype)
+        pad_top, pad_bottom, pad_left, pad_right,
+        cv2.BORDER_CONSTANT, constant)
 
 
 def process_kinect_tensorflow(model_ckpt, kinect_data, config):
@@ -779,13 +840,18 @@ def overlay_joints_frames(
     colors, joints, num_joints = monkey_mosaic.get_colors()
     files = []
     frames = joint_dict['im']
+    h, w = frames[0].shape
     joint_predictions = joint_dict[target_key]
-    for idx, (fr, jp) in enumerate(zip(frames, joint_predictions)):
+    for idx, (fr, jp) in tqdm(
+            enumerate(zip(frames, joint_predictions)), total=len(frames)):
         f, ax = plt.subplots()
-        plt.axis('off')
+        f.set_dpi(100)
+        DPI = f.get_dpi()
+        f.set_size_inches(w/float(DPI), h/float(DPI))
         ax.set_xticklabels([])
         ax.set_yticklabels([])
-        ax.set_aspect('equal')
+        plt.axis('off')
+        f.set_tight_layout(True)
         xy_coors = monkey_mosaic.xyz_vector_to_xy(jp)
         if len(fr.shape) > 2:
             im = fr[:, :, 0]
