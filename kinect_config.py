@@ -4,7 +4,7 @@ import os
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'monkey_in_cage_1'  # 'monkey_on_pole_3'  # 
+        self.selected_video = 'monkey_in_cage_1'  # 'monkey_in_cage_1'  # 
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -41,13 +41,13 @@ class kinectConfig():
 
             # auto cnn bb
             'mask_with_model': True,
-            'crop_and_pad': True,
+            'crop_and_pad': False,
             'small_object_size': 600,
 
             # Normalization
-            'max_adjust': 0.5,
-            'min_adjust': 2,
-            'kinect_max_adjust': 0.75,
+            'max_adjust': 1,
+            'min_adjust': 1,
+            'kinect_max_adjust': 1,
             'kinect_min_adjust': 1,
 
             # Kinect file settings
@@ -130,7 +130,7 @@ class kinectConfig():
         container['find_bb'] = False  # Do not use when outputting moies
         container['low_threshold'] = 1400  # Keep
         container['high_threshold'] = 3350  # Keep
-        container['cnn_threshold'] = 60  # Keep
+        container['cnn_threshold'] = 50  # Keep
         container['crop_and_pad'] = False
         container['output_dir'] = '/home/drew/Desktop/'
         container['data_dir'] = os.path.join(
@@ -174,10 +174,12 @@ class kinectConfig():
         container['start_frame'] = 100
         container['end_frame'] = 35
         container['h0'] = 180
-        container['w0'] = 105
-        container['h1'] = 395
-        container['w1'] = 420
+        container['w0'] = 110
+        container['h1'] = 325
+        container['w1'] = 380
+        container['cnn_threshold'] = 50  # Keep
         container['time_threshold'] = 95
+        container['crop_and_pad'] = False
         container['output_dir'] = '/home/drew/Desktop/'
         container['data_dir'] = os.path.join(
             container['output_dir'],

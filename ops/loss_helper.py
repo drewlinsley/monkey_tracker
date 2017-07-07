@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import yellowfin
 
@@ -60,8 +61,8 @@ def potential_aux_losses():
                 'model_name': 'deconv',
                 'loss_function': 'cce',
                 'var_label': 'deconv head',
-                'lambda': None,
-                'aux_fun': 'resize'
+                'lambda': {14: 0.01},
+                'aux_fun': 'resize',
                 }
         }
         ]
@@ -90,13 +91,29 @@ def get_aux_losses(
                     labels=y,
                     logits=yhat))
         elif loss_function == 'cce':
-            loss = tf.reduce_mean(
-                tf.nn.sparse_softmax_cross_entropy_with_logits(
-                    labels=tf.cast(tf.squeeze(y), tf.int32),
-                    logits=yhat))
+            if isinstance(reg_weight, dict):
+                # Only using index 1 for now
+                index = reg_weight.keys()[0]
+                weight = reg_weight.values()[0]
+                split_tensor = tf.split(
+                    y,
+                    int(y.get_shape()[-1]), axis=3)[index]
+                weights = split_tensor * weight  # Spatial weights for bg loss
+                weights = tf.squeeze(weights + tf.cast(tf.equal(
+                    weights, 0), tf.float32))  # No weight on fg
+                inter_loss = tf.nn.softmax_cross_entropy_with_logits(
+                    logits=yhat,
+                    labels=y,
+                    dim=-1)
+                loss = tf.reduce_mean(inter_loss * weights)
+            else:
+                loss = tf.reduce_mean(
+                    tf.nn.softmax_cross_entropy_with_logits(
+                        labels=tf.cast(tf.squeeze(y), tf.int32),
+                        logits=yhat))
         elif loss_function == 'l2':
             loss = tf.nn.l2_loss(y - yhat)
-        if reg_weight is not None:
+        if reg_weight is not None and not isinstance(reg_weight, dict):
             loss *= reg_weight
         loss_list += [loss]
         loss_label += [output_label]

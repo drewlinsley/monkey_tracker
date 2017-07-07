@@ -103,6 +103,7 @@ def read_and_decode(
         max_value,
         normalize_labels,
         joint_names,
+        maya_joint_labels=None,
         label_shape=22,
         aux_losses=False,
         selected_joints=None,
@@ -273,7 +274,37 @@ def read_and_decode(
     if 'deconv_label' in aux_losses:
         deconv_label = tf.decode_raw(features['im_label'], tf.float32)
         deconv_label = tf.reshape(deconv_label, np.asarray(target_size))
-        deconv_label = tf.reduce_sum(deconv_label * tf.constant(np.arange(1, 4).astype(np.float32)[None, None, :]), axis=2, keep_dims=True)
+        distance_type = 'euclidean'
+        raveled_deconv = tf.reshape(
+            deconv_label,
+            [np.prod(target_size[:2]), target_size[-1]])
+        joint_label_values = tf.constant(np.asarray(
+                maya_joint_labels.values()).astype(np.float32)[:, :3])
+        raveled_deconv = 255. * (
+            raveled_deconv / tf.reduce_max(
+                raveled_deconv, axis=0, keep_dims=True))
+        if distance_type == 'cosine':
+            sims = tf.matmul(
+                raveled_deconv,
+                joint_label_values,
+                transpose_b=True)
+            deconv_label = tf.reshape(
+                tf.one_hot(
+                    tf.argmax(sims, axis=1),
+                    depth=sims.get_shape()[-1]),
+                target_size[:2] + [len(maya_joint_labels)])
+        elif distance_type == 'euclidean':
+            label_split = tf.split(joint_label_values, len(maya_joint_labels))
+            dists = tf.concat(
+                [tf.reduce_sum(
+                    tf.square(raveled_deconv - x),
+                    axis=1, keep_dims=True) for x in label_split],
+                axis=1)
+            deconv_label = tf.reshape(
+                tf.one_hot(
+                    tf.argmin(dists, axis=1),
+                    depth=dists.get_shape()[-1]),
+                target_size[:2] + [len(maya_joint_labels)])
         output_data['deconv_label'] = deconv_label
 
     if 'pose' in aux_losses:
@@ -475,6 +506,29 @@ def augment_data(
     return image, crop_coors
 
 
+def prepare_output_variables(
+        output_data,
+        variable_keys,
+        check_list=None,
+        keys=None,
+        var_list=None):
+    if keys is None:
+        keys = []
+    if var_list is None:
+        var_list = []
+    for k in variable_keys:
+        if check_list is not None:
+            if k in check_list:
+                keys += [k]
+                var_list += [output_data[k]]
+                print 'Adding aux variable: %s' % k
+        else:
+            keys += [k]
+            var_list += [output_data[k]]
+            print 'Adding main variable: %s' % k
+    return keys, var_list
+
+
 def inputs(
         tfrecord_file,
         batch_size,
@@ -500,7 +554,8 @@ def inputs(
         randomize_background=None,
         shuffle=True,
         num_threads=2,
-        augment_background=False):
+        augment_background=False,
+        maya_joint_labels=None):
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -528,39 +583,27 @@ def inputs(
             background_multiplier=background_multiplier,
             randomize_background=randomize_background,
             working_on_kinect=working_on_kinect,
-            augment_background=augment_background)
-        keys = []
-        var_list = []
-        image = output_data['image']
-        var_list += [image]
-        keys += ['image']
-        label = output_data['label']
-        var_list += [label]
-        keys += ['label']
-        if 'occlusion' in aux_losses:
-            occlusion = output_data['occlusion']
-            var_list += [occlusion]
-            keys += ['occlusion']
-        if 'pose' in aux_losses:
-            pose = output_data['pose']
-            var_list += [pose]
-            keys += ['pose']
-        if 'z' in aux_losses:
-            z = output_data['z']
-            var_list += [z]
-            keys += ['z']
-        if 'size' in aux_losses:
-            size = output_data['size']
-            var_list += [size]
-            keys += ['size']
-        if 'deconv' in aux_losses:
-            deconv = output_data['image']
-            var_list += [deconv]
-            keys += ['deconv']
-        if 'deconv_label' in aux_losses:
-            deconv_label = output_data['deconv_label']
-            var_list += [deconv_label]
-            keys += ['deconv_label']
+            augment_background=augment_background,
+            maya_joint_labels=maya_joint_labels)
+
+        variable_keys = ['image', 'label']
+        keys, var_list = prepare_output_variables(
+            output_data=output_data,
+            variable_keys=variable_keys)
+        variable_keys = [
+            'occlusion',
+            'pose',
+            'z',
+            'size',
+            'deconv',
+            'deconv_label']
+        keys, var_list = prepare_output_variables(
+            output_data=output_data,
+            variable_keys=variable_keys,
+            check_list=aux_losses,
+            keys=keys,
+            var_list=var_list)
+
         if shuffle:
             var_list = tf.train.shuffle_batch(
                 [tf.expand_dims(x, axis=0) for x in var_list],

@@ -143,8 +143,11 @@ def create_movie(
     a.set_yticklabels([])
     f.set_dpi(100)
     DPI = f.get_dpi()
-    h, w = frames[0].shape
+    hw = frames[0].shape
+    h = hw[0]
+    w = hw[1]
     f.set_size_inches(w/float(DPI), h/float(DPI))
+    a.set_aspect('equal')
     for fr in frames:
         it_art = a.imshow(fr, cmap='Greys')
         artists += [[it_art]]
@@ -153,7 +156,7 @@ def create_movie(
         output,
         writer='ffmpeg',
         fps=framerate,
-        extra_args=['-vcodec', 'h264'])
+        extra_args=['-vcodec', 'h264', '-aspect', '4:3'])
     # artists = [[a.imshow(fr)] for fr in frames]
     # ani = animation.ArtistAnimation(f, artists, interval=50)
     # ani.save(output, 'ffmpeg', framerate)
@@ -322,7 +325,7 @@ def get_and_trim_frames(
         for idx in tqdm(
             range(
                 start_frame, n - end_frame), desc='Trimming frames'):
-            data += [np.rot90(np.load(files[idx]), rotate_frames)]
+            data += [np.rot90(np.load(files[idx]).squeeze(), rotate_frames)]
         return data, files
 
 
@@ -672,6 +675,7 @@ def crop_aspect_and_resize_center(img, new_size, resize_or_pad='resize'):
             preserve_range=True,
             order=0).astype(target_dtype)
     elif resize_or_pad == 'pad':
+        import ipdb;ipdb.set_trace()
         return pad_image_to_shape(cropped_im, new_size, constant=0.)
     else:
         raise RuntimeError(
