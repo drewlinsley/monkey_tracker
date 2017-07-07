@@ -273,6 +273,7 @@ def read_and_decode(
     if 'deconv_label' in aux_losses:
         deconv_label = tf.decode_raw(features['im_label'], tf.float32)
         deconv_label = tf.reshape(deconv_label, np.asarray(target_size))
+        deconv_label = tf.reduce_sum(deconv_label * tf.constant(np.arange(1, 4).astype(np.float32)[None, None, :]), axis=2, keep_dims=True)
         output_data['deconv_label'] = deconv_label
 
     if 'pose' in aux_losses:

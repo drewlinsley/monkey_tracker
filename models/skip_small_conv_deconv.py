@@ -100,31 +100,52 @@ class model_struct:
             tower_name='highres_conv')
 
         # Deconv to full image
+
+        if 'deconv_label' in target_variables.keys():
+            # Set deconv to a n-parts classification layers
+            deconv_output = target_variables['deconv_label_size']
+
         layer_structure = [
             {
                 'layers': ['deconv'],
-                'weights': ['skip'],  # [output_shape],
-                'names': ['up-conv3'],
-                'filter_size': [4],
-            },
-            {
-                'layers': ['deconv'],
-                'weights': ['skip'],  # [output_shape],
+                'weights': [int(self.pool2.get_shape()[-1])],
                 'names': ['up-conv2'],
                 'filter_size': [4],
-            },
+            }
+        ]
+
+        self.d2 = self.create_conv_tower(
+            output_layer,
+            layer_structure,
+            tower_name='d2')
+        self.d2 += self.pool2
+
+        layer_structure = [
             {
                 'layers': ['deconv'],
-                'weights': [1],
+                'weights': [int(self.d2.get_shape()[-1])],
                 'names': ['up-conv1'],
+                'filter_size': [4]
+            },
+        ]
+        self.d1 = self.create_conv_tower(
+            self.d2,
+            layer_structure,
+            tower_name='d1')
+        self.d1 += self.pool1
+        layer_structure = [
+            {
+                'layers': ['deconv'],
+                'weights': [deconv_output],
+                'names': ['up-conv0'],
                 'filter_size': [4]
             },
         ]
 
         self.deconv = self.create_conv_tower(
-            output_layer,
+            self.d1,
             layer_structure,
-            tower_name='highres_conv')
+            tower_name='d0')
 
         # Rescale feature maps to the largest in the hr_fe_keys
         resize_h = np.max([int(self[k].get_shape()[1]) for k in hr_fe_keys])
@@ -326,12 +347,6 @@ class model_struct:
 
         pool_layer = 'pool%s' % re.search('\d+', layer_name).group()
         in_channels = bottom.get_shape()[3].value
-        if isinstance(out_channels, basestring):
-            skip_layer = self[pool_layer]
-            out_channels = int(in_channels)
-        else:
-            skip_layer = None
-
         with tf.variable_scope(layer_name):
 
             if shape is None:
@@ -356,16 +371,17 @@ class model_struct:
                 output_shape,
                 strides=strides,
                 padding='SAME')
-            score = self.conv_layer(
-                bottom=self[pool_layer],
-                in_channels=int(self[pool_layer].get_shape()[-1]),
-                out_channels=out_channels,
-                name='%s_conv' % layer_name,
-                stride=[1, 1, 1, 1],
-                filter_size=filter_size
-            )
-            if skip_layer is not None:
-                score += skip_layer
+            if hasattr(self, pool_layer): 
+                score = self.conv_layer(
+                    bottom=self[pool_layer],
+                    in_channels=int(self[pool_layer].get_shape()[-1]),
+                    out_channels=out_channels,
+                    name='%s_conv' % layer_name,
+                    stride=[1, 1, 1, 1],
+                    filter_size=filter_size
+                )
+            else:
+                score = tf.constant(0.)
         return tf.pad(deconv, [[0, 0], [1, 0], [0, 1], [0, 0]]) + score
         # return deconv + score
 

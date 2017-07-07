@@ -105,7 +105,7 @@ def train_and_eval(
             working_on_kinect=working_on_kinect,
             shuffle=False,
             num_threads=1,
-            augment_background=config.augment_background)
+            augment_background='constant')
 
         print 'Using validation dataset: %s' % validation_data
         val_data_dict = inputs(
@@ -132,7 +132,7 @@ def train_and_eval(
             working_on_kinect=working_on_kinect,
             shuffle=False,
             num_threads=1,
-            augment_background=config.augment_background)
+            augment_background='constant')
 
         # Check output_shape
         if config.selected_joints is not None:

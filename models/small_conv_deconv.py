@@ -100,12 +100,9 @@ class model_struct:
             tower_name='highres_conv')
 
         # Deconv to full image
-
         if 'deconv_label' in target_variables.keys():
             # Set deconv to a n-parts classification layers
-            deconv_output = occlusion_shape
-        else:
-            deconv_output = 1
+            deconv_output = target_variables['deconv_label_size']
 
         layer_structure = [
             {

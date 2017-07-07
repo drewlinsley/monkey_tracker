@@ -90,11 +90,10 @@ def get_aux_losses(
                     labels=y,
                     logits=yhat))
         elif loss_function == 'cce':
-            # loss = tf.reduce_mean(
-            #     tf.nn.softmax_cross_entropy_with_logits(
-            #         labels=y,
-            #         logits=yhat))
-            loss = tf.reduce_mean(y)
+            loss = tf.reduce_mean(
+                tf.nn.sparse_softmax_cross_entropy_with_logits(
+                    labels=tf.cast(tf.squeeze(y), tf.int32),
+                    logits=yhat))
         elif loss_function == 'l2':
             loss = tf.nn.l2_loss(y - yhat)
         if reg_weight is not None:
