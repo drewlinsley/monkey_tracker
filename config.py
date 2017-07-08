@@ -57,7 +57,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        self.model_type = 'skip_small_conv_deconv'  # 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = None  # ['z', 'size', 'occlusion']
         self.batch_norm = [None]
@@ -67,14 +67,14 @@ class monkeyConfig(object):
 
         # Key training settings
         self.selected_gpus = [0] # range(1)
-        self.train_batch = 8
+        self.train_batch = 32
         self.validation_batch = 32
         self.num_val_evals = 4
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 5e-4  # Tune this -- also try SGD instead of ADAm
+        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 5e-7
         self.keep_checkpoints = 100
-        self.optimizer = 'yellowfin'
+        self.optimizer = 'adam'
         self.steps_before_validation = 1000
         self.loss_type = 'l2'
         self.grad_clip = False

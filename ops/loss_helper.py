@@ -1,58 +1,71 @@
+import numpy as np
 import tensorflow as tf
 import yellowfin
 
 
 def potential_aux_losses():
- return [
-    {'occlusion': {
-        'y_name': 'occlusion',
-        'model_name': 'occlusion',
-        'loss_function': 'sigmoid',
-        'var_label': 'occlusionhead',
-        'lambda': 0.1
+    return [
+        {
+            'occlusion': {
+                'y_name': 'occlusion',
+                'model_name': 'occlusion',
+                'loss_function': 'sigmoid',
+                'var_label': 'occlusionhead',
+                'lambda': 0.1,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'z': {
+                'y_name': 'z',
+                'model_name': 'z',
+                'loss_function': 'l2',
+                'var_label': 'z head',
+                'lambda': 0.01,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'size': {
+                'y_name': 'size',
+                'model_name': 'size',
+                'loss_function': 'l2',
+                'var_label': 'size head',
+                'lambda': 0.1,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'pose': {
+                'y_name': 'pose',
+                'model_name': 'pose',
+                'loss_function': 'l2',
+                'var_label': 'pose head',
+                'lambda': 0.1,
+                'aux_fun': 'none'
+                }
+        },
+        {
+            'deconv': {
+                'y_name': 'image',
+                'model_name': 'deconv',
+                'loss_function': 'l2',
+                'var_label': 'deconv head',
+                'lambda': None,
+                'aux_fun': 'resize'
+                }
+        },
+        {
+            'deconv_label': {
+                'y_name': 'deconv_label',
+                'model_name': 'deconv',
+                'loss_function': 'cce',
+                'var_label': 'deconv head',
+                'lambda': {14: 0.01},
+                'aux_fun': 'resize',
+                }
         }
-    },
-    {'z': {
-        'y_name': 'z',
-        'model_name': 'z',
-        'loss_function': 'l2',
-        'var_label': 'z head',
-        'lambda': 0.1
-        }
-    },
-    {'size': {
-        'y_name': 'size',
-        'model_name': 'size',
-        'loss_function': 'l2',
-        'var_label': 'size head',
-        'lambda': 0.1
-        }
-    },
-    {'pose': {
-        'y_name': 'pose',
-        'model_name': 'pose',
-        'loss_function': 'l2',
-        'var_label': 'pose head',
-        'lambda': 0.1
-        }
-    },
-    {'deconv': {
-        'y_name': 'image',
-        'model_name': 'deconv',
-        'loss_function': 'l2',
-        'var_label': 'deconv head',
-        'lambda': None
-        }
-    },
-    {'im_label': {
-        'y_name': 'im_label',
-        'model_name': 'rgb',
-        'loss_function': 'l2',
-        'var_label': 'deconv head',
-        'lambda': None
-        }
-    }
-    ]
+        ]
 
 
 def get_aux_losses(
@@ -68,14 +81,39 @@ def get_aux_losses(
         output_label = aux_dict['var_label']
         loss_function = aux_dict['loss_function']
         reg_weight = aux_dict['lambda']
+        aux_fun = aux_dict['aux_fun']
+        if aux_fun == 'resize':
+            y = tf.image.resize_bilinear(
+                y, [int(x) for x in yhat.get_shape()[1:3]])
         if loss_function == 'sigmoid':
             loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     labels=y,
                     logits=yhat))
+        elif loss_function == 'cce':
+            if isinstance(reg_weight, dict):
+                # Only using index 1 for now
+                index = reg_weight.keys()[0]
+                weight = reg_weight.values()[0]
+                split_tensor = tf.split(
+                    y,
+                    int(y.get_shape()[-1]), axis=3)[index]
+                weights = split_tensor * weight  # Spatial weights for bg loss
+                weights = tf.squeeze(weights + tf.cast(tf.equal(
+                    weights, 0), tf.float32))  # No weight on fg
+                inter_loss = tf.nn.softmax_cross_entropy_with_logits(
+                    logits=yhat,
+                    labels=y,
+                    dim=-1)
+                loss = tf.reduce_mean(inter_loss * weights)
+            else:
+                loss = tf.reduce_mean(
+                    tf.nn.softmax_cross_entropy_with_logits(
+                        labels=tf.cast(tf.squeeze(y), tf.int32),
+                        logits=yhat))
         elif loss_function == 'l2':
             loss = tf.nn.l2_loss(y - yhat)
-        if reg_weight is not None:
+        if reg_weight is not None and not isinstance(reg_weight, dict):
             loss *= reg_weight
         loss_list += [loss]
         loss_label += [output_label]
@@ -97,40 +135,3 @@ def return_optimizer(optimizer):
     else:
         raise 'Unidentified optimizer'
     return optimizer
-
-
-def average_gradients(tower_grads):
-    """Calculate the average gradient for each shared variable across all towers.
-    Note that this function provides a synchronization point across all towers.
-    Args:
-        tower_grads: List of lists of (gradient, variable) tuples. The outer list
-            is over individual gradients. The inner list is over the gradient
-            calculation for each tower.
-    Returns:
-         List of pairs of (gradient, variable) where the gradient has been averaged
-         across all towers.
-    """
-    average_grads = []
-    for grad_and_vars in zip(*tower_grads):
-        # Note that each grad_and_vars looks like the following:
-        #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
-        grads = []
-        for g, _ in grad_and_vars:
-            # Add 0 dimension to the gradients to represent the tower.
-            expanded_g = tf.expand_dims(g, 0)
-
-            # Append on a 'tower' dimension which we will average over below.
-            grads.append(expanded_g)
-
-        # Average over the 'tower' dimension.
-        grad = tf.concat(axis=0, values=grads)
-        grad = tf.reduce_mean(grad, 0)
-
-        # Keep in mind that the Variables are redundant because they are shared
-        # across towers. So .. we will just return the first tower's pointer to
-        # the Variable.
-        v = grad_and_vars[0][1]
-        grad_and_var = (grad, v)
-        average_grads.append(grad_and_var)
-    return average_grads
-
