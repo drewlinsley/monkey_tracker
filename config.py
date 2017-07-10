@@ -71,10 +71,10 @@ class monkeyConfig(object):
         self.validation_batch = 32
         self.num_val_evals = 4
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
+        self.lr = 1e-5  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 5e-7
         self.keep_checkpoints = 100
-        self.optimizer = 'adam'
+        self.optimizer = 'yellowfin'
         self.steps_before_validation = 1000
         self.loss_type = 'l2'
         self.grad_clip = False

@@ -6,7 +6,7 @@ import itertools as it
 Each key in parameter_dict must be manually added to the schema.
 """
 parameter_dict = {
-    'lr': np.asarray([3e-4]),  # np.logspace(-5, -2, 4, base=10),
+    'lr': np.asarray([1e-5, 1e-6]),  # np.logspace(-5, -2, 4, base=10),
     'randomize_background': np.asarray([2]),  # np.arange(3),
     'aux_losses': np.asarray([['deconv_label'], ['z', 'occlusion', 'deconv_label']])
 }

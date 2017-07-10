@@ -2,3 +2,4 @@
 *.png
 rendering/
 cifs*
+db/credentials.py
