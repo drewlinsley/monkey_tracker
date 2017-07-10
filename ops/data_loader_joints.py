@@ -602,7 +602,7 @@ def inputs(
             'pose',
             'z',
             'size',
-            'deconv',
+            'deconv_image',
             'deconv_label']
         keys, var_list = prepare_output_variables(
             output_data=output_data,

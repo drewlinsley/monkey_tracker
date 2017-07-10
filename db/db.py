@@ -228,6 +228,7 @@ def get_parameters():
     config = credentials.postgresql_connection()
     with db(config) as db_conn:
         param_dict = db_conn.get_parameters()
+        print param_dict
         if param_dict is not None:
             hp_combo_id = param_dict['_id']
             db_conn.update_in_process(hp_combo_id)

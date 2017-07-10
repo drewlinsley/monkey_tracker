@@ -16,6 +16,8 @@ from db import db
 def train_and_eval(config):
     """Train and evaluate the model."""
     hp_params, hp_combo_id = db.get_parameters()
+    print hp_params
+    print hp_combo_id
     if hp_combo_id is None:
         print 'Exiting.'
         sys.exit(1)
@@ -75,7 +77,8 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background=config.augment_background)
+            augment_background=config.augment_background,
+            maya_joint_labels=config.labels)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -99,7 +102,8 @@ def train_and_eval(config):
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background=config.augment_background)
+            augment_background=config.augment_background,
+            maya_joint_labels=config.labels)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
@@ -367,7 +371,6 @@ def train_and_eval(config):
                     sess, 
                     ckpt_file,
                     global_step=step)
-
 
                 # Update db
                 time_elapsed += float(duration)
