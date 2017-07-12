@@ -4,7 +4,7 @@ import os
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'monkey_in_cage_1'  # 'monkey_in_cage_1'  # 
+        self.selected_video = 'xef2mat_output'  # 'monkey_in_cage_1'  # 'monkey_in_cage_1'  # 
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -166,6 +166,10 @@ class kinectConfig():
         container['min_adjust'] = 1
         container['kinect_max_adjust'] = 1
         container['kinect_min_adjust'] = 1
+        container['background_mask'] = {
+            'left': 140,
+            'right': 0
+        }        
         return container
 
     def monkey_in_cage_1(self):
@@ -176,7 +180,7 @@ class kinectConfig():
         container['h0'] = 180
         container['w0'] = 110
         container['h1'] = 325
-        container['w1'] = 380
+        container['w1'] = 420
         container['cnn_threshold'] = 50  # Keep
         container['time_threshold'] = 95
         container['crop_and_pad'] = False
@@ -205,13 +209,61 @@ class kinectConfig():
             container['data_dir'],
             'gt_frames')
         container['kinect_directory'] = os.path.join(
-                container['base_dir'],
-                'extracted_kinect_depth',
-                'Xef2Mat_Output_Trial04',
-                'Xef2Mat_Output')
+            container['base_dir'],
+            'extracted_kinect_depth',
+            'Xef2Mat_Output_Trial04',
+            'Xef2Mat_Output')
         container['kinect_project'] = 'DepthFrame_npys'
         container['kinect_file_ext'] = '.npy'
         container['kinect_video'] = 'video.mp4'
+        container['background_mask'] = {
+            'left': 140,
+            'right': 0
+        }        
+        return container
+
+
+    # New video extractions
+    def xef2mat_output(self):
+        container = self.defaults
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth',
+            'Xef2Mat_Output')
+        container['kinect_project'] = 'DepthFrame_npys'
+        container['kinect_file_ext'] = '.npy'
+        container['background_mask'] = {
+            'left': 1300,
+            'right': 1350
+        }
+        return container
+
+    def xef2mat_output2(self):
+        container = self.defaults
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth')
+        container['kinect_project'] = 'Xef2Mat_Output_Trial02_np_conversion'
+        container['kinect_file_ext'] = '.npy'
+        container['background_mask'] = {
+            'left': 500,
+            'right': 10
+        }
+        return container
+
+    def xef2mat_output4(self):
+        container = self.defaults
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth',
+            'Xef2Mat_Output_Trial04',
+            'Xef2Mat_Output')
+        container['kinect_project'] = 'DepthFrame_npys'
+        container['kinect_file_ext'] = '.npy'
+        container['background_mask'] = {
+            'left': 1350,
+            'right': 100
+        }
         return container
 
     def __getitem__(self, name):

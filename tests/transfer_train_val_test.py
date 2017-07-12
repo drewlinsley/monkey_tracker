@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from datetime import datetime
 import numpy as np
 import tensorflow as tf
@@ -134,7 +135,7 @@ def train_and_eval(
             working_on_kinect=working_on_kinect,
             shuffle=False,
             num_threads=1,
-            augment_background='constant',
+            augment_background=config.augment_background,
             maya_joint_labels=config.labels)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -300,6 +301,25 @@ def train_and_eval(
     coord.join(threads)
     sess.close()
     tf.reset_default_graph()
+    # REMOVE BELOW HERE TO NEXT COMMENT
+    # np.savez('test_data', yhat=np.concatenate(joint_predictions).squeeze(), ytrue=np.concatenate(joint_gt).squeeze(), im=np.concatenate(out_ims))
+
+    # joint_dict = {
+    #         'yhat': np.concatenate(joint_predictions).squeeze(),
+    #         'ytrue': np.concatenate(joint_gt).squeeze(),
+    #         'im': np.concatenate(out_ims)
+    #         }
+    # list_of_yhat_joints = []
+    # for yhats in joint_dict['yhat']:
+    #     res_yhats = yhats.reshape(-1, 2)
+    #     frame_dict = {}
+    #     for k, row in zip(config.joint_names, res_yhats):
+    #         frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
+    #     list_of_yhat_joints += [frame_dict]
+    # with open('test.json', 'w') as fout:
+    #     json.dump(list_of_yhat_joints, fout)
+    # print 'JSON saved to: %s' %'test.json'  #  kinect_config['output_json_path']
+    
     if return_coors:
         return {
             'yhat': np.concatenate(joint_predictions).squeeze(),
@@ -334,13 +354,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_in_cage_1/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        # default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",
