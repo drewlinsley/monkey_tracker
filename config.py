@@ -23,7 +23,7 @@ class monkeyConfig(object):
         self.train_summaries = os.path.join(self.results_dir, 'summaries')
         self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = True
+        use_checkpoint = False
         if use_checkpoint:
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # OK
             # # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # WORSE THAN 1
@@ -35,7 +35,10 @@ class monkeyConfig(object):
             # self.model_name = 'skip_small_conv_deconv_2017_07_07_18_39_07'  # 'small_conv_deconv_2017_07_07_18_39_36' 'small_conv_deconv_2017_07_07_18_43_46'
             # self.model_name = 'small_conv_deconv_2017_07_07_18_39_36'
             # self.model_name = 'skip_small_conv_deconv_2017_07_09_21_44_29'
-            self.model_name = 'small_conv_deconv_2017_07_09_21_44_02'
+            # self.model_name = 'small_conv_deconv_2017_07_09_21_44_02'
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_16_34_12'
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_17_23_07'
+            # self.model_name = 'small_conv_deconv_2017_07_12_16_28_45'
             # Not ready:
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31'  # Pretty good... on par w/ 1
             # 
@@ -77,7 +80,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'small_conv_deconv'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion' # 'small_conv_deconv'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         # self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
@@ -105,7 +108,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.aux_losses = [None]  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
         self.include_validation = True  # '/media/data_cifs/monkey_tracking/tfrecords/monkey_on_pole.tfrecords'  # True
         self.wd_type = 'l2'

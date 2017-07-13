@@ -16,6 +16,10 @@ def train_and_eval(config):
 
     if config.resume_from_checkpoint is not None:
         try:
+            if config.augment_background == 'background':
+                bg = config.augment_background
+            else:
+                bg = None
             rfc = config.resume_from_checkpoint
             ic = config.include_validation
             print 'Loading saved config: %s' % config.saved_config
@@ -26,6 +30,9 @@ def train_and_eval(config):
                 config.augment_background = 'constant'
             if not hasattr(config, 'background_folder'):
                 config.background_folder = 'backgrounds'
+            if bg is not None:
+                print 'Overriding saved config to add kinect backgrounds to training.'
+                config.augment_background = bg
             results_dir = rfc
         except:
             print 'Relying on default config file.'

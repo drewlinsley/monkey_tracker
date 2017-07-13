@@ -24,19 +24,28 @@ def train_and_eval(
         return_coors=False,
         check_stats=False,
         get_kinect_masks=False):
-    # Try loading saved config
-    try:
-        rfc = config.resume_from_checkpoint
-        md = config.max_depth
-        config = np.load(config.saved_config).item()
-        config.resume_from_checkpoint = rfc
-        config.max_depth = md
-        print 'Loading saved config'
-        if not hasattr(config, 'augment_background'):
-            config.augment_background = 'constant'
-        results_dir = rfc
-    except:
-        print 'Relying on default config file.'
+    if config.resume_from_checkpoint is not None:
+        try:
+            if config.augment_background == 'background':
+                bg = config.augment_background
+            else:
+                bg = None
+            rfc = config.resume_from_checkpoint
+            ic = config.include_validation
+            print 'Loading saved config: %s' % config.saved_config
+            config = np.load(config.saved_config).item()
+            config.resume_from_checkpoint = rfc
+            config.include_validation = ic
+            if not hasattr(config, 'augment_background'):
+                config.augment_background = 'constant'
+            if not hasattr(config, 'background_folder'):
+                config.background_folder = 'backgrounds'
+            if bg is not None:
+                print 'Overriding saved config to add kinect backgrounds to training.'
+                config.augment_background = bg
+            results_dir = rfc
+        except:
+            print 'Relying on default config file.'
 
     # Import your model
     print 'Model directory: %s' % config.model_output
@@ -84,13 +93,13 @@ def train_and_eval(
             config.max_depth, train_data)
         train_data_dict = inputs(
             tfrecord_file=train_data,
-            batch_size=uniform_batch_size,
+            batch_size=config.train_batch,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=num_epochs,
+            num_epochs=config.epochs,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -103,23 +112,21 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            working_on_kinect=working_on_kinect,
-            shuffle=False,
-            num_threads=1,
-            augment_background=config.augment_background,
+            augment_background='constant',  # config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
-        print 'Using validation dataset: %s' % validation_data
         val_data_dict = inputs(
             tfrecord_file=validation_data,
-            batch_size=uniform_batch_size,
+            batch_size=config.validation_batch,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=num_epochs,
+            num_epochs=config.epochs,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -132,10 +139,9 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            working_on_kinect=working_on_kinect,
-            shuffle=False,
-            num_threads=1,
-            augment_background=config.augment_background,
+            augment_background='constant',  # config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -360,7 +366,7 @@ if __name__ == '__main__':
         "--val",
         dest="validation_data",
         type=str,
-        # default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",
