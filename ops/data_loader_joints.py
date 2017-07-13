@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import numpy as np
 from scipy import misc
@@ -114,6 +115,7 @@ def read_and_decode(
         clip_z=False,
         mask_occluded_joints=False,
         working_on_kinect=False,
+        background_folder=None,
         augment_background=False):
 
     reader = tf.TFRecordReader()
@@ -177,6 +179,31 @@ def read_and_decode(
                     w=target_size[0]),
                 axis=2)) / 2
             background_mask = (background_mask - pnoise) * background_constant
+        elif augment_background == 'background':
+            background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
+                os.path.join(background_folder, '*.npy'))]
+            elems = tf.convert_to_tensor(range(len(background_masks)))
+            samples = tf.multinomial(tf.log([[1.] * len(background_masks)]), 1) # note log-prob
+            sel_bg = tf.expand_dims(tf.gather(background_masks, tf.cast(samples[0][0], tf.int32)), axis=2)
+
+            # Augment the depth
+            sel_vec = tf.reshape(sel_bg, [np.prod(target_size[:2])])
+            max_val = tf.reduce_mean(tf.nn.top_k(sel_vec, 20)[0])  # tf.reduce_max(sel_bg)
+            min_val = tf.reduce_min(sel_vec)
+            it_random = np.max([randomize_background, 1])
+            if it_random > 1:
+                max_val *= tf.cast(
+                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32) 
+                min_val *= tf.cast(
+                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
+            sel_bg = (sel_bg - min_val) / (max_val - min_val)
+
+            # Random flips
+            sel_bg = tf.concat([sel_bg, sel_bg, sel_bg], axis=2)
+            sel_bg, _ = augment_data(
+                sel_bg, model_input_shape, im_size, ['left_right', 'up_down'])  # 'random_contrast
+            sel_bg *= background_constant
+            background_mask *= tf.split(sel_bg, 3, axis=2)[0]
         elif augment_background == 'perlin_2':
             # Add 3D noise
             pnoise = tf.concat([tf.abs(tf.expand_dims(
@@ -187,6 +214,8 @@ def read_and_decode(
             background_mask = (background_mask - pnoise) * background_constant
         elif augment_background == 'constant':
             # Add an "invisible wall"
+            # Need to calibrate kinect vs. maya...
+            # maya depth generally ranges ~ .1 across the enire monkey
             background_mask *= background_constant
         elif augment_background == 'rescale':
             # Rescale depth to [0, 1]
@@ -212,6 +241,12 @@ def read_and_decode(
                 axis=2)) * tf.random_uniform((), minval=0, maxval=50, dtype=tf.float32)
             background_constant = tf.reduce_max(g0_im)
             background_mask *= (background_constant - pnoise)
+        elif augment_background == 'none':
+            image = (image * 2) - tf.reduce_max(image)
+            background_constant = tf.reduce_max(image)
+            background_mask *= tf.reduce_max(image) * 2
+        else:
+            raise RuntimeError('Cannot understand your selected background augmentation.')
 
         image += background_mask
 
@@ -222,6 +257,7 @@ def read_and_decode(
                 background_constant - foreground_min)
         else:
             image /= background_constant
+        
         image, _ = augment_data(
             image, model_input_shape, im_size, train)
 
@@ -554,6 +590,7 @@ def inputs(
         randomize_background=None,
         shuffle=True,
         num_threads=2,
+        background_folder=None,
         augment_background=False,
         maya_joint_labels=None):
     with tf.name_scope('input'):
@@ -584,6 +621,7 @@ def inputs(
             randomize_background=randomize_background,
             working_on_kinect=working_on_kinect,
             augment_background=augment_background,
+            background_folder=background_folder,
             maya_joint_labels=maya_joint_labels)
 
         variable_keys = ['image', 'label']

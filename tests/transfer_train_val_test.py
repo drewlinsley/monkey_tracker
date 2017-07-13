@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from datetime import datetime
 import numpy as np
 import tensorflow as tf
@@ -23,19 +24,28 @@ def train_and_eval(
         return_coors=False,
         check_stats=False,
         get_kinect_masks=False):
-    # Try loading saved config
-    try:
-        rfc = config.resume_from_checkpoint
-        md = config.max_depth
-        config = np.load(config.saved_config).item()
-        config.resume_from_checkpoint = rfc
-        config.max_depth = md
-        print 'Loading saved config'
-        if not hasattr(config, 'augment_background'):
-            config.augment_background = 'constant'
-        results_dir = rfc
-    except:
-        print 'Relying on default config file.'
+    if config.resume_from_checkpoint is not None:
+        try:
+            if config.augment_background == 'background':
+                bg = config.augment_background
+            else:
+                bg = None
+            rfc = config.resume_from_checkpoint
+            ic = config.include_validation
+            print 'Loading saved config: %s' % config.saved_config
+            config = np.load(config.saved_config).item()
+            config.resume_from_checkpoint = rfc
+            config.include_validation = ic
+            if not hasattr(config, 'augment_background'):
+                config.augment_background = 'constant'
+            if not hasattr(config, 'background_folder'):
+                config.background_folder = 'backgrounds'
+            if bg is not None:
+                print 'Overriding saved config to add kinect backgrounds to training.'
+                config.augment_background = bg
+            results_dir = rfc
+        except:
+            print 'Relying on default config file.'
 
     # Import your model
     print 'Model directory: %s' % config.model_output
@@ -83,13 +93,13 @@ def train_and_eval(
             config.max_depth, train_data)
         train_data_dict = inputs(
             tfrecord_file=train_data,
-            batch_size=uniform_batch_size,
+            batch_size=config.train_batch,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=num_epochs,
+            num_epochs=config.epochs,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -102,23 +112,21 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            working_on_kinect=working_on_kinect,
-            shuffle=False,
-            num_threads=1,
-            augment_background=config.augment_background,
+            augment_background='constant',  # config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
-        print 'Using validation dataset: %s' % validation_data
         val_data_dict = inputs(
             tfrecord_file=validation_data,
-            batch_size=uniform_batch_size,
+            batch_size=config.validation_batch,
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
             train=config.data_augmentations,
             label_shape=config.num_classes,
-            num_epochs=num_epochs,
+            num_epochs=config.epochs,
             image_target_size=config.image_target_size,
             image_input_size=config.image_input_size,
             maya_conversion=config.maya_conversion,
@@ -131,10 +139,9 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            working_on_kinect=working_on_kinect,
-            shuffle=False,
-            num_threads=1,
-            augment_background='constant',
+            augment_background='constant',  # config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -300,6 +307,25 @@ def train_and_eval(
     coord.join(threads)
     sess.close()
     tf.reset_default_graph()
+    # REMOVE BELOW HERE TO NEXT COMMENT
+    # np.savez('test_data', yhat=np.concatenate(joint_predictions).squeeze(), ytrue=np.concatenate(joint_gt).squeeze(), im=np.concatenate(out_ims))
+
+    # joint_dict = {
+    #         'yhat': np.concatenate(joint_predictions).squeeze(),
+    #         'ytrue': np.concatenate(joint_gt).squeeze(),
+    #         'im': np.concatenate(out_ims)
+    #         }
+    # list_of_yhat_joints = []
+    # for yhats in joint_dict['yhat']:
+    #     res_yhats = yhats.reshape(-1, 2)
+    #     frame_dict = {}
+    #     for k, row in zip(config.joint_names, res_yhats):
+    #         frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
+    #     list_of_yhat_joints += [frame_dict]
+    # with open('test.json', 'w') as fout:
+    #     json.dump(list_of_yhat_joints, fout)
+    # print 'JSON saved to: %s' %'test.json'  #  kinect_config['output_json_path']
+    
     if return_coors:
         return {
             'yhat': np.concatenate(joint_predictions).squeeze(),
@@ -334,13 +360,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_in_cage_1/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        # default='/home/drew/Desktop/predicted_monkey_on_pole_1/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",

@@ -16,6 +16,10 @@ def train_and_eval(config):
 
     if config.resume_from_checkpoint is not None:
         try:
+            if config.augment_background == 'background':
+                bg = config.augment_background
+            else:
+                bg = None
             rfc = config.resume_from_checkpoint
             ic = config.include_validation
             print 'Loading saved config: %s' % config.saved_config
@@ -24,6 +28,11 @@ def train_and_eval(config):
             config.include_validation = ic
             if not hasattr(config, 'augment_background'):
                 config.augment_background = 'constant'
+            if not hasattr(config, 'background_folder'):
+                config.background_folder = 'backgrounds'
+            if bg is not None:
+                print 'Overriding saved config to add kinect backgrounds to training.'
+                config.augment_background = bg
             results_dir = rfc
         except:
             print 'Relying on default config file.'
@@ -85,6 +94,8 @@ def train_and_eval(config):
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
             augment_background=config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -110,6 +121,8 @@ def train_and_eval(config):
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
             augment_background=config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
