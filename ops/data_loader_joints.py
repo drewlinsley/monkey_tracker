@@ -196,7 +196,11 @@ def read_and_decode(
                     (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32) 
                 min_val *= tf.cast(
                     (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
-            sel_bg = (sel_bg - min_val) / (max_val - min_val)
+            # sel_bg = (sel_bg - min_val) / (max_val - min_val)
+            sel_bg /= max_val
+
+            # Threshold at 1
+            sel_bg = tf.minimum(sel_bg, 1)
 
             # Random flips
             sel_bg = tf.concat([sel_bg, sel_bg, sel_bg], axis=2)
@@ -633,7 +637,7 @@ def inputs(
             'pose',
             'z',
             'size',
-            'deconv',
+            'deconv_image',
             'deconv_label']
         keys, var_list = prepare_output_variables(
             output_data=output_data,

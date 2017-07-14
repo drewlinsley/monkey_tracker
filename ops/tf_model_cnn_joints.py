@@ -145,7 +145,7 @@ def train_and_eval(config):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
-            if 'deconv' in config.aux_losses:
+            if 'deconv_image' in config.aux_losses:
                 tf.summary.image('Deconv train', model.deconv)
             if 'deconv_label' in config.aux_losses:
                 tf.summary.image(
@@ -172,7 +172,7 @@ def train_and_eval(config):
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
-                if 'deconv' in config.aux_losses:
+                if 'deconv_image' in config.aux_losses:
                     tf.summary.image('Deconv val', val_model.deconv)
                 if 'deconv_label' in config.aux_losses:
                     tf.summary.image(
