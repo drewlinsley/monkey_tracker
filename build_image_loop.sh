@@ -3,7 +3,7 @@
 echo "Which node do you want to use? [1, 2, 3]"
 read node
 
-for gpu in  4 5 6 7
+for gpu in 0 1 2 3 4 5 6 7
 do
     echo "GPU $gpu"
     # Build the image and label it as clickme-example on the Docker registry on p3

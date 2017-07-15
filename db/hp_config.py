@@ -6,9 +6,10 @@ import itertools as it
 Each key in parameter_dict must be manually added to the schema.
 """
 parameter_dict = {
-    'lr': np.asarray([1e-5, 1e-6]),  # np.logspace(-5, -2, 4, base=10),
-    'randomize_background': np.asarray([2]),  # np.arange(3),
-    'aux_losses': np.asarray([['deconv_label'], ['z', 'occlusion', 'deconv_label']])
+    'lr': np.asarray([1e-5]),  # np.logspace(-5, -2, 4, base=10),
+    'randomize_background': np.asarray([None, 2]),  # np.arange(3),
+    'aux_losses': np.asarray([[None], ['size', 'occlusion']]),
+    'model_type': np.asarray(['cnn_multiscale_high_res_low_res_skinny_pose_occlusion.py'], ['small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'], ['cnn_multiscale_high_res_atrous_skinny_pose_occlusion'])
 }
 
 

@@ -53,11 +53,12 @@ class monkeyConfig(object):
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
         self.randomize_background = None
-        self.augment_background = 'perlin'  # 'rescale' 'perlin' 'constant'
+        self.augment_background = 'background'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.background_folder = 'backgrounds'
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'skip_small_conv_deconv'  # 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        self.model_type = 'pooled_skip_small_conv_deconv'  # 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = None  # ['z', 'size', 'occlusion']
         self.batch_norm = [None]
@@ -88,12 +89,12 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['z', 'size', 'occlusion']  # 'occlusion' 'pose' 'size' 'z'
+        self.aux_losses = ['deconv_label', 'z', 'size', 'occlusion']  # 'occlusion' 'pose' 'size' 'z'
         self.calculate_per_joint_loss = False
         self.include_validation = True
         self.wd_type = 'l2'
-        self.wd_penalty = None  # 5e-4
-        self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
+        self.wd_penalty = 1e-5  # 5e-4
+        self.wd_layers = ['high_feature_encoder_1x1_0', 'high_feature_encoder_1x1_1']# ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
         self.fc_lambda = 0.01
 
         # Kinect file settings

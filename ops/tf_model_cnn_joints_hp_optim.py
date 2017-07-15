@@ -16,8 +16,6 @@ from db import db
 def train_and_eval(config):
     """Train and evaluate the model."""
     hp_params, hp_combo_id = db.get_parameters()
-    print hp_params
-    print hp_combo_id
     if hp_combo_id is None:
         print 'Exiting.'
         sys.exit(1)
@@ -78,6 +76,8 @@ def train_and_eval(config):
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
             augment_background=config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -103,6 +103,8 @@ def train_and_eval(config):
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
             augment_background=config.augment_background,
+            background_folder=config.background_folder,
+            randomize_background=config.randomize_background,
             maya_joint_labels=config.labels)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -126,7 +128,7 @@ def train_and_eval(config):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
-            if 'deconv' in config.aux_losses:
+            if 'deconv_image' in config.aux_losses:
                 tf.summary.image('Deconv train', model.deconv)
             if 'deconv_label' in config.aux_losses:
                 tf.summary.image(
@@ -153,7 +155,7 @@ def train_and_eval(config):
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
-                if 'deconv' in config.aux_losses:
+                if 'deconv_image' in config.aux_losses:
                     tf.summary.image('Deconv val', val_model.deconv)
                 if 'deconv_label' in config.aux_losses:
                     tf.summary.image(

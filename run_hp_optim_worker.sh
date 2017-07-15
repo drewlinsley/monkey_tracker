@@ -9,5 +9,6 @@ while true
         ret=$?
         if [ $ret -ne 0 ]; then
             echo "Worker is finished."
+            break
         fi 
     done
