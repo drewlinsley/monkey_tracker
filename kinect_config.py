@@ -4,7 +4,7 @@ import os
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'xef2mat_output'  # 'monkey_in_cage_1'  # 'monkey_in_cage_1'  # 
+        self.selected_video = 'monkey_on_pole_3'  # 'monkey_in_cage_1'  # 'monkey_in_cage_1'  # 
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords

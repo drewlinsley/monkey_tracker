@@ -14,7 +14,7 @@ from ops import tf_fun
 from tests.transfer_train_val_test import train_and_eval
 
 
-def main(model_dir, ckpt_name, run_tests=False):
+def main(model_dir, ckpt_name, run_tests=False, babas=False):
     '''Skeleton script for preprocessing and
     passing kinect videos through a trained model'''
     # Find config from the trained model
@@ -23,6 +23,8 @@ def main(model_dir, ckpt_name, run_tests=False):
         raise RuntimeError('You must pass a trained checkpoint to this script!')
     if model_dir is None:
         model_dir = os.path.join(config.model_output, config.segmentation_model_name)
+    old_resume = config.resume_from_checkpoint
+    old_config = config.saved_config
     config.model_name = config.segmentation_model_name
     config.resume_from_checkpoint = os.path.join(
         config.model_output,
@@ -180,6 +182,7 @@ def main(model_dir, ckpt_name, run_tests=False):
         frame_toss_index = np.concatenate((frame_toss_index, it_frame_toss_index))
         config.max_depth = max_array
         config.background_constant = config.max_depth * 2
+        config.epochs = 1
 
         if kinect_config['mask_with_model']:
             np.savez(
@@ -197,6 +200,8 @@ def main(model_dir, ckpt_name, run_tests=False):
                     output=kinect_config['kinect_output_name'],
                     crop_coors=crop_coors)
         print 'Now passing processed frames through selected CNN.'
+        config.resume_from_checkpoint = old_resume
+        config.saved_config = old_config
         joint_dict = train_and_eval(
             frame_pointer,
             frame_pointer,
@@ -204,7 +209,8 @@ def main(model_dir, ckpt_name, run_tests=False):
             uniform_batch_size=None,
             swap_datasets=False,
             working_on_kinect=use_kinect,
-            return_coors=True)
+            return_coors=True,
+            babas=babas)
         # Also save json key/value dicts in the same format as BABAS
         list_of_yhat_joints = []
         for yhats in joint_dict['yhat']:
@@ -284,5 +290,10 @@ if __name__ == '__main__':
         dest="run_tests",
         action='store_true',
         help='Check to see the pipeline works for our renders before transfering to Kinect.')
+    parser.add_argument(
+        "--babas",
+        dest="babas",
+        action='store_true',
+        help='Babas data.')
     args = parser.parse_args()
     main(**vars(args))

@@ -21,6 +21,7 @@ class model_struct:
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
         self.joint_label_output_keys = []
+        self.fc_layers = []
 
     def __getitem__(self, name):
         return getattr(self, name)
@@ -165,6 +166,7 @@ class model_struct:
         self.high_1x1_0_pool = self.max_pool(
             self.high_feature_encoder_1x1_0,
             'high_1x1_0_pool')
+        self.fc_layers += [self.high_1x1_0_pool]
 
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_1x1_0_pool,
@@ -181,6 +183,7 @@ class model_struct:
         self.high_1x1_1_pool = self.max_pool(
             self.high_feature_encoder_1x1_1,
             'high_1x1_1_pool')
+        self.fc_layers += [self.high_1x1_1_pool]
 
         self.high_feature_encoder_1x1_2 = self.conv_layer(
             self.high_1x1_1_pool,
@@ -195,6 +198,7 @@ class model_struct:
                 lambda: self.high_feature_encoder_1x1_2)
         self.high_1x1_2_pool = tf.contrib.layers.flatten(
             self.max_pool(self.high_feature_encoder_1x1_2, 'high_1x1_2_pool'))
+        self.fc_layers += [self.high_1x1_2_pool]
 
         if 'label' in target_variables.keys():
             self.output = self.fc_layer(
@@ -249,6 +253,7 @@ class model_struct:
                         pose_shape,
                         "pose")
                 )
+
         self.data_dict = None
 
     def resnet_layer(

@@ -245,6 +245,16 @@ class model_struct:
                         "pose")
                 )
 
+        if 'domain_confusion' in target_variables.keys():
+            # Occlusion head
+            self.domain_confusion = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_2_pool,
+                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        2,
+                        "domain_confusion")
+                )
+
         self.data_dict = None
 
     def resnet_layer(

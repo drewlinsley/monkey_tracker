@@ -173,11 +173,18 @@ def extract_depth_features_into_tfrecord(
     make tfrecords from them."""
 
     # Crossvalidate and create tfrecords
-    depth_files, label_files, occlusion_files, pixel_label_files = cv_files(
-        depth_files,
-        label_files,
-        occlusion_files,
-        pixel_label_files)
+    if config.use_train_as_val:
+        print 'Reusing training data for validation data.'
+        depth_files = {'train': depth_files, 'val': depth_files}
+        label_files = {'train': label_files, 'val': label_files}
+        occlusion_files = {'train': occlusion_files, 'val': occlusion_files}
+        pixel_label_files = {'train': pixel_label_files, 'val': pixel_label_files}
+    else:
+        depth_files, label_files, occlusion_files, pixel_label_files = cv_files(
+            depth_files,
+            label_files,
+            occlusion_files,
+            pixel_label_files)
     mean_dict = {}
     for k in depth_files.keys():
         print 'Getting depth features: %s' % k

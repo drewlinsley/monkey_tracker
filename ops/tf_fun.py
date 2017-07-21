@@ -23,7 +23,7 @@ def fine_tune_prepare_layers(tf_vars, finetune_vars):
     return other_vars, ft_vars
 
 
-def ft_optimizer_list(cost, opt_vars, optimizer, lrs, grad_clip=False):
+def ft_optimizer_list(cost, opt_vars, optimizer, lrs, grad_clip=False, global_step=None):
     """Efficient optimization for fine tuning a net."""
     ops = []
     gvs = []
@@ -36,7 +36,12 @@ def ft_optimizer_list(cost, opt_vars, optimizer, lrs, grad_clip=False):
                 if grad is not None else (grad, var) for grad, var in gvs]
             ops.append(optim.apply_gradients(capped_gvs))
         else:
-            ops.append(optimizer(l).minimize(cost, var_list=v))
+            if global_step is not None:
+                ops.append(
+                    optimizer(l).minimize(
+                        cost, var_list=v, global_step=global_step))
+            else:
+                ops.append(optimizer(l).minimize(cost, var_list=v))
     return tf.group(*ops), gvs
 
 
@@ -272,23 +277,35 @@ def finetune_learning(
         fine_tune_layers,
         config):
     if fine_tune_layers is not None:
+        global_step = None
         other_opt_vars, ft_opt_vars = fine_tune_prepare_layers(
             trainables, fine_tune_layers)
         if config.optimizer == 'adam':
-            train_op, gvs = ft_optimizer_list(
-                loss, [other_opt_vars, ft_opt_vars],
-                tf.train.AdamOptimizer,
-                [config.hold_lr, config.lr],
-                grad_clip=config.grad_clip)
+            optimizer = tf.train.AdamOptimizer
         elif config.optimizer == 'sgd':
-            train_op, gvs = ft_optimizer_list(
-                loss, [other_opt_vars, ft_opt_vars],
-                tf.train.GradientDescentOptimizer,
-                [config.hold_lr, config.lr],
-                grad_clip=config.grad_clip)
+            optimizer = tf.train.GradientDescentOptimizer
+        elif config.optimizer == 'sgd_exp':
+            optimizer = tf.train.GradientDescentOptimizer
+            global_step = tf.Variable(0, trainable=False)
+            config.lr = tf.train.exponential_decay(
+                config.lr,
+                global_step,
+                100000,
+                0.96,
+                staircase=True)
+        elif config.optimizer == 'momentum':
+            optimizer = lambda x: tf.train.MomentumOptimizer(x, 0.9)
+        elif config.optimizer == 'rms':
+            optimizer = tf.train.RMSPropOptimizer
         else:
             raise RuntimeError(
                 'Cannot understand what optimizer you\'re using')
+        train_op, gvs = ft_optimizer_list(
+            loss, [other_opt_vars, ft_opt_vars],
+            optimizer,
+            [config.hold_lr, config.lr],
+            grad_clip=config.grad_clip,
+            global_step=global_step)
     else:
         raise RuntimeError('Pass some layers for finetuning')
     return train_op, gvs

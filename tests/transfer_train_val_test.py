@@ -23,7 +23,8 @@ def train_and_eval(
         working_on_kinect=False,
         return_coors=False,
         check_stats=False,
-        get_kinect_masks=False):
+        get_kinect_masks=False,
+        babas=False):
     if config.resume_from_checkpoint is not None:
         try:
             if config.augment_background == 'background':
@@ -44,6 +45,9 @@ def train_and_eval(
                 print 'Overriding saved config to add kinect backgrounds to training.'
                 config.augment_background = bg
             results_dir = rfc
+            config.epochs = 1
+            # config.max_depth = 2800.
+            # config.background_constant = 600.
         except:
             print 'Relying on default config file.'
 
@@ -115,6 +119,7 @@ def train_and_eval(
             augment_background='constant',  # config.augment_background,
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
+            shuffle=False,
             maya_joint_labels=config.labels)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -142,6 +147,7 @@ def train_and_eval(
             augment_background='constant',  # config.augment_background,
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
+            shuffle=False,
             maya_joint_labels=config.labels)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
@@ -229,6 +235,8 @@ def train_and_eval(
     num_joints = int(
         train_data_dict['label'].get_shape()[-1]) // config.keep_dims
     normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
+    if babas:
+        normalize_vec *= 2
     joint_predictions, joint_gt, out_ims, monkey_masks = [], [], [], []
     if config.resume_from_checkpoint is not None:
         if '.ckpt' in config.resume_from_checkpoint:
@@ -341,7 +349,8 @@ def main(
         train_data=None,
         which_joint=None,
         working_on_kinect=True,
-        uniform_batch_size=5):
+        uniform_batch_size=5,
+        babas=False):
 
     config = monkeyConfig()
     if which_joint is not None:
@@ -351,7 +360,8 @@ def main(
         validation_data=validation_data,
         config=config,
         working_on_kinect=working_on_kinect,
-        uniform_batch_size=uniform_batch_size)
+        uniform_batch_size=uniform_batch_size,
+        babas=babas)
 
 
 if __name__ == '__main__':
@@ -360,13 +370,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_in_cage_1/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_in_cage_1/monkey_on_pole.tfrecords',
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",
@@ -378,6 +388,11 @@ if __name__ == '__main__':
         dest="working_on_kinect",
         action='store_true',
         help='You are passing kinect data as training.')
+    parser.add_argument(
+        "--babas",
+        dest="babas",
+        action='store_true',
+        help='You are using babas data.')
     parser.add_argument(
         "--bs",
         dest="uniform_batch_size",

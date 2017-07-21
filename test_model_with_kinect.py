@@ -14,7 +14,7 @@ from ops import tf_fun
 from tests.transfer_train_val_test import train_and_eval
 
 
-def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
+def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None, babas=False):
     '''Skeleton script for preprocessing and
     passing kinect videos through a trained model'''
     # Find config from the trained model
@@ -69,7 +69,8 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
             config,
             swap_datasets=False,
             working_on_kinect=use_kinect,
-            return_coors=False)
+            return_coors=True,
+            babas=babas)
     else:
         if len(monkey_files) == 0:
             raise RuntimeError('Could not find any files!')
@@ -212,23 +213,32 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None):
 
     # Save results to a npz
     if kinect_config['output_npy_path'] is not None:
-        files_to_save = {
-            'overlaid_frames': overlaid_pred,
-            'joint_predictions': joint_dict['yhat'],
-            'frames': frames,
-            'kinect_config': kinect_config,
-            'model_config': config,
-            'frame_toss_index': frame_toss_index,
-            'extents': extents
-        }
-        test_tf_kinect.save_to_numpys(
-            file_dict=files_to_save,
-            path=kinect_config['output_npy_path'])
-        # Also save json key/value dicts
-        list_of_yhat_joints = [{k: float(v) for k, v in zip(config.joint_names, yhats)} for yhats in joint_dict['yhat']]
+        try:
+            files_to_save = {
+                'overlaid_frames': overlaid_pred,
+                'joint_predictions': joint_dict['yhat'],
+                'frames': frames,
+                'kinect_config': kinect_config,
+                'model_config': config,
+                'frame_toss_index': frame_toss_index,
+                'extents': extents
+            }
+            test_tf_kinect.save_to_numpys(
+                file_dict=files_to_save,
+                path=kinect_config['output_npy_path'])
+        except:
+            print 'Messed up saving results to npz.'
+        # Also save json key/value dicts in the same format as BABAS
+        list_of_yhat_joints = []
+        for yhats in joint_dict['yhat']:
+            res_yhats = yhats.reshape(-1, 2)
+            frame_dict = {}
+            for k, row in zip(config.joint_names, res_yhats):
+                frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
+            list_of_yhat_joints += [frame_dict]
         with open(kinect_config['output_json_path'], 'w') as fout:
             json.dump(list_of_yhat_joints, fout)
-        print 'JSON saved to: %s' % kinect_config['output_json_path'] 
+        print 'JSON saved to: %s' % kinect_config['output_json_path']
 
 
 if __name__ == '__main__':
@@ -250,6 +260,11 @@ if __name__ == '__main__':
         dest="run_tests",
         action='store_true',
         help='Check to see the pipeline works for our renders before transfering to Kinect.')
+    parser.add_argument(
+        "--babas",
+        dest="babas",
+        action='store_true',
+        help='Passing babas data through.')
     parser.add_argument(
         "--reuse_kinect",
         dest="reuse_kinect",

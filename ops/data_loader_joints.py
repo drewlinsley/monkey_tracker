@@ -598,6 +598,12 @@ def inputs(
         augment_background=False,
         maya_joint_labels=None):
     with tf.name_scope('input'):
+        if 'domain_adaptation' in aux_losses:
+            # 1. Need to mix real/synth tf records.
+            # 2. Handle cases of real data without special aux data
+            # 3. Return additional label for whether instance is real or synth
+            pass
+
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
 
@@ -632,13 +638,15 @@ def inputs(
         keys, var_list = prepare_output_variables(
             output_data=output_data,
             variable_keys=variable_keys)
+
         variable_keys = [
             'occlusion',
             'pose',
             'z',
             'size',
             'deconv_image',
-            'deconv_label']
+            'deconv_label',
+            'domain_adaptation']
         keys, var_list = prepare_output_variables(
             output_data=output_data,
             variable_keys=variable_keys,
