@@ -4,6 +4,7 @@ import numpy as np
 from scipy import misc
 from glob import glob
 from ops import tf_perlin
+from tensorflow.python.ops import control_flow_ops
 
 
 def get_image_size(config):
@@ -182,7 +183,7 @@ def read_and_decode(
         elif augment_background == 'background':
             background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
                 os.path.join(background_folder, '*.npy'))]
-            elems = tf.convert_to_tensor(range(len(background_masks)))
+            # elems = tf.convert_to_tensor(range(len(background_masks)))
             samples = tf.multinomial(tf.log([[1.] * len(background_masks)]), 1) # note log-prob
             sel_bg = tf.expand_dims(tf.gather(background_masks, tf.cast(samples[0][0], tf.int32)), axis=2)
 
@@ -510,33 +511,43 @@ def augment_data(
         image,
         model_input_shape,
         im_size,
-        train):
+        train,
+        labels=None):
     crop_coors = None
     if train is not None:
         if 'left_right' in train:
-            image = tf.image.random_flip_left_right(image)
+            lorr = tf.less(tf.random_uniform([], minval=0, maxval=1.), .5)
+            image = control_flow_ops.cond(
+                lorr,
+                lambda: tf.image.flip_left_right(image),
+                lambda: image)
+            if labels is not None:
+                tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
+                lab_adjust = tf.cast(
+                    tf.tile([0] + im_size[1] + [0], tile_size), tf.float32)
+                labels = control_flow_ops.cond(
+                    lorr,
+                    lambda: lab_adjust - labels,
+                    lambda: labels)
         if 'up_down' in train:
-            image = tf.image.random_flip_up_down(image)
+            lorr = tf.less(tf.random_uniform([], minval=0, maxval=1.), .5)
+            image = control_flow_ops.cond(
+                lorr,
+                lambda: tf.image.flip_up_down(image),
+                lambda: image)
+            if labels is not None:
+                tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
+                lab_adjust = tf.cast(
+                    tf.tile(im_size[1] + [0] + [0], tile_size), tf.float32)
+                labels = control_flow_ops.cond(
+                    lorr,
+                    lambda: lab_adjust - labels,
+                    lambda: labels)
         if 'random_contrast' in train:
             image = tf.image.random_contrast(image, lower=0.0, upper=0.1)
         if 'random_brightness' in train:
             image = tf.image.random_brightness(image, max_delta=.1)
-        if 'rotate' in train:
-            image = tf.image.rot90(image, k=np.random.randint(4))
-        if 'random_crop' in train:
-            h_min, h_max, w_min, w_max = get_crop_coors(
-                image_size=im_size, target_size=model_input_shape)
-            image = apply_crop(
-                image, model_input_shape, h_min, w_min, h_max, w_max)
-            crop_coors = dict()
-            crop_coors = {
-                'h_min': h_min,
-                'h_max': h_max,
-                'w_min': w_min,
-                'w_max': w_max
-             }
-            for name in []:
-                crop_coors[name] = eval(name)
+
         # else:
         #     image = tf.image.resize_image_with_crop_or_pad(
         #         image, model_input_shape[0], model_input_shape[1])

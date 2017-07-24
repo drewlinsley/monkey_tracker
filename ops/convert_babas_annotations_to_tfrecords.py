@@ -5,43 +5,51 @@ from ops import tf_fun
 from kinect_config import kinectConfig
 import os
 import shutil
-from tqdm import tqdm
-
 
 
 def main(tmp_folder='tmp'):
     config = monkeyConfig()
     kinect_config = kinectConfig()
-
-    # Extract appropriate images and labels
-    data = np.load(config.babas_file_for_import)
-    project_name = data['video_info'].item()['path'].split(
-        '/')[-1].split('.')[0]
-    kinect_config = kinect_config[project_name]()
-    project_dir = os.path.join(tmp_folder, project_name)
-    im_folder = os.path.join(project_dir, 'images')
-    label_folder = os.path.join(project_dir, 'labels')
+    annotations, fnames, flat_ims = [], [], []
     try:
-        [tf_fun.make_dir(x) for x in [tmp_folder, project_dir, im_folder, label_folder]]
-        ims = np.load(os.path.join(kinect_config['output_npy_path'], 'frames.npy'))
-        ims = ims[data['frame_range']]
-        fnames = ['tmp1_%s.npy' % idx for idx in range(len(ims))]
-        # Images
+        for idx, batch in enumerate(config.babas_file_for_import):
+            # Extract appropriate images and labels
+            data = np.load(batch['project'])
+            it_kinect_config = kinect_config[batch['data']]()
+            if idx == 0:  # just do this once
+                project_dir = os.path.join(tmp_folder, batch['data'])
+                im_folder = os.path.join(project_dir, 'images')
+                label_folder = os.path.join(project_dir, 'labels')
+                [tf_fun.make_dir(x) for x in [
+                    tmp_folder,
+                    project_dir,
+                    im_folder,
+                    label_folder]]
+            # Images
+            ims = np.load(
+                os.path.join(
+                    it_kinect_config['output_npy_path'], 'frames.npy'))
+            ims = ims[data['frame_range']]
+            flat_ims += [ims]
+            fnames += ['tmp1_%s.npy' % idx for idx in range(len(ims))]
+            # Annotations
+            for im, it_annotation in zip(ims, data['annotations']):
+                coors = np.zeros((len(config.joint_names), config.num_dims))
+                for idx, target_joint in enumerate(config.joint_names):
+                    for k, v in it_annotation.iteritems():
+                        if k == target_joint:
+                            coors[idx, 0] = v['x']  # v['y']  # This correct??
+                            coors[idx, 1] = v['y']  # v['x']
+                            coors[idx, 2] = im[int(v['y']), int(v['x'])]
+                annotations += [coors]
+        flat_ims = np.concatenate(flat_ims[:])
         [np.save(
             os.path.join(im_folder, f),
-            np.repeat(im[:, :, None], 3, axis=-1)) for f, im in zip(fnames, ims)]
-        # Annotations
-        annotations = []
-        for im, it_annotation in zip(ims, data['annotations']):
-            coors = np.zeros((len(config.joint_names), config.num_dims))
-            for idx, target_joint in enumerate(config.joint_names):
-                for k, v in it_annotation.iteritems():
-                    if k == target_joint:
-                        coors[idx, 0] = v['x']  # v['y']  # Is this correct??
-                        coors[idx, 1] = v['y']  # v['x']
-                        coors[idx, 2] = im[v['y'], v['x']]
-            annotations += [coors]
-        [np.save(os.path.join(label_folder, f), im) for f, im in zip(fnames, annotations)]
+            np.repeat(im[:, :, None], 3, axis=-1)) for f, im in zip(
+            fnames, flat_ims)]
+        [np.save(os.path.join(label_folder, f), im) for f, im in zip(
+            fnames, annotations)]
+
         # Set data folders in config
         config.depth_dir = im_folder
         config.label_dir = label_folder
@@ -55,6 +63,7 @@ def main(tmp_folder='tmp'):
         print e
     finally:
         shutil.rmtree(tmp_folder)
+
 
 if __name__ == '__main__':
     main()

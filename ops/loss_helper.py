@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import yellowfin
+from tensorflow.python.framework import ops
 
 
 def potential_aux_losses():
@@ -65,14 +66,16 @@ def potential_aux_losses():
                 'aux_fun': 'resize',
                 }
         },
+        {
             'domain_adaptation': {
-                'y_name': 'domain_adaptation',
-                'model_name': 'none',
-                'loss_function': 'gram',
-                'var_label': 'domain_adaptation',
+                'y_name': 'domain_label',
+                'model_name': 'domain_adaptation',
+                'loss_function': 'cce',
+                'var_label': 'domain head',
                 'lambda': 0.1,
-                'aux_fun': 'domain_adaption',
+                'aux_fun': 'none',
                 }
+        }
         ]
 
 
@@ -119,19 +122,6 @@ def get_aux_losses(
                     tf.nn.softmax_cross_entropy_with_logits(
                         labels=tf.cast(tf.squeeze(y), tf.int32),
                         logits=yhat))
-        elif loss_function == 'gram':
-            if hasattr(model, 'gram_layers'):
-                negative_mask = tf.equal(y, 0)
-                positive_mask = tf.equal(y, 1)
-                loss = tf.constant(0)
-                for l in model.gram_layers:
-                    #l2 dist between +/- grams per selected layer
-                    negative_rep = np.reduce_mean(model[l] * negative_mask, axis=0, keep_dims=True)
-                    positive_rep = np.reduce_mean(model[l] * positive_mask, axis=0, keep_dims=True)
-                    loss += tf.nn.l2_loss(tf.mat_mul(negative_rep, positive_rep, transpose_a=True))
-            else:
-                raise RuntimeError('Model is not prepared for DA loss.')
-
         elif loss_function == 'l2':
             loss = tf.nn.l2_loss(y - yhat)
         if reg_weight is not None and not isinstance(reg_weight, dict):
@@ -156,3 +146,20 @@ def return_optimizer(optimizer):
     else:
         raise RuntimeError('Unidentified optimizer')
     return optimizer
+
+
+class FlipGrad(object):
+    def __init__(self):
+        self.num_calls = 0
+
+    def __call__(self, x, l=1.0):
+        grad_name = "FlipGradient%d" % self.num_calls
+
+        @ops.RegisterGradient(grad_name)
+        def _flip_gradients(op, grad):
+            return [tf.neg(grad) * l]
+        g = tf.get_default_graph()
+        with g.gradient_override_map({"Identity": grad_name}):
+            y = tf.identity(x)
+        self.num_calls += 1
+        return y

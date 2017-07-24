@@ -101,18 +101,21 @@ def normalize_frames(
     print 'Normalizing kinect to maya.'
     for idx, f in tqdm(enumerate(frames), total=len(frames)):
         # Normalize foreground to [0, 1]
-        zeros_mask = (f > 0).astype(np.float32)
+        ff = f.astype(np.float32)
+        zeros_mask = (ff > 0).astype(np.float32)
         if min_max_norm:
-            normalized_f = (f - kinect_min) / (kinect_max - kinect_min)
+            normalized_f = (ff - kinect_min) / (kinect_max - kinect_min)
             # Convert to maya
             it_f = (normalized_f * (delta)) + min_value
         else:
-            normalized_f = f / kinect_max
+            normalized_f = ff / kinect_max
             it_f = (normalized_f * max_value)
         if smooth:
             it_f = gkern2(it_f)
         it_f *= zeros_mask
-        trans_f[idx, :, :] = np.abs(it_f)
+        if np.sum(it_f < 0):
+            raise RuntimeError('Found negative values in the data.')
+        trans_f[idx, :, :] = it_f
     return trans_f
 
 

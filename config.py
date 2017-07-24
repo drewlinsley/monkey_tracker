@@ -50,7 +50,7 @@ class monkeyConfig(object):
             # Not ready:
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31'  # Pretty good... on par w/ 1
             # 
-            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_19_16_40_48'
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_24_18_37_27'
             self.ckpt_file = None  # 
             self.resume_from_checkpoint = os.path.join(
                 self.model_output,
@@ -74,7 +74,7 @@ class monkeyConfig(object):
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
         self.max_depth = 1200.  # Maya: 1200. --note: prepare kinect with lower value than during testing (e.g. 900train/1800test). Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
-        self.min_depth = 1200.  # Maya: 200. Use for normalizing the kinect data
+        self.min_depth = 200.  # Maya: 200. Use for normalizing the kinect data
         self.background_constant = self.max_depth * 2  # HIGH_NUMBER
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_input_size = [480, 640]  # Maya render output
@@ -211,9 +211,20 @@ class monkeyConfig(object):
         self.keep_dims = 2
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
-        self.babas_file_for_import = os.path.join(
-            '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-            'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3.npz')
+        self.babas_file_for_import = [
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3.npz'),
+                'data': 'monkey_on_pole_3'
+            },
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1.npz'),
+                'data': 'monkey_in_cage_1'
+            }
+            ]
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this

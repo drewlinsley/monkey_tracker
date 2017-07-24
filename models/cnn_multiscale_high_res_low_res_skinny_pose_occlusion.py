@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gc
+from ops.loss_helper import FlipGrad
 
 
 class model_struct:
@@ -72,6 +73,10 @@ class model_struct:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
 
+        if 'domain_adaptation' in target_variables.keys():
+            domain_shape = int(
+                target_variables['domain_adaptation'].get_shape()[-1])
+
         input_bgr = tf.identity(rgb, name="lrp_input")
         layer_structure = [
             {
@@ -103,7 +108,6 @@ class model_struct:
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
-
 
         # Replace this lowres tower with atrous convolutions
         rescaled_shape = [(
@@ -245,14 +249,22 @@ class model_struct:
                         "pose")
                 )
 
-        if 'domain_confusion' in target_variables.keys():
-            # Occlusion head
-            self.domain_confusion = tf.squeeze(
+        if 'domain_adaptation' in target_variables.keys():
+            # Domain adaptation head
+            bottom = FlipGrad(self.high_1x1_0_pool)
+            self.domain_adaptation_fc = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_2_pool,
-                        int(self.high_1x1_2_pool.get_shape()[-1]),
-                        2,
-                        "domain_confusion")
+                        bottom,
+                        int(bottom.get_shape()[-1]),
+                        256,
+                        "domain_adaptation_fc")
+                )
+            self.domain_adaptation = tf.squeeze(
+                    self.fc_layer(
+                        self.domain_adaptation_fc,
+                        int(self.domain_adaptation_fc.get_shape()[-1]),
+                        domain_shape,
+                        "domain_adaptation")
                 )
 
         self.data_dict = None
