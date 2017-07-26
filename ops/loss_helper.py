@@ -75,6 +75,17 @@ def potential_aux_losses():
             'domain_adaptation': {
                 'y_name': 'domain_adaptation',
                 'model_name': 'domain_adaptation',
+                'loss_function': 'none',
+                'var_label': 'domain head',
+                'lambda': 0.1,
+                'aux_fun': 'none',
+                'da_override': False
+                }
+        },
+        {
+            'domain_adaptation_flip': {
+                'y_name': 'domain_adaptation',
+                'model_name': 'domain_adaptation',
                 'loss_function': 'cce',
                 'var_label': 'domain head',
                 'lambda': 0.1,

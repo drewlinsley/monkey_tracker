@@ -2,7 +2,6 @@ import numpy as np
 import os
 import shutil
 from tqdm import tqdm
-from scipy import misc
 from ops.data_processing_joints import process_data
 from config import monkeyConfig
 from ops import tf_fun
