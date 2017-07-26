@@ -74,7 +74,7 @@ def potential_aux_losses():
         {
             'domain_adaptation': {
                 'y_name': 'domain_adaptation',
-                'model_name': 'domain_adaptation',
+                'model_name': 'output',
                 'loss_function': 'none',
                 'var_label': 'domain head',
                 'lambda': 0.1,
@@ -150,6 +150,9 @@ def get_aux_losses(
                         logits=yhat) * loss_mask)
         elif loss_function == 'l2':
             loss = tf.nn.l2_loss((y - yhat) * loss_mask)
+        else:
+            print 'No aux calculation for %s.' % output_label 
+            loss = tf.constant(0.)
         if reg_weight is not None and not isinstance(reg_weight, dict):
             loss *= reg_weight
         loss_list += [loss]

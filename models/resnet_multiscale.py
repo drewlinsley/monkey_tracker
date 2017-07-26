@@ -236,7 +236,7 @@ class model_struct:
                         "pose")
                 )
 
-        if 'domain_adaptation' in target_variables.keys():
+        if 'domain_adaptation_flip' in target_variables.keys():
             # Domain adaptation head
             bottom = flipped_gradient(
                 tf.contrib.layers.flatten(self.high_1x1_0_pool))
