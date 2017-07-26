@@ -1,11 +1,12 @@
 import numpy as np
+import os
+import shutil
+from tqdm import tqdm
+from scipy import misc
 from ops.data_processing_joints import process_data
 from config import monkeyConfig
 from ops import tf_fun
 from kinect_config import kinectConfig
-import os
-import shutil
-from tqdm import tqdm
 
 
 def main(tmp_folder='tmp'):
@@ -73,8 +74,10 @@ def main(tmp_folder='tmp'):
         config.label_dir = label_folder
         config.pixel_label_dir = label_folder
         config.occlusion_dir = occlusion_folder
+        config.im_label_dir = im_folder
         config.tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
         config.use_train_as_val = True
+        config.use_image_labels = True
         process_data(config)
         print 'Saved new tfrecords to: %s' % config.tfrecord_dir
     except Exception as e:
@@ -85,4 +88,3 @@ def main(tmp_folder='tmp'):
 
 if __name__ == '__main__':
     main()
-

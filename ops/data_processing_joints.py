@@ -136,7 +136,7 @@ def create_joint_tf_records(
                         pixel_label_files[i]).astype(np.float32)
                     label_vector = pixel_label_vector
                 if config.use_image_labels:
-                    im_label = misc.imread(os.path.join(
+                    im_label = np.load(os.path.join(  # misc.imread
                         config.im_label_dir, re.split(
                             config.label_extension,
                             re.split('/', label)[-1])[0] + config.image_extension))[:, :, :3]  # label image

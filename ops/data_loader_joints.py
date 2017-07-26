@@ -628,10 +628,10 @@ def inputs(
             # Real monkey tf records loading
             kinect_filename_queue = tf.train.string_input_producer(
                 [babas_tfrecord_dir], num_epochs=None)  # Main tf kills loop
-            if 'domain_adaptation' in aux_losses:
-                domain_label = 0
-            else:
-                domain_label = None
+            # + Handle cases of real data without special aux data
+            if 'domain_adaptation' not in aux_losses:
+                aux_losses += ['domain_adaptation']
+            domain_label = 0
             kinect_output_data = read_and_decode(
                 filename_queue=kinect_filename_queue,
                 im_size=im_size,
@@ -657,9 +657,7 @@ def inputs(
                 background_folder=background_folder,
                 maya_joint_labels=maya_joint_labels,
                 domain_label=domain_label)
-            if domain_label is not None:
-                domain_label += 1
-            # + Handle cases of real data without special aux data
+            domain_label += 1
         else:
             domain_label = None
 
@@ -692,7 +690,7 @@ def inputs(
             maya_joint_labels=maya_joint_labels,
             domain_label=domain_label)
 
-        if 'domain_adaptation' in aux_losses:
+        if domain_label is not None:
             # Need to mix real/synth tf records.
             data_to_pack = [
                 kinect_output_data,

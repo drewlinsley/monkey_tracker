@@ -34,7 +34,7 @@ class model_struct:
             target_variables=None,
             train_mode=None,
             batchnorm=None,
-            hr_fe_keys=['pool1', 'conv2_2', 'conv3_2', 'lrpool2'],
+            hr_fe_keys=['conv2_2', 'conv3_2', 'lrpool2'],
             ):
         """
         load variable from npy to build the VGG

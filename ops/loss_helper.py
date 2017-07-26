@@ -130,7 +130,7 @@ def get_aux_losses(
                 inter_loss = tf.nn.softmax_cross_entropy_with_logits(
                     logits=yhat,
                     labels=y,
-                    dim=-1) * loss_mask
+                    dim=-1) * tf.expand_dims(loss_mask, axis=-1)
                 loss = tf.reduce_mean(inter_loss * weights)
             else:
                 loss = tf.reduce_mean(

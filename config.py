@@ -98,7 +98,7 @@ class monkeyConfig(object):
         self.data_augmentations = [
             'convert_labels_to_pixel_space',
             'left_right',
-            'up_down'
+            # 'up_down'
         ]
 
         # Key training settings
