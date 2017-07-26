@@ -627,7 +627,7 @@ def inputs(
         if 'domain_adaptation' in aux_losses:
             # Real monkey tf records loading
             kinect_filename_queue = tf.train.string_input_producer(
-                [babas_tfrecord_dir], num_epochs=num_epochs)
+                [babas_tfrecord_dir], num_epochs=None)  # Let the other tf kill the while loop
             domain_label = 0
             kinect_output_data = read_and_decode(
                 filename_queue=kinect_filename_queue,

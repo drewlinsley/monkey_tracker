@@ -209,7 +209,7 @@ class monkeyConfig(object):
             'left toetips',
             'right toetips'
         ]
-        self.selected_joints = ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
+        self.selected_joints = None  # ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
         self.keep_dims = 2
         self.num_classes = len(self.joint_order) * self.num_dims
