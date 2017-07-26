@@ -4,6 +4,7 @@ import numpy as np
 from scipy import misc
 from glob import glob
 from ops import tf_perlin
+from tensorflow.python.ops import control_flow_ops
 
 
 def get_image_size(config):
@@ -116,7 +117,8 @@ def read_and_decode(
         mask_occluded_joints=False,
         working_on_kinect=False,
         background_folder=None,
-        augment_background=False):
+        augment_background=False,
+        domain_label=None):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -182,7 +184,7 @@ def read_and_decode(
         elif augment_background == 'background':
             background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
                 os.path.join(background_folder, '*.npy'))]
-            elems = tf.convert_to_tensor(range(len(background_masks)))
+            # elems = tf.convert_to_tensor(range(len(background_masks)))
             samples = tf.multinomial(tf.log([[1.] * len(background_masks)]), 1) # note log-prob
             sel_bg = tf.expand_dims(tf.gather(background_masks, tf.cast(samples[0][0], tf.int32)), axis=2)
 
@@ -196,7 +198,11 @@ def read_and_decode(
                     (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32) 
                 min_val *= tf.cast(
                     (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
-            sel_bg = (sel_bg - min_val) / (max_val - min_val)
+            # sel_bg = (sel_bg - min_val) / (max_val - min_val)
+            sel_bg /= max_val
+
+            # Threshold at 1
+            sel_bg = tf.minimum(sel_bg, 1)
 
             # Random flips
             sel_bg = tf.concat([sel_bg, sel_bg, sel_bg], axis=2)
@@ -421,6 +427,9 @@ def read_and_decode(
             hw += [tf.reduce_max(s) - tf.reduce_min(s)]
         output_data['size'] = tf.stack(hw)
 
+    if 'domain_adaptation' in aux_losses:
+        output_data['domain_adaptation'] = tf.constant(domain_label)
+
     return output_data  # , label_scatter
 
 
@@ -506,33 +515,45 @@ def augment_data(
         image,
         model_input_shape,
         im_size,
-        train):
+        train,
+        labels=None):
     crop_coors = None
     if train is not None:
         if 'left_right' in train:
-            image = tf.image.random_flip_left_right(image)
+            print 'Fliping l/r at random'
+            lorr = tf.less(tf.random_uniform([], minval=0, maxval=1.), .5)
+            image = control_flow_ops.cond(
+                lorr,
+                lambda: tf.image.flip_left_right(image),
+                lambda: image)
+            if labels is not None:
+                tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
+                lab_adjust = tf.cast(
+                    tf.tile([0] + im_size[1] + [0], tile_size), tf.float32)
+                labels = control_flow_ops.cond(
+                    lorr,
+                    lambda: lab_adjust - labels,
+                    lambda: labels)
         if 'up_down' in train:
-            image = tf.image.random_flip_up_down(image)
+            print 'Fliping u/d at random'
+            lorr = tf.less(tf.random_uniform([], minval=0, maxval=1.), .5)
+            image = control_flow_ops.cond(
+                lorr,
+                lambda: tf.image.flip_up_down(image),
+                lambda: image)
+            if labels is not None:
+                tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
+                lab_adjust = tf.cast(
+                    tf.tile(im_size[1] + [0] + [0], tile_size), tf.float32)
+                labels = control_flow_ops.cond(
+                    lorr,
+                    lambda: lab_adjust - labels,
+                    lambda: labels)
         if 'random_contrast' in train:
             image = tf.image.random_contrast(image, lower=0.0, upper=0.1)
         if 'random_brightness' in train:
             image = tf.image.random_brightness(image, max_delta=.1)
-        if 'rotate' in train:
-            image = tf.image.rot90(image, k=np.random.randint(4))
-        if 'random_crop' in train:
-            h_min, h_max, w_min, w_max = get_crop_coors(
-                image_size=im_size, target_size=model_input_shape)
-            image = apply_crop(
-                image, model_input_shape, h_min, w_min, h_max, w_max)
-            crop_coors = dict()
-            crop_coors = {
-                'h_min': h_min,
-                'h_max': h_max,
-                'w_min': w_min,
-                'w_max': w_max
-             }
-            for name in []:
-                crop_coors[name] = eval(name)
+
         # else:
         #     image = tf.image.resize_image_with_crop_or_pad(
         #         image, model_input_shape[0], model_input_shape[1])
@@ -592,13 +613,48 @@ def inputs(
         num_threads=2,
         background_folder=None,
         augment_background=False,
-        maya_joint_labels=None):
+        maya_joint_labels=None,
+        babas_tfrecord_dir=None):
     with tf.name_scope('input'):
+
+        if 'domain_adaptation' in aux_losses:
+            # Real monkey tf records loading
+            kinect_filename_queue = tf.train.string_input_producer(
+                [babas_tfrecord_dir], num_epochs=num_epochs)
+            domain_label = 0
+            kinect_output_data = read_and_decode(
+                filename_queue=kinect_filename_queue,
+                im_size=im_size,
+                target_size=target_size,
+                model_input_shape=model_input_shape,
+                label_shape=label_shape,
+                train=train,
+                image_target_size=image_target_size,
+                image_input_size=image_input_size,
+                maya_conversion=maya_conversion,
+                max_value=max_value,
+                aux_losses=aux_losses,
+                normalize_labels=normalize_labels,
+                selected_joints=selected_joints,
+                joint_names=joint_names,
+                mask_occluded_joints=mask_occluded_joints,
+                num_dims=num_dims,
+                keep_dims=keep_dims,
+                background_multiplier=background_multiplier,
+                randomize_background=randomize_background,
+                working_on_kinect=working_on_kinect,
+                augment_background=augment_background,
+                background_folder=background_folder,
+                maya_joint_labels=maya_joint_labels,
+                domain_label=domain_label)
+            domain_label += 1
+            # + Handle cases of real data without special aux data
+        else:
+            domain_label = None
+
+        # Rendered monkey tf records loading
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
-
-        # Even when reading in multiple threads, share the filename
-        # queue.
         output_data = read_and_decode(
             filename_queue=filename_queue,
             im_size=im_size,
@@ -622,19 +678,35 @@ def inputs(
             working_on_kinect=working_on_kinect,
             augment_background=augment_background,
             background_folder=background_folder,
-            maya_joint_labels=maya_joint_labels)
+            maya_joint_labels=maya_joint_labels,
+            domain_label=domain_label)
+
+        if 'domain_adaptation' in aux_losses:
+            # Need to mix real/synth tf records.
+            data_to_pack = [
+                kinect_output_data,
+                output_data
+            ]
+            packed_data = {}
+            for k in output_data.keys():
+                # Create a new dict that has packed data_to_pack values
+                packed_vals = [it_d[k] for it_d in data_to_pack]
+                packed_data[k] = tf.pack(packed_vals)
+            output_data = packed_data
 
         variable_keys = ['image', 'label']
         keys, var_list = prepare_output_variables(
             output_data=output_data,
             variable_keys=variable_keys)
+
         variable_keys = [
             'occlusion',
             'pose',
             'z',
             'size',
-            'deconv',
-            'deconv_label']
+            'deconv_image',
+            'deconv_label',
+            'domain_adaptation']
         keys, var_list = prepare_output_variables(
             output_data=output_data,
             variable_keys=variable_keys,
@@ -647,9 +719,9 @@ def inputs(
                 [tf.expand_dims(x, axis=0) for x in var_list],
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=10 + batch_size,
+                capacity=1000 + 3 * batch_size,
                 enqueue_many=True,
-                min_after_dequeue=10)
+                min_after_dequeue=10000)
             # var_list = tf.train.shuffle_batch(
             #     var_list,  # Old version ~ half as fast
             #     batch_size=batch_size,

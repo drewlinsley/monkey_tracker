@@ -14,7 +14,7 @@ from ops import tf_fun
 from tests.transfer_train_val_test import train_and_eval
 
 
-def main(model_dir, ckpt_name, run_tests=False):
+def main(model_dir, ckpt_name, run_tests=False, babas=False):
     '''Skeleton script for preprocessing and
     passing kinect videos through a trained model'''
     # Find config from the trained model
@@ -23,6 +23,8 @@ def main(model_dir, ckpt_name, run_tests=False):
         raise RuntimeError('You must pass a trained checkpoint to this script!')
     if model_dir is None:
         model_dir = os.path.join(config.model_output, config.segmentation_model_name)
+    old_resume = config.resume_from_checkpoint
+    old_config = config.saved_config
     config.model_name = config.segmentation_model_name
     config.resume_from_checkpoint = os.path.join(
         config.model_output,
@@ -180,6 +182,7 @@ def main(model_dir, ckpt_name, run_tests=False):
         frame_toss_index = np.concatenate((frame_toss_index, it_frame_toss_index))
         config.max_depth = max_array
         config.background_constant = config.max_depth * 2
+        config.epochs = 1
 
         if kinect_config['mask_with_model']:
             np.savez(
@@ -197,25 +200,29 @@ def main(model_dir, ckpt_name, run_tests=False):
                     output=kinect_config['kinect_output_name'],
                     crop_coors=crop_coors)
         print 'Now passing processed frames through selected CNN.'
-        joint_dict = train_and_eval(
-            frame_pointer,
-            frame_pointer,
-            config,
-            uniform_batch_size=None,
-            swap_datasets=False,
-            working_on_kinect=use_kinect,
-            return_coors=True)
-        # Also save json key/value dicts in the same format as BABAS
-        list_of_yhat_joints = []
-        for yhats in joint_dict['yhat']:
-            res_yhats = yhats.reshape(-1, 2)
-            frame_dict = {}
-            for k, row in zip(config.joint_names, res_yhats):
-                frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
-            list_of_yhat_joints += [frame_dict]
-        with open(kinect_config['output_json_path'], 'w') as fout:
-            json.dump(list_of_yhat_joints, fout)
-        print 'JSON saved to: %s' % kinect_config['output_json_path']
+        config.resume_from_checkpoint = old_resume
+        config.saved_config = old_config
+        if kinect_config['output_joint_dict']:
+            joint_dict = train_and_eval(
+                frame_pointer,
+                frame_pointer,
+                config,
+                uniform_batch_size=None,
+                swap_datasets=False,
+                working_on_kinect=use_kinect,
+                return_coors=True,
+                babas=babas)
+            # Also save json key/value dicts in the same format as BABAS
+            list_of_yhat_joints = []
+            for yhats in joint_dict['yhat']:
+                res_yhats = yhats.reshape(-1, 2)
+                frame_dict = {}
+                for k, row in zip(config.joint_names, res_yhats):
+                    frame_dict[k] = {'x': float(row[0]), 'y': float(row[1])}
+                list_of_yhat_joints += [frame_dict]
+            with open(kinect_config['output_json_path'], 'w') as fout:
+                json.dump(list_of_yhat_joints, fout)
+            print 'JSON saved to: %s' % kinect_config['output_json_path']
     else:
         raise RuntimeError('Route is not currently implemented.')
         # Pass each frame through the CNN
@@ -225,43 +232,35 @@ def main(model_dir, ckpt_name, run_tests=False):
             config=config)
         frame_toss_index = []
 
-    # Overlay joint predictions onto frames
-    tf_fun.make_dir(kinect_config['prediction_image_folder'])
-    overlaid_pred = test_tf_kinect.overlay_joints_frames(
-        joint_dict=joint_dict,
-        output_folder=kinect_config['prediction_image_folder'])
+    if kinect_config['output_joint_dict']:
+        # Overlay joint predictions onto frames
+        tf_fun.make_dir(kinect_config['prediction_image_folder'])
+        overlaid_pred = test_tf_kinect.overlay_joints_frames(
+            joint_dict=joint_dict,
+            output_folder=kinect_config['prediction_image_folder'])
 
-    # Create overlay movie if desired
-    if kinect_config['predicted_output_name'] is not None:
-        test_tf_kinect.create_movie(
-            files=overlaid_pred,
-            output=kinect_config['predicted_output_name'])
-
-    # if len(joint_dict['ytrue']) > 0:
-    #     overlaid_pred = test_tf_kinect.overlay_joints_frames(
-    #         joint_dict=joint_dict,
-    #         output_folder=kinect_config['gt_image_folder'],
-    #         target_key='ytrue')
         # Create overlay movie if desired
-        # if kinect_config['gt_output_name'] is not None:
-            # test_tf_kinect.create_movie(
-                # files=overlaid_gt,
-                # output=kinect_config['gt_output_name'])
+        if kinect_config['predicted_output_name'] is not None:
+            test_tf_kinect.create_movie(
+                files=overlaid_pred,
+                output=kinect_config['predicted_output_name'])
 
     # Save results to a npz
     if kinect_config['output_npy_path'] is not None:
         files_to_save = {
-            'overlaid_frames': overlaid_pred,
-            'joint_predictions': joint_dict['yhat'],
             'frames': frames,
             'kinect_config': kinect_config,
             'model_config': config,
             'frame_toss_index': frame_toss_index,
             'extents': extents
         }
+        if kinect_config['output_joint_dict']:
+            files_to_save['joint_predictions'] = joint_dict['yhat']
+            files_to_save['overlaid_frames'] = joint_dict['overlaid_pred']
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -284,5 +283,10 @@ if __name__ == '__main__':
         dest="run_tests",
         action='store_true',
         help='Check to see the pipeline works for our renders before transfering to Kinect.')
+    parser.add_argument(
+        "--babas",
+        dest="babas",
+        action='store_true',
+        help='Babas data.')
     args = parser.parse_args()
     main(**vars(args))

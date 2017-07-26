@@ -8,16 +8,20 @@ class model_struct:
     A trainable version VGG16.
     """
 
+
     def __init__(
-                self, vgg16_npy_path=None, trainable=True,
+                self, weight_npy_path=None, trainable=True,
                 fine_tune_layers=None):
-        if vgg16_npy_path is not None:
-            print 'Ignoring vgg16_npy_path (not using a vgg!).'
-        self.data_dict = None
+        if weight_npy_path is not None:
+            self.data_dict = np.load(weight_npy_path, encoding='latin1').item()
+        else:
+            self.data_dict = None
 
         self.var_dict = {}
         self.trainable = trainable
         self.VGG_MEAN = [103.939, 116.779, 123.68]
+        self.joint_label_output_keys = []
+        self.fc_layers = []
 
     def __getitem__(self, name):
         return getattr(self, name)
@@ -31,8 +35,9 @@ class model_struct:
             target_variables=None,
             train_mode=None,
             batchnorm=None,
-            hr_fe_keys=['pool2', 'pool3', 'pool4', 'dipool2', 'dipool3'],
+            hr_fe_keys=['pool2', 'pool4', 'dipool2', 'dipool3'],
             ):
+
         """
         load variable from npy to build the VGG
 
@@ -40,6 +45,7 @@ class model_struct:
         :param train_mode: a bool tensor, usually a placeholder:
         :if True, dropout will be turned on
         """
+
 
         if 'label' in target_variables.keys():
             if len(target_variables['label'].get_shape()) == 1:
@@ -54,6 +60,14 @@ class model_struct:
             else:
                 occlusion_shape = int(
                     target_variables['occlusion'].get_shape()[-1])
+
+        if 'z' in target_variables.keys():
+            z_shape = int(
+                target_variables['z'].get_shape()[-1])
+
+        if 'size' in target_variables.keys():
+            size_shape = int(
+                target_variables['size'].get_shape()[-1])
 
         if 'pose' in target_variables.keys():
             if len(target_variables['pose'].get_shape()) == 1:
@@ -79,19 +93,19 @@ class model_struct:
         layer_structure = [
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
+                'weights': [64, 64, None],
                 'names': ['conv2_1', 'conv2_2', 'pool2'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [128, 128, None],
+                'weights': [64, 64, None],
                 'names': ['conv3_1', 'conv3_2', 'pool3'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['conv', 'conv', 'pool'],
-                'weights': [256, 256, None],
+                'weights': [128, 128, None],
                 'names': ['conv4_1', 'conv4_2', 'pool4'],
                 'filter_size': [3, 3, None]
             }]
@@ -107,17 +121,17 @@ class model_struct:
                 'layers': ['diconv', 'diconv', 'pool'],
                 'weights': [64, 64, None],
                 'names': ['diconv1_1', 'diconv1_2', 'dipool1'],
-                'filter_size': [5, 5, None]
+                'filter_size': [3, 3, None]
             },
             {
                 'layers': ['diconv', 'diconv', 'pool'],
-                'weights': [128, 128, None],
+                'weights': [64, 64, None],
                 'names': ['diconv2_1', 'diconv2_2', 'dipool2'],
                 'filter_size': [3, 3, None]
             },
             {
                 'layers': ['diconv', 'diconv', 'pool'],
-                'weights': [256, 256, None],
+                'weights': [128, 128, None],
                 'names': ['diconv3_1', 'diconv3_2', 'dipool3'],
                 'filter_size': [3, 3, None]
             }]
@@ -152,6 +166,7 @@ class model_struct:
         self.high_1x1_0_pool = self.max_pool(
             self.high_feature_encoder_1x1_0,
             'high_1x1_0_pool')
+        self.fc_layers += [self.high_1x1_0_pool]
 
         self.high_feature_encoder_1x1_1 = self.conv_layer(
             self.high_1x1_0_pool,
@@ -168,6 +183,7 @@ class model_struct:
         self.high_1x1_1_pool = self.max_pool(
             self.high_feature_encoder_1x1_1,
             'high_1x1_1_pool')
+        self.fc_layers += [self.high_1x1_1_pool]
 
         self.high_feature_encoder_1x1_2 = self.conv_layer(
             self.high_1x1_1_pool,
@@ -182,6 +198,7 @@ class model_struct:
                 lambda: self.high_feature_encoder_1x1_2)
         self.high_1x1_2_pool = tf.contrib.layers.flatten(
             self.max_pool(self.high_feature_encoder_1x1_2, 'high_1x1_2_pool'))
+        self.fc_layers += [self.high_1x1_2_pool]
 
         if 'label' in target_variables.keys():
             self.output = self.fc_layer(
@@ -189,7 +206,33 @@ class model_struct:
                 int(self.high_1x1_2_pool.get_shape()[-1]),
                 output_shape,
                 'output')
-            self.joint_label_output_keys = ['output']
+            self.joint_label_output_keys += ['output']
+
+        if 'size' in target_variables.keys():
+            self.size = self.fc_layer(
+                self.high_1x1_2_pool,
+                int(self.high_1x1_2_pool.get_shape()[-1]),
+                size_shape,
+                'size')
+
+        if 'z' in target_variables.keys():
+            # z-dim head -- label + activations
+            self.z_scores = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_2_pool,
+                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        z_shape,
+                        'z_sc')
+                )
+            out_z = tf.concat([self.z_scores, self.output], axis=1)
+            self.z = tf.squeeze(
+                    self.fc_layer(
+                        out_z,
+                        int(out_z.get_shape()[-1]),
+                        z_shape,
+                        'z')
+                )
+            self.joint_label_output_keys += ['z']
 
         if 'occlusion' in target_variables.keys():
             # Occlusion head
@@ -200,7 +243,6 @@ class model_struct:
                         occlusion_shape,
                         "occlusion")
                     )
-        self.data_dict = None
 
         if 'pose' in target_variables.keys():
             # Occlusion head
@@ -211,6 +253,7 @@ class model_struct:
                         pose_shape,
                         "pose")
                 )
+
         self.data_dict = None
 
     def resnet_layer(

@@ -23,13 +23,15 @@ class monkeyConfig(object):
         self.train_summaries = os.path.join(self.results_dir, 'summaries')
         self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = False
+        use_checkpoint = True
         if use_checkpoint:
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # OK
             # # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # WORSE THAN 1
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'  # WORSE THAN 1
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_12'  # WORSE THAN 1
             # Cluster:
+            # self.model_name = 'pooled_skip_small_conv_deconv_2017_07_11_01_32_20/model_22000.ckpt-22000'
+
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_25'  # pgood
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_05_13_59_22'  # pgood
             # self.model_name = 'skip_small_conv_deconv_2017_07_07_18_39_07'  # 'small_conv_deconv_2017_07_07_18_39_36' 'small_conv_deconv_2017_07_07_18_43_46'
@@ -37,11 +39,19 @@ class monkeyConfig(object):
             # self.model_name = 'skip_small_conv_deconv_2017_07_09_21_44_29'
             # self.model_name = 'small_conv_deconv_2017_07_09_21_44_02'
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_16_34_12'
-            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_17_23_07'
+
+            # self.model_name = 'pooled_skip_small_conv_deconv_2017_07_11_01_32_28'  # all aux losses
+            # Finetuning on kinect backgrounds
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_17_23_07'
+
+            # self.model_name = 'cnn_multiscale_high_res_atrous_skinny_pose_occlusion_2017_07_14_16_39_31'
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_17_23_07'
+            # self.model_name = 'cnn_multiscale_high_res_atrous_skinny_pose_occlusion_2017_07_14_16_39_31'
             # self.model_name = 'small_conv_deconv_2017_07_12_16_28_45'
             # Not ready:
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31'  # Pretty good... on par w/ 1
             # 
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_25_12_39_51'
             self.ckpt_file = None  # 
             self.resume_from_checkpoint = os.path.join(
                 self.model_output,
@@ -59,6 +69,7 @@ class monkeyConfig(object):
             self.resume_from_checkpoint = None
 
         # Tfrecords
+        self.use_train_as_val = False
         self.new_tf_names = {'train': 'train.tfrecords', 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
@@ -74,25 +85,27 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 2
+        self.randomize_background = None
         self.augment_background = 'background'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion' # 'small_conv_deconv'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion'  # 'cnn_multiscale_high_res_atrous_skinny_pose_occlusion'  # 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion' # 'small_conv_deconv'  # 'cnn_multiscale_high_res_skinny_pose_occlusion_bigger_filters'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
-        # self.fine_tune_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
+        self.fine_tune_layers = None
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
-            'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
+            'convert_labels_to_pixel_space',
+            'left_right',
+            'up_down'
         ]
 
         # Key training settings
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-4  # Tune this -- also try SGD instead of ADAm
+        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -108,7 +121,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = [None]  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.aux_losses = [None]  # ['occlusion']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
         self.include_validation = True  # '/media/data_cifs/monkey_tracking/tfrecords/monkey_on_pole.tfrecords'  # True
         self.wd_type = 'l2'
@@ -196,11 +209,26 @@ class monkeyConfig(object):
             'left toetips',
             'right toetips'
         ]
-        self.selected_joints = None  # ['lEye']  # Set to None to ignore
+        self.selected_joints = ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
         self.keep_dims = 2
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
+        self.babas_file_for_import = [
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3.npz'),
+                'data': 'monkey_on_pole_3'
+            },
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1.npz'),
+                'data': 'monkey_in_cage_1'
+            }
+            ]
+        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this

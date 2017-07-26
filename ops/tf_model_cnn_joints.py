@@ -11,7 +11,7 @@ from ops import loss_helper
 from ops.utils import get_dt, import_cnn, save_training_data
 
 
-def train_and_eval(config):
+def train_and_eval(config, babas_data):
     """Train and evaluate the model."""
 
     if config.resume_from_checkpoint is not None:
@@ -36,6 +36,16 @@ def train_and_eval(config):
             results_dir = rfc
         except:
             print 'Relying on default config file.'
+
+    if babas_data:
+        config.tfrecord_dir = config.babas_tfrecord_dir
+        config.steps_before_validation = 20
+        config.epochs = 2000
+        # config.fine_tune_layers = ['output']
+        # config.optimizer = 'sgd'
+        # config.lr = 5e-3
+        # config.hold_lr = 1e-10
+        config.augment_background = 'constant'
 
     # Import your model
     print 'Model directory: %s' % config.model_output
@@ -68,6 +78,7 @@ def train_and_eval(config):
             config.val_tfrecords)
     else:
         validation_data = None
+    print 'Using training set: %s' % train_data
     print 'Using validation set: %s' % validation_data
 
     # Prepare data on CPU
@@ -96,7 +107,8 @@ def train_and_eval(config):
             augment_background=config.augment_background,
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
-            maya_joint_labels=config.labels)
+            maya_joint_labels=config.labels,
+            babas_tfrecord_dir=config.babas_tfrecord_dir)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -123,7 +135,8 @@ def train_and_eval(config):
             augment_background=config.augment_background,
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
-            maya_joint_labels=config.labels)
+            maya_joint_labels=config.labels,
+            babas_tfrecord_dir=config.babas_tfrecord_dir)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
@@ -145,13 +158,14 @@ def train_and_eval(config):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
-            if 'deconv' in config.aux_losses:
+            if 'deconv_image' in config.aux_losses:
                 tf.summary.image('Deconv train', model.deconv)
             if 'deconv_label' in config.aux_losses:
                 tf.summary.image(
                     'Deconv label train',
                     tf.expand_dims(
-                        tf.cast(tf.argmax(model.deconv, axis=3), tf.float32), 3))
+                        tf.cast(
+                            tf.argmax(model.deconv, axis=3), tf.float32), 3))
 
             # Setup validation op
             if validation_data is not False:
@@ -172,7 +186,7 @@ def train_and_eval(config):
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
-                if 'deconv' in config.aux_losses:
+                if 'deconv_image' in config.aux_losses:
                     tf.summary.image('Deconv val', val_model.deconv)
                 if 'deconv_label' in config.aux_losses:
                     tf.summary.image(
@@ -226,11 +240,12 @@ def train_and_eval(config):
             optimizer = loss_helper.return_optimizer(config.optimizer)
             optimizer = optimizer(config.lr)
 
-            if hasattr(model, 'fine_tune_layers'):
+            if hasattr(config, 'fine_tune_layers') and config.fine_tune_layers is not None:
+                print 'Finetuning learning for: %s' % config.fine_tune_layers
                 train_op, grads = tf_fun.finetune_learning(
                     loss,
                     trainables=tf.trainable_variables(),
-                    fine_tune_layers=model.fine_tune_layers,
+                    fine_tune_layers=config.fine_tune_layers,
                     config=config
                     )
             else:
