@@ -95,15 +95,19 @@ def get_aux_losses(
     aux_dict = aux_loss_dict.values()[0]
     if aux_loss_dict.keys()[0] in train_data_dict.keys():
         output_label = aux_dict['var_label']
-        if domain_adaptation and aux_dict['da_override']:
-            import ipdb;ipdb.set_trace()
-            loss_mask = 0.  # MASK OUT ALL 0s IN THE LOSS
-
         y = train_data_dict[aux_dict['y_name']]
         yhat = model[aux_dict['model_name']]
         loss_function = aux_dict['loss_function']
         reg_weight = aux_dict['lambda']
         aux_fun = aux_dict['aux_fun']
+        if domain_adaptation and aux_dict['da_override']:
+            loss_mask = tf.expand_dims(tf.cast(
+                tf.equal(
+                    train_data_dict['domain_adaptation'][:, 0],
+                    0),
+                tf.float32), axis=1)  # Mask out the kinect data (first column)
+        else:
+            loss_mask = tf.ones(int(yhat.get_shape()[0]))
         if aux_fun == 'resize':
             y = tf.image.resize_bilinear(
                 y, [int(x) for x in yhat.get_shape()[1:3]])
@@ -111,7 +115,7 @@ def get_aux_losses(
             loss = tf.reduce_mean(
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     labels=y,
-                    logits=yhat))
+                    logits=yhat) * loss_mask)
         elif loss_function == 'cce':
             if isinstance(reg_weight, dict):
                 # Only using index 1 for now
@@ -126,15 +130,15 @@ def get_aux_losses(
                 inter_loss = tf.nn.softmax_cross_entropy_with_logits(
                     logits=yhat,
                     labels=y,
-                    dim=-1)
+                    dim=-1) * loss_mask
                 loss = tf.reduce_mean(inter_loss * weights)
             else:
                 loss = tf.reduce_mean(
                     tf.nn.softmax_cross_entropy_with_logits(
                         labels=tf.cast(tf.squeeze(y), tf.int32),
-                        logits=yhat))
+                        logits=yhat) * loss_mask)
         elif loss_function == 'l2':
-            loss = tf.nn.l2_loss(y - yhat)
+            loss = tf.nn.l2_loss((y - yhat) * loss_mask)
         if reg_weight is not None and not isinstance(reg_weight, dict):
             loss *= reg_weight
         loss_list += [loss]

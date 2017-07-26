@@ -74,6 +74,9 @@ def train_and_eval(config, babas_data):
 	train_babas_tfrecord_dir = os.path.join(config.babas_tfrecord_dir, config.train_tfrecords)
         if config.include_validation:
             val_babas_tfrecord_dir = os.path.join(config.babas_tfrecord_dir, config.val_tfrecords)
+    else:
+        train_babas_tfrecord_dir = None
+        val_babas_tfrecord_dir = None
 
     if isinstance(config.include_validation, basestring):
         validation_data = config.include_validation
@@ -227,7 +230,8 @@ def train_and_eval(config, babas_data):
                     loss_label=loss_label,
                     train_data_dict=train_data_dict,
                     model=model,
-                    aux_loss_dict=al)
+                    aux_loss_dict=al,
+                    domain_adaptation=train_babas_tfrecord_dir)
             loss = tf.add_n(loss_list)
 
             # Add wd if necessary

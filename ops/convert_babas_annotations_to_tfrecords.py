@@ -21,6 +21,7 @@ def main(tmp_folder='tmp'):
                 project_dir = os.path.join(tmp_folder, batch['data'])
                 im_folder = os.path.join(project_dir, 'images')
                 label_folder = os.path.join(project_dir, 'labels')
+                occlusion_folder = os.path.join(project_dir, 'occlusion')
                 [tf_fun.make_dir(x) for x in [
                     tmp_folder,
                     project_dir,
@@ -55,6 +56,8 @@ def main(tmp_folder='tmp'):
             fnames, flat_ims)]
         [np.save(os.path.join(label_folder, f), im) for f, im in zip(
             fnames, annotations)]
+        [np.save(os.path.join(occlusion_folder, f), im) for f, im in zip(
+            fnames, np.zeros((len(config.joint_names))))]
         print 'Found %s annotations, %s images.' % (
             len(annotations),
             len(flat_ims))
@@ -62,8 +65,8 @@ def main(tmp_folder='tmp'):
         # Set data folders in config
         config.depth_dir = im_folder
         config.label_dir = label_folder
-        config.pixel_label_dir = label_folder
-        config.occlusion_dir = label_folder
+        config.pixel_label_dir = im_folder
+        config.occlusion_dir = occlusion_folder
         config.tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
         config.use_train_as_val = True
         process_data(config)
@@ -76,3 +79,4 @@ def main(tmp_folder='tmp'):
 
 if __name__ == '__main__':
     main()
+
