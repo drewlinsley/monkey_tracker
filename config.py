@@ -42,7 +42,8 @@ class monkeyConfig(object):
 
             # self.model_name = 'pooled_skip_small_conv_deconv_2017_07_11_01_32_28'  # all aux losses
             # Finetuning on kinect backgrounds
-            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_17_23_07'
+            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_17_23_07'
+
             # self.model_name = 'cnn_multiscale_high_res_atrous_skinny_pose_occlusion_2017_07_14_16_39_31'
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_12_17_23_07'
             # self.model_name = 'cnn_multiscale_high_res_atrous_skinny_pose_occlusion_2017_07_14_16_39_31'
@@ -50,7 +51,7 @@ class monkeyConfig(object):
             # Not ready:
             # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_03_08_10_31'  # Pretty good... on par w/ 1
             # 
-            # self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_24_18_37_27'
+            self.model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_25_12_39_51'
             self.ckpt_file = None  # 
             self.resume_from_checkpoint = os.path.join(
                 self.model_output,
@@ -95,7 +96,9 @@ class monkeyConfig(object):
         self.fine_tune_layers = None
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
-            'convert_labels_to_pixel_space',  # commented out bc we want to train the model on the 3D coordinates, not pixel positions
+            'convert_labels_to_pixel_space',
+            'left_right',
+            'up_down'
         ]
 
         # Key training settings

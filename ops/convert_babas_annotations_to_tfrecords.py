@@ -5,12 +5,13 @@ from ops import tf_fun
 from kinect_config import kinectConfig
 import os
 import shutil
+from tqdm import tqdm
 
 
 def main(tmp_folder='tmp'):
     config = monkeyConfig()
     kinect_config = kinectConfig()
-    annotations, fnames, flat_ims = [], [], []
+    annotations, fnames, flat_ims, start_count = [], [], [], 0
     try:
         for idx, batch in enumerate(config.babas_file_for_import):
             # Extract appropriate images and labels
@@ -31,16 +32,21 @@ def main(tmp_folder='tmp'):
                     it_kinect_config['output_npy_path'], 'frames.npy'))
             ims = ims[data['frame_range']]
             flat_ims += [ims]
-            fnames += ['tmp1_%s.npy' % idx for idx in range(len(ims))]
+            fnames += ['tmp1_%s.npy' % tm for tm in range(
+                start_count, start_count + len(ims))]
+            start_count = len(ims)
             # Annotations
-            for im, it_annotation in zip(ims, data['annotations']):
+            for im, it_annotation in tqdm(
+                    zip(ims, data['annotations']),
+                    total=len(ims),
+                    desc='Movie %s' % idx):
                 coors = np.zeros((len(config.joint_names), config.num_dims))
-                for idx, target_joint in enumerate(config.joint_names):
+                for il, target_joint in enumerate(config.joint_names):
                     for k, v in it_annotation.iteritems():
                         if k == target_joint:
-                            coors[idx, 0] = v['x']  # v['y']  # This correct??
-                            coors[idx, 1] = v['y']  # v['x']
-                            coors[idx, 2] = im[int(v['y']), int(v['x'])]
+                            coors[il, 0] = v['x']  # v['y']  # This correct??
+                            coors[il, 1] = v['y']  # v['x']
+                            coors[il, 2] = im[int(v['y']), int(v['x'])]
                 annotations += [coors]
         flat_ims = np.concatenate(flat_ims[:])
         [np.save(
@@ -49,6 +55,9 @@ def main(tmp_folder='tmp'):
             fnames, flat_ims)]
         [np.save(os.path.join(label_folder, f), im) for f, im in zip(
             fnames, annotations)]
+        print 'Found %s annotations, %s images.' % (
+            len(annotations),
+            len(flat_ims))
 
         # Set data folders in config
         config.depth_dir = im_folder

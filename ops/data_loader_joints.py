@@ -516,6 +516,7 @@ def augment_data(
     crop_coors = None
     if train is not None:
         if 'left_right' in train:
+            print 'Fliping l/r at random'
             lorr = tf.less(tf.random_uniform([], minval=0, maxval=1.), .5)
             image = control_flow_ops.cond(
                 lorr,
@@ -530,6 +531,7 @@ def augment_data(
                     lambda: lab_adjust - labels,
                     lambda: labels)
         if 'up_down' in train:
+            print 'Fliping u/d at random'
             lorr = tf.less(tf.random_uniform([], minval=0, maxval=1.), .5)
             image = control_flow_ops.cond(
                 lorr,
