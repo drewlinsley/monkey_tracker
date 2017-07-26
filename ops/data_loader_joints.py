@@ -210,6 +210,44 @@ def read_and_decode(
                 sel_bg, model_input_shape, im_size, ['left_right', 'up_down'])  # 'random_contrast
             sel_bg *= background_constant
             background_mask *= tf.split(sel_bg, 3, axis=2)[0]
+            p_background_mask = tf.cast(tf.equal(background_mask, 0), tf.float32)
+            # Add 3D noise
+            pnoise = tf.abs(tf.expand_dims(
+                tf_perlin.get_noise(
+                    h=target_size[1],
+                    w=target_size[0]),
+                axis=2)) / 2
+            p_background_mask = (p_background_mask - pnoise) * background_constant
+            background_mask += p_background_mask
+        elif augment_background == 'background_perlin':
+            background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
+                os.path.join(background_folder, '*.npy'))]
+            # elems = tf.convert_to_tensor(range(len(background_masks)))
+            samples = tf.multinomial(tf.log([[1.] * len(background_masks)]), 1) # note log-prob
+            sel_bg = tf.expand_dims(tf.gather(background_masks, tf.cast(samples[0][0], tf.int32)), axis=2)
+
+            # Augment the depth
+            sel_vec = tf.reshape(sel_bg, [np.prod(target_size[:2])])
+            max_val = tf.reduce_mean(tf.nn.top_k(sel_vec, 20)[0])  # tf.reduce_max(sel_bg)
+            min_val = tf.reduce_min(sel_vec)
+            it_random = np.max([randomize_background, 1])
+            if it_random > 1:
+                max_val *= tf.cast(
+                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
+                min_val *= tf.cast(
+                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
+            # sel_bg = (sel_bg - min_val) / (max_val - min_val)
+            sel_bg /= max_val
+
+            # Threshold at 1
+            sel_bg = tf.minimum(sel_bg, 1)
+
+            # Random flips
+            sel_bg = tf.concat([sel_bg, sel_bg, sel_bg], axis=2)
+            sel_bg, _ = augment_data(
+                sel_bg, model_input_shape, im_size, ['left_right', 'up_down'])  # 'random_contrast
+            sel_bg *= background_constant
+            background_mask *= tf.split(sel_bg, 3, axis=2)[0]
         elif augment_background == 'perlin_2':
             # Add 3D noise
             pnoise = tf.concat([tf.abs(tf.expand_dims(
@@ -264,8 +302,8 @@ def read_and_decode(
         else:
             image /= background_constant
         
-        image, _ = augment_data(
-            image, model_input_shape, im_size, train)
+        image, label = augment_data(
+            image, model_input_shape, im_size, train, labels=label)
 
         # Normalize: must apply max value to image and every 3rd label
         if normalize_labels:
@@ -560,7 +598,7 @@ def augment_data(
     # else:
     #     image = tf.image.resize_image_with_crop_or_pad(
     #         image, model_input_shape[0], model_input_shape[1])
-    return image, crop_coors
+    return image, labels
 
 
 def prepare_output_variables(

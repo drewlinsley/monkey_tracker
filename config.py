@@ -85,8 +85,8 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = None
-        self.augment_background = 'background'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.randomize_background = 1.5
+        self.augment_background = 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
@@ -97,7 +97,7 @@ class monkeyConfig(object):
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
             'convert_labels_to_pixel_space',
-            'left_right',
+            # 'left_right',
             # 'up_down'
         ]
 

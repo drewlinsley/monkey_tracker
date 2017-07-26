@@ -114,7 +114,8 @@ def get_aux_losses(
         if domain_adaptation is not None and aux_dict['da_override']:
             loss_mask = tf.expand_dims(tf.cast(
                 tf.equal(
-                    train_data_dict['domain_adaptation'][:, 0],
+                    tf.argmax(train_data_dict['domain_adaptation'],
+                    axis=1),
                     0),
                 tf.float32), axis=1)  # Mask out the kinect data (first column)
         else:
