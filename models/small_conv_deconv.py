@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import gc
 import re
+from ops.loss_helper import flipped_gradient
 
 
 class model_struct:
@@ -72,6 +73,9 @@ class model_struct:
             else:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
+
+        if 'domain_adaptation' in target_variables.keys():
+            domain_shape = 2  # Always binary
 
         input_bgr = tf.identity(rgb, name="lrp_input")
         layer_structure = [
@@ -215,6 +219,25 @@ class model_struct:
                         int(self.high_1x1_1_pool.get_shape()[-1]),
                         pose_shape,
                         "pose")
+                )
+
+        if 'domain_adaptation' in target_variables.keys():
+            # Domain adaptation head
+            bottom = flipped_gradient(
+                tf.contrib.layers.flatten(self.high_1x1_0_pool))
+            self.domain_adaptation_fc = tf.squeeze(
+                    self.fc_layer(
+                        bottom,
+                        int(bottom.get_shape()[-1]),
+                        256,
+                        "domain_adaptation_fc")
+                )
+            self.domain_adaptation = tf.squeeze(
+                    self.fc_layer(
+                        self.domain_adaptation_fc,
+                        int(self.domain_adaptation_fc.get_shape()[-1]),
+                        domain_shape,
+                        "domain_adaptation")
                 )
 
         self.data_dict = None

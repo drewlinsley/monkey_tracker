@@ -66,7 +66,6 @@ class model_struct:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
 
-
         # Convert RGB to BGR
         rgb_scaled = rgb * 255.0  # Scale up to imagenet's uint8
         self.bgr = tf.concat(axis=3, values=[
@@ -106,7 +105,6 @@ class model_struct:
             input_bgr,
             layer_structure,
             tower_name='highres_conv')
-
 
         # Replace this lowres tower with atrous convolutions
         rescaled_shape = [(

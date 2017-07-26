@@ -3,6 +3,7 @@ import tensorflow as tf
 import gc
 from ops.loss_helper import flipped_gradient
 
+
 class model_struct:
     """
     A trainable version VGG16.
@@ -249,7 +250,8 @@ class model_struct:
 
         if 'domain_adaptation' in target_variables.keys():
             # Domain adaptation head
-            bottom = flipped_gradient(tf.contrib.layers.flatten(self.high_1x1_0_pool))
+            bottom = flipped_gradient(
+                tf.contrib.layers.flatten(self.high_1x1_0_pool))
             self.domain_adaptation_fc = tf.squeeze(
                     self.fc_layer(
                         bottom,

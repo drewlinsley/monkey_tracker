@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gc
+from ops.loss_helper import flipped_gradient
 
 
 class model_struct:
@@ -72,11 +73,14 @@ class model_struct:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
 
+        if 'domain_adaptation' in target_variables.keys():
+            domain_shape = 2  # Always binary
+
         input_bgr = tf.identity(rgb, name="lrp_input")
         layer_structure = [
             {
-                'layers': ['resnet', 'resnet', 'pool'],
-                'weights': [[32, 32], [32, 32], None],
+                'layers': ['conv', 'resnet', 'pool'],
+                'weights': [32, [32, 32], None],
                 'names': ['conv1_1', 'conv1_2', 'pool1'],
                 'filter_size': [3, 3, None]
             },
@@ -232,6 +236,25 @@ class model_struct:
                         "pose")
                 )
 
+        if 'domain_adaptation' in target_variables.keys():
+            # Domain adaptation head
+            bottom = flipped_gradient(
+                tf.contrib.layers.flatten(self.high_1x1_0_pool))
+            self.domain_adaptation_fc = tf.squeeze(
+                    self.fc_layer(
+                        bottom,
+                        int(bottom.get_shape()[-1]),
+                        256,
+                        "domain_adaptation_fc")
+                )
+            self.domain_adaptation = tf.squeeze(
+                    self.fc_layer(
+                        self.domain_adaptation_fc,
+                        int(self.domain_adaptation_fc.get_shape()[-1]),
+                        domain_shape,
+                        "domain_adaptation")
+                )
+
         self.data_dict = None
 
     def resnet_layer(
@@ -240,23 +263,18 @@ class model_struct:
             layer_weights,
             layer_name):
         ln = '%s_branch' % layer_name
-        in_layer = self.conv_layer(
-                bottom,
-                int(bottom.get_shape()[-1]),
-                layer_weights[0],
-                batchnorm=[ln],
-                name=ln)
+        in_layer = bottom
         branch_conv = tf.identity(in_layer)
         for idx, lw in enumerate(layer_weights):
             ln = '%s_%s' % (layer_name, idx)
-            in_layer = tf.nn.relu(batchnorm(in_layer))
+            in_layer = tf.nn.relu(self.batchnorm(in_layer))
             in_layer = self.conv_layer(
                 in_layer,
                 int(in_layer.get_shape()[-1]),
                 lw,
                 relu=False,
                 name=ln)
-            in_layer = tf.nn.relu(batchnorm(in_layer))
+            in_layer = tf.nn.relu(self.batchnorm(in_layer))
         return branch_conv + in_layer
 
     def create_conv_tower(self, act, layer_structure, tower_name):
