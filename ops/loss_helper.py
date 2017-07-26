@@ -94,12 +94,12 @@ def get_aux_losses(
         domain_adaptation=False):
     aux_dict = aux_loss_dict.values()[0]
     if aux_loss_dict.keys()[0] in train_data_dict.keys():
+        output_label = aux_dict['var_label']
         if domain_adaptation and aux_dict['da_override']:
             loss = 0.
         else:
             y = train_data_dict[aux_dict['y_name']]
             yhat = model[aux_dict['model_name']]
-            output_label = aux_dict['var_label']
             loss_function = aux_dict['loss_function']
             reg_weight = aux_dict['lambda']
             aux_fun = aux_dict['aux_fun']
@@ -136,8 +136,8 @@ def get_aux_losses(
                 loss = tf.nn.l2_loss(y - yhat)
             if reg_weight is not None and not isinstance(reg_weight, dict):
                 loss *= reg_weight
-            loss_list += [loss]
-            loss_label += [output_label]
+        loss_list += [loss]
+        loss_label += [output_label]
     return loss_list, loss_label
 
 
