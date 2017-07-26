@@ -228,7 +228,7 @@ class monkeyConfig(object):
                 'data': 'monkey_in_cage_1'
             }
             ]
-        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
+        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'  # Set to None to not use kinect data
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this

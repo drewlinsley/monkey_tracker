@@ -71,6 +71,8 @@ class model_struct:
             else:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
+        if 'domain_adaptation' in target_variables.keys():
+            domain_shape = 2  # Always binary
 
         input_bgr = tf.identity(rgb, name="lrp_input")
         layer_structure = [

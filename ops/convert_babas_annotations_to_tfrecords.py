@@ -71,7 +71,7 @@ def main(tmp_folder='tmp'):
         # Set data folders in config
         config.depth_dir = im_folder
         config.label_dir = label_folder
-        config.pixel_label_dir = im_folder
+        config.pixel_label_dir = label_folder
         config.occlusion_dir = occlusion_folder
         config.tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
         config.use_train_as_val = True
