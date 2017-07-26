@@ -38,7 +38,7 @@ def train_and_eval(config, babas_data):
             print 'Relying on default config file.'
 
     if babas_data:
-        config.tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
+        config.tfrecord_dir = config.babas_tfrecord_dir
         config.steps_before_validation = 20
         config.epochs = 2000
         # config.fine_tune_layers = ['output']
@@ -107,7 +107,8 @@ def train_and_eval(config, babas_data):
             augment_background=config.augment_background,
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
-            maya_joint_labels=config.labels)
+            maya_joint_labels=config.labels,
+            babas_tfrecord_dir=config.babas_tfrecord_dir)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -134,7 +135,8 @@ def train_and_eval(config, babas_data):
             augment_background=config.augment_background,
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
-            maya_joint_labels=config.labels)
+            maya_joint_labels=config.labels,
+            babas_tfrecord_dir=config.babas_tfrecord_dir)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape

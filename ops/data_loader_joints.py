@@ -117,7 +117,8 @@ def read_and_decode(
         mask_occluded_joints=False,
         working_on_kinect=False,
         background_folder=None,
-        augment_background=False):
+        augment_background=False,
+        domain_label=None):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -426,6 +427,9 @@ def read_and_decode(
             hw += [tf.reduce_max(s) - tf.reduce_min(s)]
         output_data['size'] = tf.stack(hw)
 
+    if 'domain_adaptation' in aux_losses:
+        output_data['domain_adaptation'] = tf.constant(domain_label)
+
     return output_data  # , label_scatter
 
 
@@ -609,19 +613,48 @@ def inputs(
         num_threads=2,
         background_folder=None,
         augment_background=False,
-        maya_joint_labels=None):
+        maya_joint_labels=None,
+        babas_tfrecord_dir=None):
     with tf.name_scope('input'):
-        if 'domain_adaptation' in aux_losses:
-            # 1. Need to mix real/synth tf records.
-            # 2. Handle cases of real data without special aux data
-            # 3. Return additional label for whether instance is real or synth
-            pass
 
+        if 'domain_adaptation' in aux_losses:
+            # Real monkey tf records loading
+            kinect_filename_queue = tf.train.string_input_producer(
+                [babas_tfrecord_dir], num_epochs=num_epochs)
+            domain_label = 0
+            kinect_output_data = read_and_decode(
+                filename_queue=kinect_filename_queue,
+                im_size=im_size,
+                target_size=target_size,
+                model_input_shape=model_input_shape,
+                label_shape=label_shape,
+                train=train,
+                image_target_size=image_target_size,
+                image_input_size=image_input_size,
+                maya_conversion=maya_conversion,
+                max_value=max_value,
+                aux_losses=aux_losses,
+                normalize_labels=normalize_labels,
+                selected_joints=selected_joints,
+                joint_names=joint_names,
+                mask_occluded_joints=mask_occluded_joints,
+                num_dims=num_dims,
+                keep_dims=keep_dims,
+                background_multiplier=background_multiplier,
+                randomize_background=randomize_background,
+                working_on_kinect=working_on_kinect,
+                augment_background=augment_background,
+                background_folder=background_folder,
+                maya_joint_labels=maya_joint_labels,
+                domain_label=domain_label)
+            domain_label += 1
+            # + Handle cases of real data without special aux data
+        else:
+            domain_label = None
+
+        # Rendered monkey tf records loading
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
-
-        # Even when reading in multiple threads, share the filename
-        # queue.
         output_data = read_and_decode(
             filename_queue=filename_queue,
             im_size=im_size,
@@ -645,7 +678,21 @@ def inputs(
             working_on_kinect=working_on_kinect,
             augment_background=augment_background,
             background_folder=background_folder,
-            maya_joint_labels=maya_joint_labels)
+            maya_joint_labels=maya_joint_labels,
+            domain_label=domain_label)
+
+        if 'domain_adaptation' in aux_losses:
+            # Need to mix real/synth tf records.
+            data_to_pack = [
+                kinect_output_data,
+                output_data
+            ]
+            packed_data = {}
+            for k in output_data.keys():
+                # Create a new dict that has packed data_to_pack values
+                packed_vals = [it_d[k] for it_d in data_to_pack]
+                packed_data[k] = tf.pack(packed_vals)
+            output_data = packed_data
 
         variable_keys = ['image', 'label']
         keys, var_list = prepare_output_variables(
@@ -672,9 +719,9 @@ def inputs(
                 [tf.expand_dims(x, axis=0) for x in var_list],
                 batch_size=batch_size,
                 num_threads=num_threads,
-                capacity=10 + batch_size,
+                capacity=1000 + 3 * batch_size,
                 enqueue_many=True,
-                min_after_dequeue=10)
+                min_after_dequeue=10000)
             # var_list = tf.train.shuffle_batch(
             #     var_list,  # Old version ~ half as fast
             #     batch_size=batch_size,
