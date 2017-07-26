@@ -91,7 +91,7 @@ def get_aux_losses(
         train_data_dict,
         model,
         aux_loss_dict,
-        domain_adaptation=False):
+        domain_adaptation=None):
     aux_dict = aux_loss_dict.values()[0]
     if aux_loss_dict.keys()[0] in train_data_dict.keys():
         output_label = aux_dict['var_label']
@@ -100,7 +100,7 @@ def get_aux_losses(
         loss_function = aux_dict['loss_function']
         reg_weight = aux_dict['lambda']
         aux_fun = aux_dict['aux_fun']
-        if domain_adaptation and aux_dict['da_override']:
+        if domain_adaptation is not None and aux_dict['da_override']:
             loss_mask = tf.expand_dims(tf.cast(
                 tf.equal(
                     train_data_dict['domain_adaptation'][:, 0],
@@ -181,4 +181,3 @@ class FlipGrad(object):
 
 
 flipped_gradient = FlipGrad()
-

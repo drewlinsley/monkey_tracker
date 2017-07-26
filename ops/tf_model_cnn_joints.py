@@ -70,10 +70,14 @@ def train_and_eval(config, babas_data):
 
     # Prepare model inputs
     train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
-    if config.babas_tfrecord_dir is not:
-        train_babas_tfrecord_dir = os.path.join(config.babas_tfrecord_dir, config.train_tfrecords)
+    if config.babas_tfrecord_dir is not None:
+        train_babas_tfrecord_dir = os.path.join(
+            config.babas_tfrecord_dir,
+            config.train_tfrecords)
         if config.include_validation:
-            val_babas_tfrecord_dir = os.path.join(config.babas_tfrecord_dir, config.val_tfrecords)
+            val_babas_tfrecord_dir = os.path.join(
+                config.babas_tfrecord_dir,
+                config.val_tfrecords)
     else:
         train_babas_tfrecord_dir = None
         val_babas_tfrecord_dir = None
