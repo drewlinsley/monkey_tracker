@@ -428,7 +428,7 @@ def read_and_decode(
         output_data['size'] = tf.stack(hw)
 
     if 'domain_adaptation' in aux_losses:
-        output_data['domain_adaptation'] = tf.constant(domain_label)
+        output_data['domain_adaptation'] = tf.one_hot(tf.constant(domain_label), 2)
 
     return output_data  # , label_scatter
 
@@ -586,6 +586,13 @@ def prepare_output_variables(
     return keys, var_list
 
 
+def expand_vars(var_list, expand=True):
+    if expand is None:
+        return [tf.expand_dims(x, axis=0) for x in var_list]
+    else:
+        return var_list
+
+
 def inputs(
         tfrecord_file,
         batch_size,
@@ -643,7 +650,7 @@ def inputs(
                 background_multiplier=background_multiplier,
                 randomize_background=randomize_background,
                 working_on_kinect=working_on_kinect,
-                augment_background=augment_background,
+                augment_background='constant',  # don't mess with these
                 background_folder=background_folder,
                 maya_joint_labels=maya_joint_labels,
                 domain_label=domain_label)
@@ -691,7 +698,7 @@ def inputs(
             for k in output_data.keys():
                 # Create a new dict that has packed data_to_pack values
                 packed_vals = [it_d[k] for it_d in data_to_pack]
-                packed_data[k] = tf.pack(packed_vals)
+                packed_data[k] = tf.stack(packed_vals)
             output_data = packed_data
 
         variable_keys = ['image', 'label']
@@ -716,29 +723,18 @@ def inputs(
 
         if shuffle:
             var_list = tf.train.shuffle_batch(
-                [tf.expand_dims(x, axis=0) for x in var_list],
+                expand_vars(var_list, expand=domain_label),
                 batch_size=batch_size,
                 num_threads=num_threads,
                 capacity=1000 + 3 * batch_size,
                 enqueue_many=True,
-                min_after_dequeue=10000)
-            # var_list = tf.train.shuffle_batch(
-            #     var_list,  # Old version ~ half as fast
-            #     batch_size=batch_size,
-            #     num_threads=num_threads,
-            #     capacity=1000+3 * batch_size,
-            #     # Ensures a minimum amount of shuffling of examples.
-            #     min_after_dequeue=10000)
+                min_after_dequeue=1000)
         else:
             var_list = tf.train.batch(
-                [tf.expand_dims(x, axis=0) for x in var_list],
+                expand_vars(var_list, expand=domain_label),
                 batch_size=batch_size,
                 num_threads=num_threads,
                 capacity=100 * batch_size,
                 enqueue_many=True)
-            # var_list = tf.train.batch(
-            #     var_list,
-            #     batch_size=batch_size,
-            #     num_threads=num_threads,
-            #     capacity=1000+3 * batch_size)
         return {k: v for k, v in zip(keys, var_list)}
+

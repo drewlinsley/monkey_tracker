@@ -73,7 +73,7 @@ def potential_aux_losses():
         },
         {
             'domain_adaptation': {
-                'y_name': 'domain_label',
+                'y_name': 'domain_adaptation',
                 'model_name': 'domain_adaptation',
                 'loss_function': 'cce',
                 'var_label': 'domain head',
@@ -167,9 +167,13 @@ class FlipGrad(object):
 
         @ops.RegisterGradient(grad_name)
         def _flip_gradients(op, grad):
-            return [tf.neg(grad) * l]
+            return [tf.negative(grad) * l]
         g = tf.get_default_graph()
         with g.gradient_override_map({"Identity": grad_name}):
             y = tf.identity(x)
         self.num_calls += 1
         return y
+
+
+flipped_gradient = FlipGrad()
+

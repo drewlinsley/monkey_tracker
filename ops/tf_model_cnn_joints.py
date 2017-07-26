@@ -37,7 +37,7 @@ def train_and_eval(config, babas_data):
         except:
             print 'Relying on default config file.'
 
-    if babas_data:
+    if babas_data:  # Shitty naive training method
         config.tfrecord_dir = config.babas_tfrecord_dir
         config.steps_before_validation = 20
         config.epochs = 2000
@@ -70,7 +70,12 @@ def train_and_eval(config, babas_data):
 
     # Prepare model inputs
     train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
-    if isinstance(config.include_validation,basestring):
+    if 'domain_adaptation' in config.aux_losses:
+	train_babas_tfrecord_dir = os.path.join(config.babas_tfrecord_dir, config.train_tfrecords)
+        if config.include_validation:
+            val_babas_tfrecord_dir = os.path.join(config.babas_tfrecord_dir, config.val_tfrecords)
+
+    if isinstance(config.include_validation, basestring):
         validation_data = config.include_validation
     elif config.include_validation == True:
         validation_data = os.path.join(
@@ -78,6 +83,7 @@ def train_and_eval(config, babas_data):
             config.val_tfrecords)
     else:
         validation_data = None
+
     print 'Using training set: %s' % train_data
     print 'Using validation set: %s' % validation_data
 
@@ -108,7 +114,7 @@ def train_and_eval(config, babas_data):
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
-            babas_tfrecord_dir=config.babas_tfrecord_dir)
+            babas_tfrecord_dir=train_babas_tfrecord_dir)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -136,7 +142,7 @@ def train_and_eval(config, babas_data):
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
-            babas_tfrecord_dir=config.babas_tfrecord_dir)
+            babas_tfrecord_dir=val_babas_tfrecord_dir)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
