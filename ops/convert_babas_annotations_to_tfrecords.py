@@ -26,7 +26,8 @@ def main(tmp_folder='tmp'):
                     tmp_folder,
                     project_dir,
                     im_folder,
-                    label_folder]]
+                    label_folder,
+                    occlusion_folder]]
             # Images
             ims = np.load(
                 os.path.join(
@@ -54,10 +55,15 @@ def main(tmp_folder='tmp'):
             os.path.join(im_folder, f),
             np.repeat(im[:, :, None], 3, axis=-1)) for f, im in zip(
             fnames, flat_ims)]
-        [np.save(os.path.join(label_folder, f), im) for f, im in zip(
+        [np.save(
+            os.path.join(
+                label_folder,
+                f),
+            im) for f, im in zip(
             fnames, annotations)]
-        [np.save(os.path.join(occlusion_folder, f), im) for f, im in zip(
-            fnames, np.zeros((len(config.joint_names))))]
+        [np.save(
+            os.path.join(occlusion_folder, f),
+            np.zeros((len(config.joint_names)))) for f in fnames]
         print 'Found %s annotations, %s images.' % (
             len(annotations),
             len(flat_ims))
