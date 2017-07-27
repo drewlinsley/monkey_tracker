@@ -181,7 +181,7 @@ def read_and_decode(
                     w=target_size[0]),
                 axis=2)) / 2
             background_mask = (background_mask - pnoise) * background_constant
-        elif augment_background == 'background':
+        elif augment_background == 'background_perlin':
             background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
                 os.path.join(background_folder, '*.npy'))]
             # elems = tf.convert_to_tensor(range(len(background_masks)))
@@ -219,7 +219,7 @@ def read_and_decode(
                 axis=2)) / 2
             p_background_mask = (p_background_mask - pnoise) * background_constant
             background_mask += p_background_mask
-        elif augment_background == 'background_perlin':
+        elif augment_background == 'background':
             background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
                 os.path.join(background_folder, '*.npy'))]
             # elems = tf.convert_to_tensor(range(len(background_masks)))
@@ -248,6 +248,10 @@ def read_and_decode(
                 sel_bg, model_input_shape, im_size, ['left_right', 'up_down'])  # 'random_contrast
             sel_bg *= background_constant
             background_mask *= tf.split(sel_bg, 3, axis=2)[0]
+            p_background_mask = tf.cast(tf.equal(background_mask, 0), tf.float32)
+            p_background_mask *= background_constant
+            background_mask += p_background_mask
+
         elif augment_background == 'perlin_2':
             # Add 3D noise
             pnoise = tf.concat([tf.abs(tf.expand_dims(
@@ -691,7 +695,7 @@ def inputs(
                 background_multiplier=background_multiplier,
                 randomize_background=randomize_background,
                 working_on_kinect=working_on_kinect,
-                augment_background='constant',  # don't mess with these
+                augment_background='perlin',  # don't mess with these
                 background_folder=background_folder,
                 maya_joint_labels=maya_joint_labels,
                 domain_label=domain_label)
@@ -778,3 +782,4 @@ def inputs(
                 capacity=100 * batch_size,
                 enqueue_many=True)
         return {k: v for k, v in zip(keys, var_list)}
+
