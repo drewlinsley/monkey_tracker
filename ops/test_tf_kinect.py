@@ -842,7 +842,8 @@ def overlay_joints_frames(
         # joint_predictions,
         joint_dict,
         output_folder,
-        target_key='yhat'):
+        target_key='yhat',
+        transform_xyz=True):
     tf_fun.make_dir(output_folder)
     colors, joints, num_joints = monkey_mosaic.get_colors()
     files = []
@@ -859,7 +860,10 @@ def overlay_joints_frames(
         ax.set_yticklabels([])
         plt.axis('off')
         f.set_tight_layout(True)
-        xy_coors = monkey_mosaic.xyz_vector_to_xy(jp)
+        if transform_xyz:
+            xy_coors = monkey_mosaic.xyz_vector_to_xy(jp)
+        else:
+            xy_coors = jp[:, :2]
         if len(fr.shape) > 2:
             im = fr[:, :, 0]
         else:
