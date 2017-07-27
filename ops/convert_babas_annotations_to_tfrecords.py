@@ -60,7 +60,7 @@ def main(
                     for k, v in it_annotation.iteritems():
                         if k == target_joint:
                             coors[il, 0] = (v['x'] + w_pad) * w_scale # x = width
-                            coors[il, 1] = ((v['y'] + h_pad) * h_scale) # y = height
+                            coors[il, 1] = (v['y'] + h_pad) * h_scale # y = height
                             coors[il, 2] = im[coors[il, 1], coors[il, 2]]
                             it_joint_list += [k]
                 annotations += [coors]
