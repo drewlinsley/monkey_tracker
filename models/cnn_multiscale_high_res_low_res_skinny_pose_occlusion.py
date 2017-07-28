@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gc
-from ops.loss_helper import FlipGrad
+from ops.loss_helper import flipped_gradient
 
 
 class model_struct:
@@ -249,9 +249,10 @@ class model_struct:
                         "pose")
                 )
 
-        if 'domain_adaptation' in target_variables.keys():
+        if 'domain_adaptation_flip' in target_variables.keys():
             # Domain adaptation head
-            bottom = FlipGrad(self.high_1x1_0_pool)
+            bottom = flipped_gradient(
+                tf.contrib.layers.flatten(self.high_1x1_0_pool))
             self.domain_adaptation_fc = tf.squeeze(
                     self.fc_layer(
                         bottom,

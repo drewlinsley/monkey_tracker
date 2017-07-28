@@ -38,7 +38,8 @@ def train_and_eval(config, babas_data):
             print 'Relying on default config file.'
 
     if babas_data:  # Shitty naive training method
-        config.tfrecord_dir = config.babas_tfrecord_dir
+        config.tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
+        config.babas_tfrecord_dir = config.tfrecord_dir
         config.steps_before_validation = 20
         config.epochs = 2000
         # config.fine_tune_layers = ['output']
@@ -364,6 +365,7 @@ def train_and_eval(config, babas_data):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
+            import ipdb;ipdb.set_trace()
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(

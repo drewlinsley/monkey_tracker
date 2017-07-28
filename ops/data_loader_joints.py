@@ -209,15 +209,18 @@ def read_and_decode(
             sel_bg, _ = augment_data(
                 sel_bg, model_input_shape, im_size, ['left_right', 'up_down'])  # 'random_contrast
             sel_bg *= background_constant
+            foreground_mask = background_mask
             background_mask *= tf.split(sel_bg, 3, axis=2)[0]
-            p_background_mask = tf.cast(tf.equal(background_mask, 0), tf.float32)
+            p_background_mask = tf.cast(tf.equal(background_mask + foreground_mask, 0), tf.float32)
             # Add 3D noise
             pnoise = tf.abs(tf.expand_dims(
                 tf_perlin.get_noise(
                     h=target_size[1],
                     w=target_size[0]),
                 axis=2)) / 2
-            p_background_mask = (p_background_mask - pnoise) * background_constant
+            # 0s at foreground and perlin at p_background
+            # p_background_mask = ((p_background_mask - pnoise) * background_constant) * p_background_mask
+            p_background_mask *= background_constant 
             background_mask += p_background_mask
         elif augment_background == 'background':
             background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
@@ -571,7 +574,7 @@ def augment_data(
             if labels is not None:
                 tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
                 lab_adjust = tf.cast(
-                    tf.tile([0] + im_size[1] + [0], tile_size), tf.float32)
+                    tf.tile([0] + [im_size[1]] + [0], tile_size), tf.float32)
                 labels = control_flow_ops.cond(
                     lorr,
                     lambda: lab_adjust - labels,
