@@ -42,10 +42,7 @@ def train_and_eval(config, babas_data):
         config.babas_tfrecord_dir = config.tfrecord_dir
         config.steps_before_validation = 20
         config.epochs = 2000
-        # config.fine_tune_layers = ['output']
-        # config.optimizer = 'sgd'
-        # config.lr = 5e-3
-        # config.hold_lr = 1e-10
+        config.convert_labels_to_pixel_space = False
         config.augment_background = 'constant'
 
     # Import your model
@@ -122,7 +119,8 @@ def train_and_eval(config, babas_data):
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
-            babas_tfrecord_dir=train_babas_tfrecord_dir)
+            babas_tfrecord_dir=train_babas_tfrecord_dir,
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -150,7 +148,8 @@ def train_and_eval(config, babas_data):
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
-            babas_tfrecord_dir=val_babas_tfrecord_dir)
+            babas_tfrecord_dir=train_babas_tfrecord_dir,
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
