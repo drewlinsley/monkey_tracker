@@ -436,6 +436,9 @@ def read_and_decode(
     if 'domain_adaptation' in aux_losses:
         output_data['domain_adaptation'] = tf.one_hot(tf.constant(domain_label), 2)
 
+    if 'domain_adaptation_flip' in aux_losses:
+        output_data['domain_adaptation_flip'] = tf.one_hot(tf.constant(domain_label), 2)
+
     return output_data  # , label_scatter
 
 
