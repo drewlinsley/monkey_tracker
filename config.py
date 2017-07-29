@@ -91,7 +91,7 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'skip_small_conv_deconv'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
         # self.initialize_layers = ['fc6', 'fc7', 'pre_fc8', 'fc8']
         self.fine_tune_layers = None
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
@@ -111,7 +111,7 @@ class monkeyConfig(object):
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
-        self.loss_type = 'l2'
+        self.loss_type = 'huber'
         self.grad_clip = False
 
         # Potentially outdated training settings
@@ -122,7 +122,7 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['domain_adaptation_flip', 'occlusion', 'z', 'deconv_label']  # ['occlusion']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.aux_losses = ['domain_adaptation', 'occlusion', 'z']  # ['occlusion']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
         self.include_validation = True  # '/media/data_cifs/monkey_tracking/tfrecords/monkey_on_pole.tfrecords'  # True
         self.wd_type = 'l2'
