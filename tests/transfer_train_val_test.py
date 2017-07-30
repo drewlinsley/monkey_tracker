@@ -1,6 +1,5 @@
 import os
 import re
-import json
 from datetime import datetime
 import numpy as np
 import tensorflow as tf
@@ -46,6 +45,9 @@ def train_and_eval(
                 config.augment_background = bg
             results_dir = rfc
             config.epochs = 1
+            if 'domain_adaptation' in config.aux_losses:
+                config.aux_losses = [x for x in config.aux_losses if 'domain_adaptation' not in x]
+            config.babas_tfrecord_dir = None
             # config.max_depth = 2800.
             # config.background_constant = 600.
         except:
@@ -95,6 +97,7 @@ def train_and_eval(
     with tf.device('/cpu:0'):
         print 'Using max of %s on train dataset: %s' % (
             config.max_depth, train_data)
+
         train_data_dict = inputs(
             tfrecord_file=train_data,
             batch_size=config.train_batch,
@@ -116,11 +119,13 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background='constant',  # config.augment_background,
+            augment_background='constant',
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
+            maya_joint_labels=config.labels,
+            # babas_tfrecord_dir=train_babas_tfrecord_dir,
             shuffle=False,
-            maya_joint_labels=config.labels)
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -144,11 +149,13 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background='constant',  # config.augment_background,
+            augment_background=config.augment_background,
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
+            maya_joint_labels=config.labels,
+            # babas_tfrecord_dir=val_babas_tfrecord_dir,
             shuffle=False,
-            maya_joint_labels=config.labels)
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
@@ -370,7 +377,7 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',
+        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
         help='Train pointer.')
     parser.add_argument(
         "--val",
