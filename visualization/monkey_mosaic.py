@@ -10,6 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from config import monkeyConfig
 from ops import joint_list
 
+
 def get_colors():
     joints = monkeyConfig().joint_names
     num_joints = len(joints)
@@ -23,7 +24,8 @@ def save_mosaic(
         output=None,
         wspace=0.,
         hspace=0.,
-        save_fig=True):
+        save_fig=True,
+        conv_xy_to_hw=True):
     # Get a color for each yhat and a color for each ytrue
     colors, joints, num_joints = get_colors()
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
@@ -31,6 +33,8 @@ def save_mosaic(
     gs1 = gridspec.GridSpec(rc, rc)
     lab_legend_artists = None
     for idx, (im, yhat) in enumerate(zip(ims, yhats)):
+        if conv_xy_to_hw:
+            yhat = yhat.reshape(-1, 2)[:, ::-1].reshape(1, -1)
         ax1 = plt.subplot(gs1[idx])
         plt.axis('off')
         ax1.set_xticklabels([])
