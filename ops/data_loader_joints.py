@@ -174,9 +174,13 @@ def read_and_decode(
 
         # Normalize intensity
         image /= background_constant
-        
         image, label = augment_data(
-            image, model_input_shape, im_size, train, labels=label)
+            image=image,
+            model_input_shape=model_input_shape,
+            im_size=im_size,
+            train=train,
+            labels=label,
+            max_value=max_value)
 
         if augment_background != 'none':
             background_mask = tf.cast(tf.equal(image, 1), tf.float32)
@@ -190,73 +194,97 @@ def read_and_decode(
                 axis=2))
             # Scale to between ~ [-.1, .1]
             pnoise /= tf.reduce_max(pnoise, keep_dims=True)
-            p_offset = tf.random_uniform([], minval=-randomize_background, maxval=randomize_background)
+            p_offset = tf.random_uniform(
+                [], minval=-randomize_background, maxval=randomize_background)
             pnoise /= (10 + p_offset)
             pnoise -= tf.reduce_mean(pnoise, keep_dims=True)
             pnoise = tf.clip_by_value(background_mask - pnoise, 0, 1)
             background_mask *= pnoise
             image += background_mask
         elif 'background' in augment_background:
-            background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
+            background_masks = [tf.constant(
+                np.load(x).astype(np.float32)) for x in glob(
                 os.path.join(background_folder, '*.npy'))]
-            # elems = tf.convert_to_tensor(range(len(background_masks)))
-            samples = tf.multinomial(tf.log([[1.] * len(background_masks)]), 1) # note log-prob
-            sel_bg = tf.expand_dims(tf.gather(background_masks, tf.cast(samples[0][0], tf.int32)), axis=2)
+            samples = tf.multinomial(
+                tf.log(
+                    [[1.] * len(background_masks)]), 1)  # note log-prob
+            sel_bg = tf.expand_dims(
+                tf.gather(
+                    background_masks, tf.cast(samples[0][0], tf.int32)),
+                axis=2)
 
             # Augment the depth
             sel_vec = tf.reshape(sel_bg, [np.prod(target_size[:2])])
-            max_val = tf.reduce_mean(tf.nn.top_k(sel_vec, 20)[0])  # tf.reduce_max(sel_bg)
-            min_val = tf.reduce_min(sel_vec)
-            it_random = np.max([randomize_background, 1])
-            if it_random > 1:
-                max_val *= tf.cast(
-                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
-                min_val *= tf.cast(
-                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
-            # sel_bg = (sel_bg - min_val) / (max_val - min_val)
+            max_val = tf.reduce_mean(tf.nn.top_k(sel_vec, 20)[0])  # Weight max
+            # min_val = tf.reduce_min(sel_vec)
+            # it_random = np.max([randomize_background, 1.]).astype(np.float32)
+            # if it_random > 1.:
+            #     max_val *= tf.cast(
+            #         (tf.random_uniform([], minval=1., maxval=it_random)),
+            #         tf.float32)
+            #     # min_val *= tf.cast(
+            #     #     (tf.random_uniform([], minval=1, maxval=it_random)),
+            #     # tf.float32)
+            # # sel_bg = (sel_bg - min_val) / (max_val - min_val)
             sel_bg /= max_val
-
-            # Threshold at [0, 1]
-            sel_bg = tf.clip_by_value(sel_bg, 0, 1)
 
             # Random flips
             sel_bg = tf.concat([sel_bg, sel_bg, sel_bg], axis=2)
             sel_bg, _ = augment_data(
-                sel_bg, model_input_shape, im_size, ['left_right', 'up_down'])  # 'random_contrast
-            sel_bg *= background_constant
+                image=sel_bg,
+                model_input_shape=model_input_shape,
+                im_size=im_size,
+                max_value=max_value,
+                train=['left_right', 'up_down', 'rotate', 'contrast'])
+
+            # Threshold at [0, 1]
+            sel_bg = tf.clip_by_value(sel_bg, 0., 1.)
+            # sel_bg *= background_constant
             background_mask *= tf.split(sel_bg, 3, axis=2)[0]
+            background_mask = (background_mask - 1) * background_mask
             image += background_mask
         elif 'background_perlin' in augment_background:
-            background_masks = [tf.constant(np.load(x).astype(np.float32)) for x in glob(
+            background_masks = [tf.constant(
+                np.load(x).astype(np.float32)) for x in glob(
                 os.path.join(background_folder, '*.npy'))]
             # elems = tf.convert_to_tensor(range(len(background_masks)))
-            samples = tf.multinomial(tf.log([[1.] * len(background_masks)]), 1) # note log-prob
-            sel_bg = tf.expand_dims(tf.gather(background_masks, tf.cast(samples[0][0], tf.int32)), axis=2)
+            samples = tf.multinomial(
+                tf.log([[1.] * len(background_masks)]), 1)  # note log-prob
+            sel_bg = tf.expand_dims(
+                tf.gather(background_masks, tf.cast(samples[0][0], tf.int32)),
+                axis=2)
 
             # Augment the depth
             sel_vec = tf.reshape(sel_bg, [np.prod(target_size[:2])])
-            max_val = tf.reduce_mean(tf.nn.top_k(sel_vec, 20)[0])  # tf.reduce_max(sel_bg)
-            min_val = tf.reduce_min(sel_vec)
-            it_random = np.max([randomize_background, 1])
-            if it_random > 1:
+            max_val = tf.reduce_mean(tf.nn.top_k(sel_vec, 20)[0])
+            # min_val = tf.reduce_min(sel_vec)
+            it_random = np.max([randomize_background, 1.]).astype(np.float32)
+            if it_random > 1.:
                 max_val *= tf.cast(
-                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
-                min_val *= tf.cast(
-                    (tf.random_uniform([], minval=1, maxval=it_random)), tf.float32)
+                    (tf.random_uniform([], minval=1., maxval=it_random)),
+                    tf.float32)
+                # min_val *= tf.cast(
+                #     (tf.random_uniform([], minval=1, maxval=it_random)),
+                # tf.float32)
             # sel_bg = (sel_bg - min_val) / (max_val - min_val)
             sel_bg /= max_val
 
             # Threshold at [0, 1]
-            sel_bg = tf.clip_by_value(sel_bg, 0, 1)
+            sel_bg = tf.clip_by_value(sel_bg, 0., 1.)
 
             # Random flips
             sel_bg = tf.concat([sel_bg, sel_bg, sel_bg], axis=2)
             sel_bg, _ = augment_data(
-                sel_bg, model_input_shape, im_size, ['left_right', 'up_down'])  # 'random_contrast
+                image=sel_bg,
+                model_input_shape=model_input_shape,
+                im_size=im_size,
+                max_value=1.,
+                train=['left_right', 'up_down', 'rotate'])
+
             sel_bg *= background_constant
             background_mask *= tf.split(sel_bg, 3, axis=2)[0]
             image += background_mask
-            
+
             # Now add perlin noise to the remaining 0s
             background_mask = tf.cast(tf.equal(image, 0), tf.float32)
             pnoise = tf.abs(tf.expand_dims(
@@ -266,36 +294,47 @@ def read_and_decode(
                 axis=2))
             # Scale to between ~ [-.1, .1]
             pnoise /= tf.reduce_max(pnoise, keep_dims=True)
-            p_offset = tf.random_uniform([], minval=-randomize_background, maxval=randomize_background)
+            p_offset = tf.random_uniform(
+                [], minval=-randomize_background, maxval=randomize_background)
             pnoise /= (10 + p_offset)
             pnoise -= tf.reduce_mean(pnoise, keep_dims=True)
             pnoise = tf.clip_by_value(background_mask - pnoise, 0, 1)
             background_mask *= pnoise
             image += background_mask
+
         elif augment_background == 'none' or augment_background == 'constant':
             pass
         else:
-            raise RuntimeError('Cannot understand your selected background augmentation: %s' % augment_background)
+            raise RuntimeError(
+                'Cannot understand your selected background augmentation: %s' % augment_background)
 
         # Normalize: must apply max value to image and every 3rd label
         if normalize_labels:
             print 'Normalizing labels'
             tile_size = [int(label.get_shape()[0]) / num_dims]
 
-            # Normalize x coor
+            # # Normalize x coor
+            # lab_adjust = tf.cast(
+            #     tf.tile([image_target_size[0], 1, 1], tile_size), tf.float32)
+            # label /= lab_adjust
+
+            # # Normalize y coor
+            # lab_adjust = tf.cast(
+            #     tf.tile([1, image_target_size[1], 1], tile_size), tf.float32)
+            # label /= lab_adjust
+
+            # # Normalize z coor
+            # lab_adjust = tf.cast(
+            #     tf.tile([1, 1, max_value], tile_size), tf.float32)
+            # label /= lab_adjust
+
             lab_adjust = tf.cast(
-                tf.tile([image_target_size[0], 1, 1], tile_size), tf.float32)
+                tf.tile(
+                    [image_target_size[1], image_target_size[0], max_value],
+                    tile_size),
+                tf.float32)
             label /= lab_adjust
 
-            # Normalize y coor
-            lab_adjust = tf.cast(
-                tf.tile([1, image_target_size[1], 1], tile_size), tf.float32)
-            label /= lab_adjust
-
-            # Normalize z coor
-            lab_adjust = tf.cast(
-                tf.tile([1, 1, max_value], tile_size), tf.float32)
-            label /= lab_adjust
     else:
         print 'Receiving pre-normalized kinect data'
 
@@ -434,12 +473,14 @@ def read_and_decode(
         output_data['size'] = tf.stack(hw)
 
     if 'domain_adaptation' in aux_losses:
-        output_data['domain_adaptation'] = tf.one_hot(tf.constant(domain_label), 2)
+        output_data['domain_adaptation'] = tf.one_hot(
+            tf.constant(domain_label), 2)
 
     if 'domain_adaptation_flip' in aux_losses:
-        output_data['domain_adaptation_flip'] = tf.one_hot(tf.constant(domain_label), 2)
+        output_data['domain_adaptation_flip'] = tf.one_hot(
+            tf.constant(domain_label), 2)
 
-    return output_data  # , label_scatter
+    return output_data
 
 
 def draw_label_coords(
@@ -525,7 +566,10 @@ def augment_data(
         model_input_shape,
         im_size,
         train,
+        max_value=None,
         labels=None):
+    if max_value is None:
+        max_value = 1200.
     if train is not None:
         if 'left_right' in train:
             print 'Fliping l/r at random'
@@ -537,7 +581,7 @@ def augment_data(
             if labels is not None:
                 tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
                 lab_adjust = tf.cast(
-                    tf.tile([0] + [im_size[1]] + [0], tile_size), tf.float32)
+                    tf.tile([im_size[0]] + [0, 0], tile_size), tf.float32)
                 labels = control_flow_ops.cond(
                     lorr,
                     lambda: lab_adjust - labels,
@@ -552,15 +596,18 @@ def augment_data(
             if labels is not None:
                 tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
                 lab_adjust = tf.cast(
-                    tf.tile([im_size[0]] + [0] + [0], tile_size), tf.float32)
+                    tf.tile([0] + [im_size[1]] + [0], tile_size), tf.float32)
                 labels = control_flow_ops.cond(
                     lorr,
                     lambda: lab_adjust - labels,
                     lambda: labels)
         if 'random_contrast' in train:
-            image = tf.image.random_contrast(image, lower=0.0, upper=0.1)
+            image = tf.image.random_contrast(
+                image,
+                lower=0.0 * max_value,
+                upper=0.1 * max_value)
         if 'random_brightness' in train:
-            image = tf.image.random_brightness(image, max_delta=.1)
+            image = tf.image.random_brightness(image, max_delta=.1 * max_value)
 
     return image, labels
 
@@ -745,4 +792,3 @@ def inputs(
                 capacity=100 * batch_size,
                 enqueue_many=True)
         return {k: v for k, v in zip(keys, var_list)}
-

@@ -364,6 +364,7 @@ def train_and_eval(config, babas_data):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
+            import ipdb;ipdb.set_trace()
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(

@@ -4,7 +4,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 from ops.data_loader_joints import inputs
-from ops import tf_fun
+from ops import tf_fun, test_tf_kinect
 from ops.utils import get_dt, import_cnn
 import argparse
 from config import monkeyConfig
@@ -20,7 +20,7 @@ def train_and_eval(
         uniform_batch_size=5,
         swap_datasets=False,
         working_on_kinect=False,
-        return_coors=False,
+        return_coors=True,
         check_stats=False,
         get_kinect_masks=False,
         babas=False):
@@ -246,7 +246,9 @@ def train_and_eval(
     normalize_vec = tf_fun.get_normalization_vec(config, num_joints)
     if babas:
         normalize_vec *= 2
-    joint_predictions, joint_gt, out_ims, monkey_masks = [], [], [], []
+    joint_predictions, joint_gt, out_ims, monkey_masks, joint_zs = [], [], [], [], []
+    val_joint_predictions, val_joint_gt, val_out_ims, val_joint_zs = [], [], [], []
+
     if config.resume_from_checkpoint is not None:
         if '.ckpt' in config.resume_from_checkpoint:
             ckpt = config.resume_from_checkpoint
@@ -290,33 +292,40 @@ def train_and_eval(
                 val_out_dict['val_pred'][val_out_dict['val_pred'] < 0] = 0
                 if return_coors:
                     joint_predictions += [train_out_dict['yhat']]
+                    joint_zs += [train_out_dict['z']]
                     joint_gt += [train_out_dict['ytrue']]
                     out_ims += [train_out_dict['im'].squeeze()]
+                    val_joint_predictions += [val_out_dict['val_pred']]
+                    val_joint_zs += [val_out_dict['z']]
+                    val_joint_gt += [val_out_dict['val_pred']]
+                    val_out_ims += [val_out_dict['val_ims'].squeeze()]
                 else:
-                    # if 'z' in train_out_dict.keys():
-                    #     # Fix this... Not right
-                    #     h, w = train_out_dict['yhat'].shape
-                    #     res_yhat = train_out_dict['yhat'].reshape(h, w // 2, 2)
-                    #     pxs = res_yhat[:, :, 0]
-                    #     pys = res_yhat[:, :, 1]
-                    #     monkey_mosaic.save_3d_mosaic(
-                    #         ims=train_out_dict['im'].squeeze(),
-                    #         pxs=pxs,
-                    #         pys=pys,
-                    #         pzs=val_out_dict['z'],
-                    #         ys=None,  # train_out_dict['ytrue'],
-                    #         save_fig=False)
-                    # if 'z' in val_out_dict.keys():
-                    #     h, w = val_out_dict['val_pred'].shape
-                    #     res_yhat = val_out_dict['val_pred'].reshape(h, w // 2, 2)
-                    #     res_yhat = np.concatenate(
-                    #         (res_yhat, val_out_dict['z'][:, :, None]),
-                    #         axis=-1)
-                    #     monkey_mosaic.save_3d_mosaic(
-                    #         ims=val_out_dict['val_ims'].squeeze(),
-                    #         yhats=res_yhat.reshape(h, int(w * 1.5)),
-                    #         ys=None,  # train_out_dict['ytrue'],
-                    #         save_fig=False)
+                    if 'z' in train_out_dict.keys():
+                        # Fix this... Not right
+                        h, w = train_out_dict['yhat'].shape
+                        res_yhat = train_out_dict['yhat'].reshape(h, w // 2, 2)
+                        pxs = res_yhat[:, :, 0]
+                        pys = res_yhat[:, :, 1]
+                        monkey_mosaic.save_3d_mosaic(
+                            ims=train_out_dict['im'].squeeze(),
+                            pxs=pxs,
+                            pys=pys,
+                            pzs=val_out_dict['z'] * config.max_depth,
+                            ys=None,  # train_out_dict['ytrue'],
+                            save_fig=False)
+                    if 'z' in val_out_dict.keys():
+                        h, w = val_out_dict['val_pred'].shape
+                        res_yhat = val_out_dict['val_pred'].reshape(h, w // 2, 2)
+                        pxs = res_yhat[:, :, 0]
+                        pys = res_yhat[:, :, 1]
+                        monkey_mosaic.save_3d_mosaic(
+                            ims=val_out_dict['val_ims'].squeeze(),
+                            pxs=pxs,
+                            pys=pys,
+                            pzs=val_out_dict['z'] * config.max_depth,
+                            ys=None,  # train_out_dict['ytrue'],
+                            save_fig=False)
+
                     monkey_mosaic.save_mosaic(
                         train_out_dict['im'].squeeze(),
                         train_out_dict['yhat'],
@@ -369,11 +378,67 @@ def train_and_eval(
     # print 'JSON saved to: %s' %'test.json'  #  kinect_config['output_json_path']
     
     if return_coors:
-        return {
-            'yhat': np.concatenate(joint_predictions).squeeze(),
-            'ytrue': np.concatenate(joint_gt).squeeze(),
-            'im': np.concatenate(out_ims)
-            }
+        produce_3ds = True
+        if produce_3ds:
+            xys = np.concatenate(joint_predictions).squeeze()
+            h, w = xys.shape
+            xys = xys.reshape(h, w // 2, 2)
+            pxs = xys[:, :, 0]
+            pys = xys[:, :, 1]
+            joint_dict = {
+                'pxs': pxs,
+                'pys': pys,
+                'pzs': np.concatenate(joint_zs).squeeze(),
+                'im': np.concatenate(out_ims)
+                }
+            overlaid_pred = test_tf_kinect.overlay_joints_frames_3d(
+                joint_dict=joint_dict,
+                output_folder='train_pred_ims')
+            test_tf_kinect.create_movie(
+                files=overlaid_pred,
+                output='pole3d_vid.mp4')
+            xys = np.concatenate(val_joint_predictions).squeeze()
+            h, w = xys.shape
+            xys = xys.reshape(h, w // 2, 2)
+            pxs = xys[:, :, 0]
+            pys = xys[:, :, 1]
+            joint_dict = {
+                'pxs': pxs,
+                'pys': pys,
+                'pzs': np.concatenate(val_joint_zs).squeeze(),
+                'im': np.concatenate(val_out_ims)
+                }
+            overlaid_pred = test_tf_kinect.overlay_joints_frames_3d(
+                joint_dict=joint_dict,
+                output_folder='val_pred_ims')
+            test_tf_kinect.create_movie(
+                files=overlaid_pred,
+                output='cage3d_vid.mp4')
+
+        else:
+            joint_dict = {
+                'yhat': np.concatenate(joint_predictions).squeeze(),
+                'ytrue': np.concatenate(joint_gt).squeeze(),
+                'im': np.concatenate(out_ims)
+                }
+            overlaid_pred = test_tf_kinect.overlay_joints_frames(
+                joint_dict=joint_dict,
+                output_folder='train_pred_ims')
+            test_tf_kinect.create_movie(
+                files=overlaid_pred,
+                output='train_vid.mp4')
+            joint_dict = {
+                'yhat': np.concatenate(val_joint_predictions).squeeze(),
+                'ytrue': np.concatenate(val_joint_gt).squeeze(),
+                'im': np.concatenate(val_out_ims)
+                }
+            overlaid_pred = test_tf_kinect.overlay_joints_frames(
+                joint_dict=joint_dict,
+                output_folder='val_pred_ims')
+            test_tf_kinect.create_movie(
+                files=overlaid_pred,
+                output='val_vid.mp4')
+            return joint_dict
     elif get_kinect_masks:
         return monkey_masks
 

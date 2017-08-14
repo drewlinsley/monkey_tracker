@@ -250,7 +250,7 @@ class model_struct:
                     self.fc_layer(
                         bottom,
                         int(bottom.get_shape()[-1]),
-                        256,
+                        32,
                         "domain_adaptation_fc")
                 )
             self.domain_adaptation = tf.squeeze(

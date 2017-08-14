@@ -30,7 +30,7 @@ if __name__ == '__main__':
         "--babas",
         dest="babas_data",
         action='store_true',
-        help='Train on babas.')
+        help='Train on special babas data (depreciated).')
     parser.add_argument(
         "--which_joint",
         dest="which_joint",

@@ -4,7 +4,7 @@ import os
 class kinectConfig():
 
     def __init__(self):
-        self.selected_video = 'monkey_on_pole_3'  # 'monkey_in_cage_1'  # 'monkey_on_pole_3' 
+        self.selected_video = 'monkey_in_cage_2'  # 'monkey_in_cage_1'  # 'monkey_on_pole_3' 
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -226,6 +226,62 @@ class kinectConfig():
             'left': 140,
             'right': 0
         }        
+        return container
+
+
+    def monkey_in_cage_2(self):
+        container = self.defaults
+        container['output_joint_dict'] = False
+        container['crop'] = 'static_and_crop'  # static or box
+        container['start_frame'] = 100
+        container['end_frame'] = 35
+        container['h0'] = 180
+        container['w0'] = 110
+        container['h1'] = 325
+        container['w1'] = 420
+        container['cnn_threshold'] = 50  # Keep
+        container['crop_and_pad'] = False
+        container['find_bb'] = False
+        container['mask_with_model'] = False
+        container['run_gmm'] = False
+        container['time_threshold'] = 95
+        container['crop_and_pad'] = False
+        container['output_dir'] = '/home/drew/Desktop/'
+        container['data_dir'] = os.path.join(
+            container['output_dir'],
+            'predicted_monkey_in_cage_2')
+        container['kinect_output_name'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            'monkey_in_cage_2.mp4')
+        container['output_json_path'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            'monkey_in_cage_2.json')
+        container['predicted_output_name'] = os.path.join(
+            container['data_dir'],
+            'predicted_monkey_in_cage_2.mp4')
+        container['gt_output_name'] = None
+        container['output_npy_path'] = container['data_dir']
+        container['tfrecord_name'] = os.path.join(
+            container['data_dir'],
+            'monkey_on_pole.tfrecords')
+        container['prediction_image_folder'] = os.path.join(
+            container['data_dir'],
+            'prediction_frames')
+        container['gt_image_folder'] = os.path.join(
+            container['data_dir'],
+            'gt_frames')
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth',
+            'Xef2Mat_Output_Trial04',
+            'Xef2Mat_Output')
+        container['kinect_project'] = 'DepthFrame_npys'
+        container['kinect_file_ext'] = '.npy'
+        container['kinect_video'] = 'video.mp4'
+        container['background_mask'] = {
+            'left': 140,
+            'right': 0
+        }
         return container
 
 

@@ -17,9 +17,10 @@ from skimage.morphology import remove_small_objects
 from skimage import measure
 from scipy.ndimage.morphology import binary_opening, binary_closing, \
                                      binary_fill_holes, binary_dilation
-import scipy.ndimage.filters as fi
 from matplotlib import pyplot as plt
 from matplotlib import animation
+import matplotlib.gridspec as gridspec
+from ops import joint_list
 
 
 def apply_cnn_masks_to_kinect(
@@ -869,7 +870,57 @@ def overlay_joints_frames(
         else:
             im = fr
         ax.imshow(im, cmap='Greys_r')
-        [ax.scatter(xy[0], xy[1], color=c) for xy, c in zip(xy_coors, colors)]
+        [ax.scatter(xy[0], xy[1], color=c, s=1) for xy, c in zip(xy_coors, colors)]
+        # monkey_mosaic.plot_coordinates(ax, jp, colors)
+        out_name = os.path.join(output_folder, '%s.png' % idx)
+        plt.savefig(out_name)
+        files += [out_name]
+        plt.close('all')
+    return files
+
+
+def overlay_joints_frames_3d(
+        joint_dict,
+        output_folder,
+        target_key='yhat',
+        transform_xyz=True,
+        w=320,
+        h=240):
+    tf_fun.make_dir(output_folder)
+    colors, joints, num_joints = monkey_mosaic.get_colors()
+    files = []
+    frames = joint_dict['im']
+    pxs = joint_dict['pxs']
+    pys = joint_dict['pys']
+    pzs = joint_dict['pzs']
+    joint_labels = joint_list.joint_data()
+    for idx, (fr, ixs, iys, izs) in tqdm(
+            enumerate(zip(frames, pxs, pys, pzs)), total=len(frames)):
+        f, ax = plt.subplots()
+        gs1 = gridspec.GridSpec(1, 1)
+        ax = plt.subplot(gs1[0], projection='3d')
+        f.set_dpi(100)
+        DPI = f.get_dpi()
+        f.set_size_inches(w/float(DPI), h/float(DPI))
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        plt.axis('off')
+        f.set_tight_layout(True)
+        ax.scatter(
+                ixs,
+                iys,
+                izs,
+                c=colors,
+                marker='o')
+        # Construct skeleton
+        jxs, jys, jzs = [], [], []
+        for jc in joint_labels.joint_connections:
+            jidx = joint_labels.joint_names.index(jc)
+            jxs += [ixs[jidx]]
+            jys += [iys[jidx]]
+            jzs += [izs[jidx]]
+        # ax.plot(ixs, iys, izs)
+        ax.view_init(0, 0)
         # monkey_mosaic.plot_coordinates(ax, jp, colors)
         out_name = os.path.join(output_folder, '%s.png' % idx)
         plt.savefig(out_name)

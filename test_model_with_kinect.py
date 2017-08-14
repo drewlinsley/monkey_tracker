@@ -139,6 +139,7 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None, babas=False):
                 frames=frames,
                 output=kinect_config['kinect_output_name'])
 
+        import ipdb;ipdb.set_trace()
         # Create tfrecords of kinect data
         if not run_tests:
             # # Transform kinect data to Maya data

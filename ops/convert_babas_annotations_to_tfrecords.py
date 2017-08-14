@@ -11,11 +11,12 @@ from ops.test_tf_kinect import overlay_joints_frames
 
 def main(
         tmp_folder='tmp',
-        w_pad=-20.,
-        h_pad=-12.,
-        w_scale=1.1,
-        h_scale=1.15,
-        debug=True):
+        w_pad=-22., # -20.,
+        h_pad=-10.,
+        w_scale=1.125,
+        h_scale=1.125,
+        debug=True,
+        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test'):
     config = monkeyConfig()
     kinect_config = kinectConfig()
     annotations, fnames, flat_ims, start_count = [], [], [], 0
@@ -59,9 +60,9 @@ def main(
                 for il, target_joint in enumerate(config.joint_names):
                     for k, v in it_annotation.iteritems():
                         if k == target_joint:
-                            coors[il, 0] = (v['x'] + w_pad) * w_scale # x = width
-                            coors[il, 1] = (v['y'] + h_pad) * h_scale # y = height
-                            coors[il, 2] = im[coors[il, 1], coors[il, 2]]
+                            coors[il, 0] = (v['x'] + w_pad) * w_scale  # (v['x'] * w_scale) + w_pad
+                            coors[il, 1] = (v['y'] + h_pad) * h_scale  # (v['y'] * h_scale) + h_pad
+                            coors[il, 2] = im[0, 0]  # im[coors[il, 1], coors[il, 2]]
                             it_joint_list += [k]
                 annotations += [coors]
                 debug_annotations += [coors]
@@ -69,15 +70,22 @@ def main(
                 joint_dict_list += [joint_dict]
 
             if debug:
+                # Move frames to a new folder on cifs
+                debug_im_dir = os.path.join(
+                        tfrecord_dir,
+                        '%s_annotated_frame_images' % batch['project'].split(
+                            os.path.sep)[-1].split('.')[0])
+                tf_fun.make_dir(debug_im_dir)
                 joint_dict = {
                     'yhat': debug_annotations,
                     'im': ims
                 }
                 overlay_joints_frames(
                     joint_dict=joint_dict,
-                    output_folder=debug_folder,
+                    output_folder=debug_im_dir,
                     transform_xyz=False
                     )
+                print 'Stored annotated images in: %s' % debug_im_dir
 
         flat_ims = np.concatenate(flat_ims[:])
         [np.save(
@@ -103,7 +111,7 @@ def main(
         config.pixel_label_dir = label_folder
         config.occlusion_dir = occlusion_folder
         config.im_label_dir = im_folder
-        config.tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
+        config.tfrecord_dir = tfrecord_dir
         config.use_train_as_val = True
         config.use_image_labels = True
         process_data(config)
@@ -113,8 +121,5 @@ def main(
     finally:
         shutil.rmtree(tmp_folder)
 
-
 if __name__ == '__main__':
     main()
-
-4014210710

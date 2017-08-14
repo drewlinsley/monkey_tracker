@@ -23,7 +23,7 @@ class monkeyConfig(object):
         self.train_summaries = os.path.join(self.results_dir, 'summaries')
         self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = True
+        use_checkpoint = False
         if use_checkpoint:
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_49_52'  # OK
             # # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_19_53_40'  # WORSE THAN 1
@@ -53,6 +53,7 @@ class monkeyConfig(object):
             # 
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_07_29_10_12_44'
             self.model_name = 'skip_small_conv_deconv_2017_07_29_10_11_38'
+            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_07_30_17_03_46'
 
             self.ckpt_file = None  # 
             self.resume_from_checkpoint = os.path.join(
@@ -88,7 +89,7 @@ class monkeyConfig(object):
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
         self.randomize_background = 1.5
-        self.augment_background = 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.augment_background = 'background'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
@@ -98,7 +99,6 @@ class monkeyConfig(object):
         self.fine_tune_layers = None
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
-            None,
             # 'left_right',
             # 'up_down'
         ]
@@ -212,24 +212,55 @@ class monkeyConfig(object):
             'left toetips',
             'right toetips'
         ]
+
         self.selected_joints = None  # ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
         self.keep_dims = 2
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
         self.babas_file_for_import = [
+            # {  # FOR DEBUGGING
+            #     'project': os.path.join(
+            #         '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+            #         'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_2.npz'),
+            #     'data': 'monkey_on_pole_3'
+            # },
             {
                 'project': os.path.join(
                     '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3.npz'),
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3_p1.npz'),
                 'data': 'monkey_on_pole_3'
             },
             {
                 'project': os.path.join(
                     '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1.npz'),
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p1.npz'),
                 'data': 'monkey_in_cage_1'
-            }
+            },
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p2.npz'),
+                'data': 'monkey_in_cage_1'
+            },
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p3.npz'),
+                'data': 'monkey_in_cage_1'
+            },
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p4.npz'),
+                'data': 'monkey_in_cage_1'
+            },
+            {
+                'project': os.path.join(
+                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p5.npz'),
+                'data': 'monkey_in_cage_1'
+            },
             ]
         self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'  # Set to None to not use kinect data
 

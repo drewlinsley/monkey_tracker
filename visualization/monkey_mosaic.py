@@ -6,8 +6,9 @@ from glob import glob
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
+from mpl_toolkits.mplot3d import Axes3D
 from config import monkeyConfig
-
+from ops import joint_list
 
 def get_colors():
     joints = monkeyConfig().joint_names
@@ -76,6 +77,75 @@ def save_mosaic(
         plt.close('fig')
 
 
+def save_3d_mosaic(
+        ims,
+        pxs,
+        pys,
+        pzs,
+        ys,
+        output=None,
+        wspace=0.,
+        hspace=0.,
+        save_fig=True):
+    # Get a color for each yhat and a color for each ytrue
+    colors, joints, num_joints = get_colors()
+    rc = np.ceil(np.sqrt(len(ims))).astype(int)
+    fig = plt.figure(figsize=(10, 10))
+    gs1 = gridspec.GridSpec(rc, rc)
+    lab_legend_artists = None
+    joint_labels = joint_list.joint_data()
+    for idx, (im, ixs, iys, izs) in enumerate(zip(ims, pxs, pys, pzs)):
+        ax1 = plt.subplot(gs1[idx], projection='3d')
+        plt.axis('off')
+        ax1.set_xticklabels([])
+        ax1.set_yticklabels([])
+        # ax1.set_aspect('equal')
+        # ax1.set_xlim([0, 240])
+        # ax1.set_ylim([0, 320])
+        # ax1.imshow(im, cmap='Greys_r')
+        if ys is not None:
+            lab_legend_artists = plot_coordinates(
+                ax1, ys[idx], colors, marker='.', markersize=1.5)
+            leg_title = 'Predicted | True'
+        else:
+            leg_title = 'Predicted'
+        est_legend_artists = ax1.scatter(
+                ixs,
+                iys,
+                izs,
+                c=colors,
+                marker='o')
+        # Construct skeleton
+        jxs, jys, jzs = [], [], []
+        for jc in joint_labels.joint_connections:
+            jidx = joint_labels.joint_names.index(jc)
+            jxs += [ixs[jidx]]
+            jys += [iys[jidx]]
+            jzs += [izs[jidx]]
+        ax1.plot(ixs, iys, izs)
+        ax1.view_init(0, 20)
+    plt.subplots_adjust(top=1, left=0)
+
+    # Legend
+    if lab_legend_artists is not None:
+        patches = est_legend_artists + lab_legend_artists
+    else:
+        patches = est_legend_artists
+    # fig.legend(
+    #     patches,
+    #     (["" for _ in colors] +
+    #      [j for j in joints]),
+    #     title=leg_title,
+    #     loc=1, frameon=False, numpoints=1, ncol=2,
+    #     columnspacing=0, handlelength=0.25, markerscale=2)
+    if save_fig:
+        plt.savefig(output)
+    else:
+        print 'Showing not saving mosaic.'
+        plt.show()
+        plt.close('fig')
+
+
 def xyz_vector_to_xy(vector, num_dims=2):
     return vector.reshape(-1, num_dims)[:, :2]
 
@@ -104,7 +174,7 @@ def main(
         dmurphy_npy_dir='/media/data_cifs/monkey_tracking/batches/test',
         normalize=False,
         unnormalize=False,
-        max_ims=4
+        max_ims=32
         ):
 
     monkey_dir = os.path.join(dmurphy_npy_dir, monkey_date)
