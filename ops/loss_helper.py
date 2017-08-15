@@ -64,7 +64,7 @@ def potential_aux_losses():
             'deconv_label': {
                 'y_name': 'deconv_label',
                 'model_name': 'deconv',
-                'loss_function': 'sigmoid',  # 'cce',
+                'loss_function': 'cce',
                 'var_label': 'deconv head',
                 'lambda': {14: 0.01},  # reduce weight on background
                 'aux_fun': 'resize',
@@ -125,26 +125,10 @@ def get_aux_losses(
             y = tf.image.resize_bilinear(
                 y, [int(x) for x in yhat.get_shape()[1:3]])
         if loss_function == 'sigmoid':
-            if isinstance(reg_weight, dict):
-                # Only using index 1 for now
-                index = reg_weight.keys()[0]
-                weight = reg_weight.values()[0]
-                split_tensor = tf.split(
-                    y,
-                    int(y.get_shape()[-1]), axis=3)[index]
-                weights = split_tensor * weight  # Weight for bg loss
-                weights = tf.squeeze(weights + tf.cast(tf.equal(
-                    weights, 0), tf.float32))  # No weight on fg
-                inter_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-                    logits=yhat,
+            loss = tf.reduce_mean(
+                tf.nn.sigmoid_cross_entropy_with_logits(
                     labels=y,
-                    dim=-1) * tf.expand_dims(loss_mask, axis=-1)
-                loss = tf.reduce_mean(inter_loss * weights)
-            else:
-                loss = tf.reduce_mean(
-                    tf.nn.sigmoid_cross_entropy_with_logits(
-                        labels=y,
-                        logits=yhat) * loss_mask)
+                    logits=yhat) * loss_mask)
         elif loss_function == 'cce':
             if isinstance(reg_weight, dict):
                 # Only using index 1 for now
