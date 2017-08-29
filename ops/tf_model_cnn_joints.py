@@ -120,7 +120,8 @@ def train_and_eval(config, babas_data):
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
             babas_tfrecord_dir=train_babas_tfrecord_dir,
-            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space,
+            image_target_size_is_flipped=config.image_target_size_is_flipped)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -149,7 +150,8 @@ def train_and_eval(config, babas_data):
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
             babas_tfrecord_dir=val_babas_tfrecord_dir,
-            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space,
+            image_target_size_is_flipped=config.image_target_size_is_flipped)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape

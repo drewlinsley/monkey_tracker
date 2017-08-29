@@ -62,6 +62,9 @@ def resize_label_coordinates(
         image_target_size,
         image_input_size,
         num_dims=3):
+    """
+    Resizes H/W coordinates.
+    Agnostic to ordering of H/W dimensions."""
     modifier = np.asarray(
         image_target_size[:2]).astype(np.float32) / np.asarray(
         image_input_size[:2]).astype(np.float32)
@@ -119,7 +122,8 @@ def read_and_decode(
         background_folder=None,
         augment_background=False,
         domain_label=None,
-        convert_labels_to_pixel_space=False):
+        convert_labels_to_pixel_space=False,
+        image_target_size_is_flipped=False):
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -143,9 +147,6 @@ def read_and_decode(
     if convert_labels_to_pixel_space:
         # 1) Resize to config.image_target_size
         # 2) Crop to image size
-        raise RuntimeError(
-            'Have not protected this from flip issues.' +
-            '`config.image_target_size_is_flipped`')
         label = resize_label_coordinates(
             label,
             image_target_size,
@@ -331,10 +332,22 @@ def read_and_decode(
             #     tf.tile([1, 1, max_value], tile_size), tf.float32)
             # label /= lab_adjust
 
-            print 'Warning target size is HARDCODED. Switch to account for: config.image_target_size_is_flipped.'
+            if image_target_size_is_flipped:
+                norm_vec = [
+                    image_target_size[1],
+                    image_target_size[0],
+                    max_value
+                    ]
+            else:
+                norm_vec = [
+                    image_target_size[0],
+                    image_target_size[1],
+                    max_value
+                    ]
+
             lab_adjust = tf.cast(
                 tf.tile(
-                    [image_target_size[1], image_target_size[0], max_value],
+                    norm_vec,
                     tile_size),
                 tf.float32)
             label /= lab_adjust
@@ -675,7 +688,8 @@ def inputs(
         augment_background=False,
         maya_joint_labels=None,
         babas_tfrecord_dir=None,
-        convert_labels_to_pixel_space=False):
+        convert_labels_to_pixel_space=False,
+        image_target_size_is_flipped=False):
     with tf.name_scope('input'):
 
         if babas_tfrecord_dir is not None:
@@ -711,7 +725,8 @@ def inputs(
                 background_folder=background_folder,
                 maya_joint_labels=maya_joint_labels,
                 domain_label=domain_label,
-                convert_labels_to_pixel_space=False)
+                convert_labels_to_pixel_space=False,
+                image_target_size_is_flipped=image_target_size_is_flipped)
             domain_label += 1
         else:
             domain_label = None
@@ -744,7 +759,8 @@ def inputs(
             background_folder=background_folder,
             maya_joint_labels=maya_joint_labels,
             domain_label=domain_label,
-            convert_labels_to_pixel_space=convert_labels_to_pixel_space)
+            convert_labels_to_pixel_space=convert_labels_to_pixel_space,
+            image_target_size_is_flipped=image_target_size_is_flipped)
 
         if domain_label is not None:
             # Need to mix real/synth tf records.
