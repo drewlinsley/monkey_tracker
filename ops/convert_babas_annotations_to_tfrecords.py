@@ -7,6 +7,7 @@ from config import monkeyConfig
 from ops import tf_fun
 from kinect_config import kinectConfig
 from ops.test_tf_kinect import overlay_joints_frames
+from skimage.transform import resize
 
 
 def main(
@@ -16,7 +17,8 @@ def main(
         w_scale=1.125,
         h_scale=1.125,
         debug=True,
-        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test'):
+        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test',
+        fix_image_size=True):
     config = monkeyConfig()
     kinect_config = kinectConfig()
     annotations, fnames, flat_ims, start_count = [], [], [], 0
@@ -43,10 +45,19 @@ def main(
                 os.path.join(
                     it_kinect_config['output_npy_path'], 'frames.npy'))
             ims = ims[data['frame_range']]
+            if fix_image_size:
+                target_size = config.image_target_size[:2]
+                if ims[0].shape != target_size:
+                    ims = [resize(
+                        im,
+                        target_size,
+                        preserve_range=True) for im in ims]
+                    print 'Warning: Image sizes are different than target.' + \
+                        'Converting.'
             flat_ims += [ims]
             fnames += ['tmp1_%s.npy' % tm for tm in range(
                 start_count, start_count + len(ims))]
-            start_count = len(ims)
+            start_count += len(ims)
             # Annotations
             joint_dict_list = []
             debug_annotations = []
@@ -120,6 +131,7 @@ def main(
         print e
     finally:
         shutil.rmtree(tmp_folder)
+
 
 if __name__ == '__main__':
     main()

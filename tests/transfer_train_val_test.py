@@ -23,7 +23,8 @@ def train_and_eval(
         return_coors=False,
         check_stats=False,
         get_kinect_masks=False,
-        babas=False):
+        babas=False,
+        dmurphy_adjust=False):
     if config.resume_from_checkpoint is not None:
         try:
             if config.augment_background == 'background':
@@ -289,6 +290,25 @@ def train_and_eval(
                 train_out_dict['yhat'][train_out_dict['yhat'] < 0] = 0
                 val_out_dict['val_pred'][val_out_dict['val_pred'] < 0] = 0
                 if return_coors:
+                    if dmurphy_adjust:
+                        conv_xy_to_hw = [1.33, 0.75]
+                        yhats = train_out_dict['yhat']
+                        ytrues = train_out_dict['ytrue']
+                        for idx in len(yhats):
+                            iyh = yhats[idx]
+                            iyt = ytrues[idx]
+                            iyh = iyh.reshape(-1, 2)
+                            iyh[:, 0] = iyh[:, 0] * conv_xy_to_hw[0]
+                            iyh[:, 1] = iyh[:, 1] * conv_xy_to_hw[1]
+                            iyh = iyh.reshape(-1)
+                            iyt = iyt.reshape(-1, 2)
+                            iyt[:, 0] = iyt[:, 0] * conv_xy_to_hw[0]
+                            iyt[:, 1] = iyt[:, 1] * conv_xy_to_hw[1]
+                            iyt = iyt.reshape(-1)
+                            yhats[idx] = iyh
+                            ytrues[idx] = iyt
+                        train_out_dict['yhat'] = yhats
+                        train_out_dict['ytrue'] = ytrues
                     joint_predictions += [train_out_dict['yhat']]
                     joint_gt += [train_out_dict['ytrue']]
                     out_ims += [train_out_dict['im'].squeeze()]
@@ -427,6 +447,11 @@ if __name__ == '__main__':
         dest="babas",
         action='store_true',
         help='You are using babas data.')
+    parser.add_argument(
+        "--dmurphy_adjust",
+        dest="dmurphy_adjust",
+        action='store_true',
+        help='Apply dmurphy_adjustment.')
     parser.add_argument(
         "--bs",
         dest="uniform_batch_size",

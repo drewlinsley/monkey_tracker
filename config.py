@@ -1,4 +1,5 @@
 import os
+from ops import babas_files_list
 
 class monkeyConfig(object):
     def __init__(self): 
@@ -25,7 +26,7 @@ class monkeyConfig(object):
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = False
         if use_checkpoint:
-            self.model_name = 'skip_small_conv_deconv_2017_07_29_10_11_38'
+            self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_08_14_19_28_13'
             self.ckpt_file = None
             self.resume_from_checkpoint = os.path.join(
                 self.model_output,
@@ -34,7 +35,7 @@ class monkeyConfig(object):
                 self.saved_config = '%s.npy' % os.path.sep.join(self.resume_from_checkpoint.split('/')[:-1])
             else:
                 self.saved_config = '%s.npy' % self.resume_from_checkpoint
-            self.segmentation_model_name = 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_07_01_16_21_53'
+            self.segmentation_model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_08_14_19_28_13'
             self.segmentation_resume_from_checkpoint = os.path.join(
                 self.model_output,
                 self.segmentation_model_name)
@@ -54,6 +55,7 @@ class monkeyConfig(object):
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_input_size = [480, 640]  # Maya render output
         self.image_target_size = [240, 320, 3]  # Resize before tfrecords
+        self.image_target_size_is_flipped = True  # A flip was introduced for labels: h/w -> x/y.
         self.maya_conversion = 640.0 / 500.0  # pixels / maya units
         self.sample = {'train': True, 'val': False}  # random sample of feats
         self.use_image_labels = False  # if true, extract  color-labeled images
@@ -65,8 +67,8 @@ class monkeyConfig(object):
 
         # Model settings
         self.epochs = 50
-        self.model_type = 'skip_res_small_conv_deconv'
-        # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
+        # self.model_type = 'skip_res_small_conv_deconv'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
         self.fine_tune_layers = None
         self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
@@ -95,9 +97,9 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['deconv_label', 'occlusion', 'z']  # ['occlusion']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.aux_losses = ['occlusion', 'z']  # ['deconv_label', 'occlusion', 'z']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
-        self.include_validation = True  # '/media/data_cifs/monkey_tracking/tfrecords/monkey_on_pole.tfrecords'  # True
+        self.include_validation = '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
         self.wd_type = 'l2'
         self.wd_penalty = None  # 5e-4
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
@@ -189,50 +191,7 @@ class monkeyConfig(object):
         self.keep_dims = 2
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
-        self.babas_file_for_import = [
-            # {  # FOR DEBUGGING
-            #     'project': os.path.join(
-            #         '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-            #         'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_2.npz'),
-            #     'data': 'monkey_on_pole_3'
-            # },
-            {
-                'project': os.path.join(
-                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3_p1.npz'),
-                'data': 'monkey_on_pole_3'
-            },
-            {
-                'project': os.path.join(
-                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p1.npz'),
-                'data': 'monkey_in_cage_1'
-            },
-            {
-                'project': os.path.join(
-                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p2.npz'),
-                'data': 'monkey_in_cage_1'
-            },
-            {
-                'project': os.path.join(
-                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p3.npz'),
-                'data': 'monkey_in_cage_1'
-            },
-            {
-                'project': os.path.join(
-                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p4.npz'),
-                'data': 'monkey_in_cage_1'
-            },
-            {
-                'project': os.path.join(
-                    '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                    'babas_monkey_tracking_data_for_babas_processed_videos_monkey_in_cage_1_p5.npz'),
-                'data': 'monkey_in_cage_1'
-            },
-            ]
+        self.babas_file_for_import = babas_files_list.data()
         self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'  # Set to None to not use kinect data
 
         # Feature extraction settings for classic kinect alg

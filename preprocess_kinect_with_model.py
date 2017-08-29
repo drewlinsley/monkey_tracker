@@ -14,7 +14,11 @@ from ops import tf_fun
 from tests.transfer_train_val_test import train_and_eval
 
 
-def main(model_dir, ckpt_name, run_tests=False, babas=False):
+def main(
+        model_dir,
+        ckpt_name,
+        run_tests=False,
+        babas=False):
     '''Skeleton script for preprocessing and
     passing kinect videos through a trained model'''
     # Find config from the trained model
@@ -164,6 +168,7 @@ def main(model_dir, ckpt_name, run_tests=False, babas=False):
             prct=kinect_config['cnn_threshold'])
 
     # Normalize frames
+    assert len(frames) > 0
     frames = test_tf_kinect.normalize_frames(
         frames=frames,
         max_value=config.max_depth,
@@ -193,16 +198,10 @@ def main(model_dir, ckpt_name, run_tests=False, babas=False):
                 use_kinect=use_kinect,
                 crop_coors=crop_coors)
             print 'Saved files to %s' % kinect_config['tfrecord_name']
-            # Create preprocessed kinect movie if desired
-            if kinect_config['kinect_output_name'] is not None:
-                test_tf_kinect.create_movie(
-                    frames=frames,
-                    output=kinect_config['kinect_output_name'],
-                    crop_coors=crop_coors)
         print 'Now passing processed frames through selected CNN.'
         config.resume_from_checkpoint = old_resume
         config.saved_config = old_config
-        if kinect_config['output_joint_dict']:
+        if kinect_config['output_joint_dict']:  # TODO WHY IS THIS AUTO TRIGGERED
             joint_dict = train_and_eval(
                 frame_pointer,
                 frame_pointer,
@@ -232,6 +231,12 @@ def main(model_dir, ckpt_name, run_tests=False, babas=False):
             config=config)
         frame_toss_index = []
 
+    # Create preprocessed kinect movie if desired
+    if kinect_config['kinect_output_name'] is not None:
+        test_tf_kinect.create_movie(
+            frames=frames,
+            output=kinect_config['kinect_output_name'])
+
     if kinect_config['output_joint_dict']:
         # Overlay joint predictions onto frames
         tf_fun.make_dir(kinect_config['prediction_image_folder'])
@@ -240,7 +245,7 @@ def main(model_dir, ckpt_name, run_tests=False, babas=False):
             output_folder=kinect_config['prediction_image_folder'])
 
         # Create overlay movie if desired
-        if kinect_config['predicted_output_name'] is not None:
+        if 'predicted_output_name' in kinect_config and kinect_config['predicted_output_name'] is not None:
             test_tf_kinect.create_movie(
                 files=overlaid_pred,
                 output=kinect_config['predicted_output_name'])
@@ -256,7 +261,8 @@ def main(model_dir, ckpt_name, run_tests=False, babas=False):
         }
         if kinect_config['output_joint_dict']:
             files_to_save['joint_predictions'] = joint_dict['yhat']
-            files_to_save['overlaid_frames'] = joint_dict['overlaid_pred']
+            if 'overlaid_pred' in joint_dict:
+                files_to_save['overlaid_frames'] = joint_dict['overlaid_pred']
         test_tf_kinect.save_to_numpys(
             file_dict=files_to_save,
             path=kinect_config['output_npy_path'])
@@ -268,15 +274,13 @@ if __name__ == '__main__':
         "--model_dir",
         dest="model_dir",
         type=str,
-        default=None,  # '/media/data_cifs/monkey_tracking/results/' + \
-            # 'TrueDepth2MilStore/model_output/' + \
-            # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_28_14_21_21',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_27_18_36_53', # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_21_33_30',  # 'cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_23_10_35_34',
+        default=None,
         help='Name of model directory.')
     parser.add_argument(
         "--ckpt_name",
         dest="ckpt_name",
         type=str,
-        default=None,  # 'model_49000.ckpt-49000',
+        default=None,
         help='Name of TF checkpoint file.')
     parser.add_argument(
         "--test",

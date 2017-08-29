@@ -3,8 +3,14 @@ import os
 
 class kinectConfig():
 
+    def __getitem__(self, name):
+        return getattr(self, name)
+
+    def __contains__(self, name):
+        return hasattr(self, name)
+
     def __init__(self):
-        self.selected_video = 'monkey_in_cage_2'  # 'monkey_in_cage_1'  # 'monkey_on_pole_3' 
+        self.selected_video = 'starbuck_pole_new_configuration_competition_depth_0'
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -12,8 +18,8 @@ class kinectConfig():
             # Video frame and background subtraction params
             'start_frame': 100,
             'end_frame': 35,
-            'low_threshold': 1400,
-            'high_threshold': 3350,
+            'low_threshold': None,
+            'high_threshold': None,
             'show_threshold_results': False,
 
             # Bounding box crop the monkey
@@ -30,7 +36,7 @@ class kinectConfig():
             'right_frame': 40,
 
             # Crop box params
-            'crop': 'static',  # static or box
+            'crop': None,  # 'static',  # static or box
             'w': 175,
             'h': 150,
             '_x': 32,
@@ -40,9 +46,10 @@ class kinectConfig():
             'ignore_border_px': 10,
 
             # auto cnn bb
-            'mask_with_model': True,
+            'mask_with_model': False,
             'crop_and_pad': False,
             'small_object_size': 600,
+            'output_joint_dict': False,
 
             # Normalization
             'max_adjust': 1,
@@ -228,7 +235,6 @@ class kinectConfig():
         }        
         return container
 
-
     def monkey_in_cage_2(self):
         container = self.defaults
         container['output_joint_dict'] = False
@@ -328,8 +334,117 @@ class kinectConfig():
         }
         return container
 
-    def __getitem__(self, name):
-        return getattr(self, name)
+    def starbuck_pole_new_configuration_competition_depth_0(self):
+        """Depth frames. Pass through CNN."""
+        container = self.defaults
+        container['output_joint_dict'] = True
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth',
+            'starbuck_pole_new_configuration_competition_depth_0')
+        container['kinect_project'] = 'DepthFrame_npys'
+        container['output_dir'] = '/home/drew/Desktop/'
+        container['data_dir'] = os.path.join(
+            container['output_dir'],
+            container['kinect_project'])
+        container['prediction_image_folder'] = os.path.join(
+            container['data_dir'],
+            'prediction_frames')
+        container['gt_image_folder'] = os.path.join(
+            container['data_dir'],
+            'gt_frames')
+        container['tfrecord_name'] = os.path.join(
+            container['data_dir'],
+            'starbuck_pole_new_configuration_competition_depth_0.tfrecords')
+        container['kinect_output_name'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            'starbuck_pole_new_configuration_competition_depth_0.mp4')
+        container['output_json_path'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            'starbuck_pole_new_configuration_competition_depth_0.json')
+        container['output_npy_path'] = container['data_dir']
+        container['kinect_file_ext'] = '.npy'
+        return container
 
-    def __contains__(self, name):
-        return hasattr(self, name)
+    def starbuck_pole_new_configuration_competition_IR_0(self):
+        """IR frames. Don't pass through CNN."""
+        container = self.defaults
+        container['output_joint_dict'] = False
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth',
+            'starbuck_pole_new_configuration_competition_IR_0')
+        container['kinect_project'] = 'IRFrame_npys'
+        container['output_dir'] = '/home/drew/Desktop/'
+        container['data_dir'] = os.path.join(
+            container['output_dir'],
+            container['kinect_project'])
+        container['tfrecord_name'] = os.path.join(
+            container['data_dir'],
+            'starbuck_pole_new_configuration_competition_IR_0.tfrecords')
+        container['kinect_output_name'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            'starbuck_pole_new_configuration_competition_IR_0.mp4')
+        container['output_npy_path'] = container['data_dir']
+        container['kinect_file_ext'] = '.npy'
+        return container
+
+    def trimmed_starbuck_pole_new_configuration_competition_depth_0(self):
+        """Depth frames. Pass through CNN."""
+        container = self.defaults
+        container['output_joint_dict'] = False
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth')
+        container['crop'] = 'static'  # static or box
+        container['kinect_project'] = 'starbuck_pole_new_trim_depth_0'
+        container['output_dir'] = '/home/drew/Desktop/'
+        container['data_dir'] = os.path.join(
+            container['output_dir'],
+            container['kinect_project'])
+        container['prediction_image_folder'] = os.path.join(
+            container['data_dir'],
+            'prediction_frames')
+        container['predicted_output_name'] = os.path.join(
+            container['data_dir'],
+            'trimmed_starbuck_pole_new_configuration_competition_depth_0.mp4')
+        container['gt_image_folder'] = os.path.join(
+            container['data_dir'],
+            'gt_frames')
+        container['tfrecord_name'] = os.path.join(
+            container['data_dir'],
+            'starbuck_pole_new_trim_depth_0.tfrecords')
+        container['kinect_output_name'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            'starbuck_pole_new_trim_depth_0.mp4')
+        container['output_json_path'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            'starbuck_pole_new_trim_depth_0.json')
+        container['output_npy_path'] = container['data_dir']
+        container['kinect_file_ext'] = '.npy'
+        return container
+
+    def trimmed_starbuck_pole_new_configuration_competition_IR_0(self):
+        """IR frames. Don't pass through CNN."""
+        container = self.defaults
+        container['output_joint_dict'] = False
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth')
+        container['kinect_project'] = 'starbuck_pole_new_trim_IR_0'
+        container['output_dir'] = '/home/drew/Desktop/'
+        container['data_dir'] = os.path.join(
+            container['output_dir'],
+            container['kinect_project'])
+        container['tfrecord_name'] = os.path.join(
+            container['data_dir'],
+            'starbuck_pole_new_trim_IR_0.tfrecords')
+        container['kinect_output_name'] = os.path.join(
+            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            'starbuck_pole_new_trim_IR_0.mp4')
+        container['gt_image_folder'] = os.path.join(
+            container['data_dir'],
+            'gt_frames')
+        container['output_npy_path'] = container['data_dir']
+        container['kinect_file_ext'] = '.npy'
+        return container

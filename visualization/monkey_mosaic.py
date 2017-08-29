@@ -25,7 +25,7 @@ def save_mosaic(
         wspace=0.,
         hspace=0.,
         save_fig=True,
-        conv_xy_to_hw=True):
+        conv_xy_to_hw=[1.33, 0.75]):
     # Get a color for each yhat and a color for each ytrue
     colors, joints, num_joints = get_colors()
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
@@ -33,8 +33,22 @@ def save_mosaic(
     gs1 = gridspec.GridSpec(rc, rc)
     lab_legend_artists = None
     for idx, (im, yhat) in enumerate(zip(ims, yhats)):
-        if conv_xy_to_hw:
-            yhat = yhat.reshape(-1, 2)[:, ::-1].reshape(1, -1)
+        # if conv_xy_to_hw:
+        #     yhat = yhat.reshape(-1, 2)[:, ::-1].reshape(1, -1)
+        if ys is not None:
+            ytrue = ys[idx]
+        else:
+            ytrue = yhat
+        if conv_xy_to_hw is not None:
+            yhat = yhat.reshape(-1, 2)
+            yhat[:, 0] = yhat[:, 0] * conv_xy_to_hw[0]
+            yhat[:, 1] = yhat[:, 1] * conv_xy_to_hw[1]
+            yhat = yhat.reshape(-1)
+            ytrue = ytrue.reshape(-1, 2)
+            ytrue[:, 0] = ytrue[:, 0] * conv_xy_to_hw[0]
+            ytrue[:, 1] = ytrue[:, 1] * conv_xy_to_hw[1]
+            ytrue = ytrue.reshape(-1)
+
         ax1 = plt.subplot(gs1[idx])
         plt.axis('off')
         ax1.set_xticklabels([])
@@ -44,14 +58,9 @@ def save_mosaic(
         # ax1.set_ylim([0, 320])
         ax1.imshow(np.log10(im), cmap='Greys_r')
         # ax1.imshow(im, cmap='Greys_r')
-        if ys is not None:
-            lab_legend_artists = plot_coordinates(
-                ax1, ys[idx], colors, marker='.', markersize=1.5)
-            leg_title = 'Predicted | True'
-        else:
-            lab_legend_artists = plot_coordinates(
-                ax1, yhat, colors, marker='.', markersize=1.5)
-            leg_title = 'Predicted position'
+        lab_legend_artists = plot_coordinates(
+            ax1, ytrue, colors, marker='.', markersize=1.5)
+        leg_title = 'Predicted | True'
         est_legend_artists = plot_coordinates(
             ax1, yhat, colors,
             linestyle='none',

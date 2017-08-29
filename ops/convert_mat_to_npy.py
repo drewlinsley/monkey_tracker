@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 def main(file_dir, wildcard):
     """
-    python ops/convert_mat_to_npy.py --file_dir=/media/data_cifs/monkey_tracking/extracted_kinect_depth/Xef2Mat_Output_Trial04/Xef2Mat_Output --wildcard=DepthFrame
+    python ops/convert_mat_to_npy.py --file_dir=/media/data_cifs/monkey_tracking/extracted_kinect_depth/starbuck_pole_new_configuration_competition_IR_0 --wildcard=DepthFrame
     """
     files = glob(os.path.join(file_dir, '%s*.mat' % wildcard))
     out_dir = os.path.join(file_dir, '%s_npys' % wildcard)

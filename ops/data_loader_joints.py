@@ -143,6 +143,9 @@ def read_and_decode(
     if convert_labels_to_pixel_space:
         # 1) Resize to config.image_target_size
         # 2) Crop to image size
+        raise RuntimeError(
+            'Have not protected this from flip issues.' +
+            '`config.image_target_size_is_flipped`')
         label = resize_label_coordinates(
             label,
             image_target_size,
@@ -328,6 +331,7 @@ def read_and_decode(
             #     tf.tile([1, 1, max_value], tile_size), tf.float32)
             # label /= lab_adjust
 
+            print 'Warning target size is HARDCODED. Switch to account for: config.image_target_size_is_flipped.'
             lab_adjust = tf.cast(
                 tf.tile(
                     [image_target_size[1], image_target_size[0], max_value],
@@ -581,10 +585,10 @@ def augment_data(
             if labels is not None:
                 tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
                 lab_adjust = tf.cast(
-                    tf.tile([im_size[0]] + [0, 0], tile_size), tf.float32)
+                    tf.tile([im_size[1]] + [0, 0], tile_size), tf.float32)
                 labels = control_flow_ops.cond(
                     lorr,
-                    lambda: lab_adjust - labels,
+                    lambda: tf.abs(lab_adjust - labels),
                     lambda: labels)
         if 'up_down' in train:
             print 'Fliping u/d at random'
@@ -596,10 +600,10 @@ def augment_data(
             if labels is not None:
                 tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
                 lab_adjust = tf.cast(
-                    tf.tile([0] + [im_size[1]] + [0], tile_size), tf.float32)
+                    tf.tile([0] + [im_size[0]] + [0], tile_size), tf.float32)
                 labels = control_flow_ops.cond(
                     lorr,
-                    lambda: lab_adjust - labels,
+                    lambda: tf.abs(lab_adjust - labels),
                     lambda: labels)
         if 'random_contrast' in train:
             image = tf.image.random_contrast(

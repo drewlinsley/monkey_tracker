@@ -133,8 +133,7 @@ def create_movie(
         frames=None,
         output=None,
         files=None,
-        framerate=30,
-        crop_coors=None):
+        framerate=30):
     print('Making movie...')
     if files is not None:
         frames = []
