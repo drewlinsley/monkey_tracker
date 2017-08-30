@@ -729,6 +729,7 @@ def inputs(
                 image_target_size_is_flipped=image_target_size_is_flipped)
             domain_label += 1
             data_to_pack += [kinect_output_data]
+            output_keys = kinect_output_data.keys()
         else:
             domain_label = None
 
@@ -764,11 +765,12 @@ def inputs(
                 convert_labels_to_pixel_space=convert_labels_to_pixel_space,
                 image_target_size_is_flipped=image_target_size_is_flipped)
             data_to_pack += [output_data]
+            output_keys = output_data.keys()
 
         if domain_label is not None:
             # Need to mix real/synth tf records.
             packed_data = {}
-            for k in output_data.keys():
+            for k in output_keys:
                 # Create a new dict that has packed data_to_pack values
                 packed_vals = [it_d[k] for it_d in data_to_pack]
                 packed_data[k] = tf.stack(packed_vals)

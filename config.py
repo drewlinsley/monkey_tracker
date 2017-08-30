@@ -20,7 +20,7 @@ class monkeyConfig(object):
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
         self.model_output = os.path.join(self.results_dir, 'model_output') 
-        self.tfrecord_dir = os.path.join(self.image_dir, 'tfrecords_fast_newest_2')
+        self.tfrecord_dir = os.path.join(self.image_dir, 'tfrecords_fast_newest2')
         self.train_summaries = os.path.join(self.results_dir, 'summaries')
         self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
