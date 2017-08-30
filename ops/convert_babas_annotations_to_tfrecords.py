@@ -26,7 +26,7 @@ def main(
         debug=True,
         tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test',
         fix_image_size=True,
-        convert_hw_to_xy=True):
+        convert_hw_to_xy=False):
     config = monkeyConfig()
     kinect_config = kinectConfig()
     annotations, fnames, flat_ims, start_count = [], [], [], 0
