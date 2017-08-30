@@ -10,6 +10,13 @@ from ops.test_tf_kinect import overlay_joints_frames
 from skimage.transform import resize
 
 
+def convert_hw_annotations_to_xy(annotations):
+    new_annotations = []
+    for ann in annotations:
+        new_annotations += [ann[:, [1, 0, 2]]]
+    return new_annotations
+
+
 def main(
         tmp_folder='tmp',
         w_pad=-22., # -20.,
@@ -18,7 +25,8 @@ def main(
         h_scale=1.125,
         debug=True,
         tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test',
-        fix_image_size=True):
+        fix_image_size=True,
+        convert_hw_to_xy=True):
     config = monkeyConfig()
     kinect_config = kinectConfig()
     annotations, fnames, flat_ims, start_count = [], [], [], 0
@@ -99,6 +107,9 @@ def main(
                 print 'Stored annotated images in: %s' % debug_im_dir
 
         flat_ims = np.concatenate(flat_ims[:])
+        if convert_hw_to_xy:
+            annotations = convert_hw_annotations_to_xy(annotations)
+
         [np.save(
             os.path.join(im_folder, f),
             np.repeat(im[:, :, None], 3, axis=-1)) for f, im in zip(

@@ -691,7 +691,7 @@ def inputs(
         convert_labels_to_pixel_space=False,
         image_target_size_is_flipped=False):
     with tf.name_scope('input'):
-
+        data_to_pack = []
         if babas_tfrecord_dir is not None:
             # Real monkey tf records loading
             kinect_filename_queue = tf.train.string_input_producer(
@@ -728,46 +728,45 @@ def inputs(
                 convert_labels_to_pixel_space=False,
                 image_target_size_is_flipped=image_target_size_is_flipped)
             domain_label += 1
+            data_to_pack += [kinect_output_data]
         else:
             domain_label = None
 
         # Rendered monkey tf records loading
-        filename_queue = tf.train.string_input_producer(
-            [tfrecord_file], num_epochs=num_epochs)
-        output_data = read_and_decode(
-            filename_queue=filename_queue,
-            im_size=im_size,
-            target_size=target_size,
-            model_input_shape=model_input_shape,
-            label_shape=label_shape,
-            train=train,
-            image_target_size=image_target_size,
-            image_input_size=image_input_size,
-            maya_conversion=maya_conversion,
-            max_value=max_value,
-            aux_losses=aux_losses,
-            normalize_labels=normalize_labels,
-            selected_joints=selected_joints,
-            joint_names=joint_names,
-            mask_occluded_joints=mask_occluded_joints,
-            num_dims=num_dims,
-            keep_dims=keep_dims,
-            background_multiplier=background_multiplier,
-            randomize_background=randomize_background,
-            working_on_kinect=working_on_kinect,
-            augment_background=augment_background,
-            background_folder=background_folder,
-            maya_joint_labels=maya_joint_labels,
-            domain_label=domain_label,
-            convert_labels_to_pixel_space=convert_labels_to_pixel_space,
-            image_target_size_is_flipped=image_target_size_is_flipped)
+        if tfrecord_file is not None:
+            filename_queue = tf.train.string_input_producer(
+                [tfrecord_file], num_epochs=num_epochs)
+            output_data = read_and_decode(
+                filename_queue=filename_queue,
+                im_size=im_size,
+                target_size=target_size,
+                model_input_shape=model_input_shape,
+                label_shape=label_shape,
+                train=train,
+                image_target_size=image_target_size,
+                image_input_size=image_input_size,
+                maya_conversion=maya_conversion,
+                max_value=max_value,
+                aux_losses=aux_losses,
+                normalize_labels=normalize_labels,
+                selected_joints=selected_joints,
+                joint_names=joint_names,
+                mask_occluded_joints=mask_occluded_joints,
+                num_dims=num_dims,
+                keep_dims=keep_dims,
+                background_multiplier=background_multiplier,
+                randomize_background=randomize_background,
+                working_on_kinect=working_on_kinect,
+                augment_background=augment_background,
+                background_folder=background_folder,
+                maya_joint_labels=maya_joint_labels,
+                domain_label=domain_label,
+                convert_labels_to_pixel_space=convert_labels_to_pixel_space,
+                image_target_size_is_flipped=image_target_size_is_flipped)
+            data_to_pack += [output_data]
 
         if domain_label is not None:
             # Need to mix real/synth tf records.
-            data_to_pack = [
-                kinect_output_data,
-                output_data
-            ]
             packed_data = {}
             for k in output_data.keys():
                 # Create a new dict that has packed data_to_pack values

@@ -72,7 +72,7 @@ def train_and_eval(config, babas_data):
         train_babas_tfrecord_dir = os.path.join(
             config.babas_tfrecord_dir,
             config.train_tfrecords)
-        if config.include_validation:
+        if config.include_validation or config.include_validation is None:
             val_babas_tfrecord_dir = os.path.join(
                 config.babas_tfrecord_dir,
                 config.val_tfrecords)
