@@ -68,9 +68,9 @@ class monkeyConfig(object):
         # Model settings
         self.epochs = 50
         # self.model_type = 'skip_res_small_conv_deconv'
-        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
+        self.model_type = 'mr_densenet'
         self.fine_tune_layers = None
-        self.batch_norm = ['fc6', 'fc7', 'pre_fc8']
+        self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
             'left_right',
             # 'up_down'

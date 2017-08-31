@@ -68,6 +68,7 @@ def save_mosaic(
             marker='o',
             mfc='none',
             markersize=1.5)
+
     plt.subplots_adjust(top=1, left=0)
 
     # Legend
