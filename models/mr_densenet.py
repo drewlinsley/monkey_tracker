@@ -84,6 +84,7 @@ class model_struct:
             {
                 'layers': ['conv', 'batchnorm', 'pool'],
                 'weights': [32, None, None],
+                'depth': [None, None, None],
                 'names': ['conv1_1', 'bn_conv1_1', 'pool1'],
                 'filter_size': [3, None, None]
             },
@@ -117,6 +118,7 @@ class model_struct:
             {
                 'layers': ['conv', 'batchnorm', 'pool'],
                 'weights': [32, None, None],
+                'depth': [None, None, None],
                 'names': ['lrconv1_1', 'lrbn_conv1_1', 'lrpool1'],
                 'filter_size': [3, None, None]
             },
@@ -340,14 +342,11 @@ class model_struct:
                     elif la == 'batchnorm':
                         act = self.batchnorm(act)
                     elif la == 'dense':
-                        act = self.dense(
+                        act = self.dense_layer(
                             bottom=act,
-                            in_channels=int(act.get_shape()[-1]),
-                            out_channels=we,
                             depth=de,
-                            name=na,
-                            filter_size=fs
-                        )
+                            layer_weights=we,
+                            layer_name=na)
                     elif la == 'res':
                         act = self.resnet_layer(
                             bottom=act,
