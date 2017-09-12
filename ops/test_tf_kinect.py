@@ -1,3 +1,5 @@
+"""Script with helper functions for preprocessing BABAS videos."""
+
 import os
 import re
 import numpy as np
@@ -20,7 +22,7 @@ from scipy.ndimage.morphology import binary_opening, binary_closing, \
 from matplotlib import pyplot as plt
 from matplotlib import animation
 import matplotlib.gridspec as gridspec
-from ops import joint_list
+from ops.kinect_util_scripts import joint_list
 
 
 def apply_cnn_masks_to_kinect(

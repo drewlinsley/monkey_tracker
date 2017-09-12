@@ -9,6 +9,7 @@ import matplotlib.cm as cm
 from mpl_toolkits.mplot3d import Axes3D
 from config import monkeyConfig
 from ops import joint_list
+from scipy import polyfit
 
 
 def get_colors():
@@ -56,7 +57,7 @@ def save_mosaic(
         # ax1.set_aspect('equal')
         # ax1.set_xlim([0, 240])
         # ax1.set_ylim([0, 320])
-        ax1.imshow(np.log10(im), cmap='Greys_r')
+        ax1.imshow((im), cmap='Greys_r')
         # ax1.imshow(im, cmap='Greys_r')
         lab_legend_artists = plot_coordinates(
             ax1, ytrue, colors, marker='.', markersize=1.5)
@@ -188,7 +189,8 @@ def main(
         dmurphy_npy_dir='/media/data_cifs/monkey_tracking/batches/test',
         normalize=False,
         unnormalize=False,
-        max_ims=32
+        max_ims=32,
+        find_fit=True
         ):
 
     monkey_dir = os.path.join(dmurphy_npy_dir, monkey_date)
@@ -215,6 +217,7 @@ def main(
     ytrue_list = []
     val_images_list = []
     val_yhats_list = []
+    val_ytrues_list = []
     for im in ims:
         file_name = re.search('\d+', im.split('/')[-1]).group()
 
@@ -230,14 +233,23 @@ def main(
             normalize_vec = val_data['normalize_vec']
             val_images = val_data['val_ims']
             val_yhats = val_data['val_pred']
-            val_yhats *= normalize_vec
+            if val_yhats[0].sum() > 100:
+                val_yhats = val_yhats / val_data['normalize_vec']
+            val_yhats *= np.asarray([[450, 560]]).repeat(23, axis=0).reshape(-1)
+            intercept = np.asarray([[65, 60]]).repeat(23, axis=0).reshape(-1)
+            val_yhats -= intercept
+            if 'val_true' in val_data.keys():
+                val_ytrues = val_data['val_true']
+                val_ytrues *= (val_data['normalize_vec'])  # * np.asarray([[1.7, 1.8]]).repeat(23, axis=0).reshape(-1))
+            else:
+                val_ytrues = val_yhats
             run_vals = True
         else:
             run_vals = False
-
         if normalize:
             yhats *= normalize_vec
             ytrues *= normalize_vec
+            val_yhats *= normalize_vec
         if unnormalize:
             yhats /= unnormalize_vec
             ytrues /= unnormalize_vec
@@ -250,6 +262,7 @@ def main(
         [ytrue_list.append(x) for x in ytrues]
         [val_images_list.append(x) for x in val_images]
         [val_yhats_list.append(x) for x in val_yhats]
+        [val_ytrues_list.append(x) for x in val_ytrues]
 
     if max_ims is not None:
         rand_order = np.random.permutation(len(im_list))
@@ -259,16 +272,33 @@ def main(
         rand_order = np.random.permutation(len(val_images_list))
         val_images_list = np.asarray(val_images_list)[rand_order][:max_ims]
         val_yhats_list = np.asarray(val_yhats_list)[rand_order][:max_ims]
+        val_ytrues_list = np.asarray(val_ytrues_list)[rand_order][:max_ims]
     save_mosaic(
         ims=im_list,
         yhats=yhat_list,
         ys=ytrue_list,
         output=output_file)
+
+    if find_fit:
+        # xs
+        x_ind = np.arange(0, val_yhats_list.shape[-1], 2)
+        iv = val_yhats_list[:, x_ind].reshape(-1)
+        dv = val_ytrues_list[:, x_ind].reshape(-1)
+        ar, br = polyfit(iv, dv, 1)
+        print 'X_coeffs: W=%s, b=%s' % (ar, br)
+
+        # ys
+        y_ind = np.arange(1, val_yhats_list.shape[-1], 2)
+        iv = val_yhats_list[:, y_ind].reshape(-1)
+        dv = val_ytrues_list[:, y_ind].reshape(-1)
+        ar, br = polyfit(iv, dv, 1)
+        print 'X_coeffs: W=%s, b=%s' % (ar, br)
+
     if run_vals:
         save_mosaic(
-            ims=val_images_list[:, :, :, 0],
+            ims=val_images_list.squeeze(),
             yhats=val_yhats_list,
-            ys=np.copy(val_yhats_list),  # np.zeros_like(val_yhats_list),
+            ys=val_ytrues_list,  # np.zeros_like(val_yhats_list),
             output='val_%s' % output_file)
 
 
@@ -278,7 +308,7 @@ if __name__ == '__main__':
         "--dir",
         dest="monkey_date",
         type=str,
-        default='cnn_multiscale_high_res_low_res_skinny_pose_occlusion_2017_06_22_12_44_05', # 2017_06_18_11_42_34
+        default='small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_09_01_09_37_54', # 2017_06_18_11_42_34
         help='Date of model directory.')
 
     args = parser.parse_args()

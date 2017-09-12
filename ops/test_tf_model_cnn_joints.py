@@ -1,3 +1,7 @@
+"""
+Test for CNNs. May be depreciated.
+"""
+
 import os
 import re
 from datetime import datetime

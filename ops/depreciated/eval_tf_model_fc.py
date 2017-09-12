@@ -1,3 +1,7 @@
+"""
+DEPRECIATED.
+"""
+
 import os
 import re
 import time
@@ -9,7 +13,7 @@ from ops.tf_fun import softmax_cost, correlation, make_dir
 from ops.utils import get_dt
 
 
-def train_and_eval(config):
+def eval_model(config):
     """Train and evaluate the model."""
     print 'Model directory: %s' % config.model_output
     print 'Running model: %s' % config.model_type
@@ -37,8 +41,8 @@ def train_and_eval(config):
     [make_dir(d) for d in dir_list]
 
     # Prepare model inputs
-    train_data = os.path.join(config.tfrecord_dir, config.train_tfrecords)
-    validation_data = os.path.join(config.tfrecord_dir, config.val_tfrecords)
+    train_data = os.path.join(config.tfrecord_dir, 'train.tfrecords')
+    validation_data = os.path.join(config.tfrecord_dir, 'val.tfrecords')
     feat_mean = 0  # np.mean(np.load(config.mean_file)['feat_list'])
 
     # Prepare data on CPU

@@ -1,3 +1,7 @@
+"""
+Dictionary for BABAS-annotated frames.
+"""
+
 import os
 
 

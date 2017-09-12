@@ -1,3 +1,7 @@
+"""
+DEPRECIATED.
+"""
+
 import os
 from sklearn.ensemble import RandomForestClassifier as rf
 from ops.extract_tfrecords import get_records

@@ -1,3 +1,5 @@
+"""Main joint localization TF training script."""
+
 import os
 import re
 import time

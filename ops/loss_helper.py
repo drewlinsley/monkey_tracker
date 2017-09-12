@@ -1,9 +1,27 @@
+"""
+TF helper that handles main pose and aux pose losses.
+
+To add aux losses, add an entry to the list
+in the potential_aux_losses function.
+
+Settings are (each is a key in a dict)::
+
+y_name: name of aux loss for interpretation by get_aux_losses.
+model_name: arbitrary of aux loss method in CNN.
+loss_function: type of loss function.
+var_label: arbitrary name of the loss function for the output.
+lambda: constant scale for the loss.
+aux_fun: apply a preprocessing to the CNN output to match the label.
+da_override: special switch if you are using gradient-based domain-adaptation.
+"""
+
 import tensorflow as tf
 import yellowfin
 from tensorflow.python.framework import ops
 
 
 def potential_aux_losses():
+    """List of dictionaries for specifying auxiliary losses."""
     return [
         {
             'occlusion': {
@@ -103,6 +121,7 @@ def get_aux_losses(
         model,
         aux_loss_dict,
         domain_adaptation=None):
+    """Interpreter for auxiliary loss dictionaries."""
     aux_dict = aux_loss_dict.values()[0]
     if aux_loss_dict.keys()[0] in train_data_dict.keys():
         output_label = aux_dict['var_label']
@@ -163,6 +182,7 @@ def get_aux_losses(
 
 
 def return_optimizer(optimizer):
+    """Optimizer interpreter."""
     if optimizer == 'adam':
         optimizer = tf.train.AdamOptimizer
     elif optimizer == 'sgd':
@@ -180,6 +200,7 @@ def return_optimizer(optimizer):
 
 
 class FlipGrad(object):
+    """Class for gradient-based domain adaptation."""
     def __init__(self):
         self.num_calls = 0
 

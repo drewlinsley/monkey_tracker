@@ -1,3 +1,7 @@
+"""
+DEPRECIATED.
+"""
+
 import os
 import re
 from datetime import datetime
@@ -469,13 +473,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
+        default='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test/val.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_in_cage_1/monkey_on_pole.tfrecords',
+        default='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test/train.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",

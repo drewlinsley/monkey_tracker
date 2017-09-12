@@ -139,7 +139,6 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None, babas=False):
                 frames=frames,
                 output=kinect_config['kinect_output_name'])
 
-        import ipdb;ipdb.set_trace()
         # Create tfrecords of kinect data
         if not run_tests:
             # # Transform kinect data to Maya data
@@ -207,10 +206,10 @@ def main(model_dir, ckpt_name, run_tests=False, reuse_kinect=None, babas=False):
             output_folder=kinect_config['gt_image_folder'],
             target_key='ytrue')
         # Create overlay movie if desired
-        # if kinect_config['gt_output_name'] is not None:
-            # test_tf_kinect.create_movie(
-                # files=overlaid_gt,
-                # output=kinect_config['gt_output_name'])
+        if kinect_config['gt_output_name'] is not None:
+            test_tf_kinect.create_movie(
+                files=frames,
+                output=kinect_config['gt_output_name'])
 
     # Save results to a npz
     if kinect_config['output_npy_path'] is not None:

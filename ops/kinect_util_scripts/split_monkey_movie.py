@@ -1,3 +1,7 @@
+"""
+Utility function for splitting long kinect movies into multiple files.
+"""
+
 import os
 import shutil
 import numpy as np

@@ -1,3 +1,5 @@
+"""Yellowfin TF optimizer."""
+
 import numpy as np
 from math import ceil, floor
 import tensorflow as tf
@@ -267,6 +269,4 @@ class YFOptimizer(object):
         aggregation_method=aggregation_method,
         colocate_gradients_with_ops=colocate_gradients_with_ops,
         grad_loss=grad_loss)
-
-
 

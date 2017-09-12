@@ -1,6 +1,14 @@
-class joint_data(object):
+"""
+Utility class for mapping joint names and their connectivity graph.
+"""
 
+
+class joint_data(object):
+    """
+    Class for mapping joint names and their connectivity graph.
+    """
     def __init__(self):
+        """Store information in the class init."""
         self.joint_names = [
             'head',
             'neck',

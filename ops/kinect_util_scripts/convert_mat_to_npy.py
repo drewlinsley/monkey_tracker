@@ -1,3 +1,7 @@
+"""
+Utility for converting Kinect data to python numpys.
+"""
+
 import argparse
 import os
 import numpy as np
@@ -9,6 +13,9 @@ from tqdm import tqdm
 
 def main(file_dir, wildcard):
     """
+    Execute kinect-file conversion.
+
+    Example usage:
     python ops/convert_mat_to_npy.py --file_dir=/media/data_cifs/monkey_tracking/extracted_kinect_depth/starbuck_pole_new_configuration_competition_IR_0 --wildcard=DepthFrame
     """
     files = glob(os.path.join(file_dir, '%s*.mat' % wildcard))
@@ -21,6 +28,7 @@ def main(file_dir, wildcard):
         out_name = os.path.join(out_dir, npy_name)
         vals = [v for v in mat.values() if isinstance(v, np.ndarray)]
         np.save(out_name, vals)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

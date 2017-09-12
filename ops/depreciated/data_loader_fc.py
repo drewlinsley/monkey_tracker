@@ -1,3 +1,7 @@
+"""
+DEPRECIATED.
+"""
+
 import tensorflow as tf
 import numpy as np
 from scipy import misc
@@ -43,8 +47,9 @@ def clip_to_value(data, low, high, val, tf_dtype=tf.float32):
 
 
 def read_and_decode_single_example(
-                    filename, im_size, model_input_shape, num_feats, train,
-                    img_mean_value=None, feat_mean_value=None, num_channels=2):
+                    filename, im_size, model_input_shape, num_feats,
+                    max_pixels_per_image, train, img_mean_value=None,
+                    feat_mean_value=None, num_channels=2):
     """first construct a queue containing a list of filenames.
     this lets a user split up there dataset in multiple files to keep
     size down"""
@@ -68,12 +73,14 @@ def read_and_decode_single_example(
         )
 
     # Convert from a scalar string tensor (whose single string has
-    label = tf.decode_raw(features['label'], tf.int64)
-    image = tf.decode_raw(features['image'], tf.float32)
-    feat = tf.decode_raw(features['feat'], tf.float32)
+    label = tf.cast(
+        tf.decode_raw(features['label'], tf.int64, name='label'), tf.int32)
+    image = tf.decode_raw(features['image'], tf.float32, name='image')
+    feat = tf.decode_raw(features['feat'], tf.float32, name='feat')
 
-    # Process features specially
-    feat = tf.reshape(feat, [im_size[0], im_size[1], num_feats])
+    # Process features and labels
+    feat = tf.reshape(feat, [max_pixels_per_image, num_feats])
+    # label = tf.reshape(label, [max_pixels_per_image, 1])
 
     # To support augmentations we have to convert data to 3D
     if num_channels == 2:
@@ -86,13 +93,8 @@ def read_and_decode_single_example(
         image = tf.transpose(res_image, [2, 1, 0])
 
     # Insert augmentation and preprocessing here
-    image = augment_data(image, model_input_shape, im_size, train)
-    feat = augment_data(feat, model_input_shape, im_size, train)
-
-    # And finally handle the labels
-    label = repeat_reshape_2d(
-        label, im_size, num_channels, tf_dtype=tf.int32,
-        img_mean_value=None)[:, :, 0]
+    # image = augment_data(image, model_input_shape, im_size, train)
+    # feat = augment_data(feat, model_input_shape, im_size, train)
 
     # Set crazy values to 0
     label = clip_to_value(
@@ -123,8 +125,8 @@ def read_and_decode_single_example(
 
 def read_and_decode(
                     filename_queue, im_size, model_input_shape, num_feats,
-                    train, img_mean_value=None, feat_mean_value=None,
-                    num_channels=2):
+                    max_pixels_per_image, train, img_mean_value=None,
+                    feat_mean_value=None, num_channels=2, sample=True):
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
     features = tf.parse_single_example(
@@ -137,12 +139,18 @@ def read_and_decode(
         )
 
     # Convert from a scalar string tensor (whose single string has
-    label = tf.decode_raw(features['label'], tf.int64)
-    image = tf.decode_raw(features['image'], tf.float32)
-    feat = tf.decode_raw(features['feat'], tf.float32)
+    label = tf.cast(
+        tf.decode_raw(features['label'], tf.int64, name='label'), tf.int32)
+    image = tf.decode_raw(features['image'], tf.float32, name='image')
+    feat = tf.decode_raw(features['feat'], tf.float32, name='feat')
 
-    # Process features specially
-    feat = tf.reshape(feat, [im_size[0], im_size[1], num_feats])
+    # Process features and labels
+    if sample:
+        feat = tf.reshape(feat, [max_pixels_per_image, num_feats])
+        label = tf.reshape(label, [max_pixels_per_image, 1])
+    else:
+        feat = tf.reshape(feat, [im_size[0], im_size[1], num_feats])
+        label = tf.reshape(label, [im_size[0], im_size[1], 1])
 
     # To support augmentations we have to convert data to 3D
     if num_channels == 2:
@@ -157,11 +165,6 @@ def read_and_decode(
     # Insert augmentation and preprocessing here
     # image = augment_data(image, model_input_shape, im_size, train)
     # feat = augment_data(feat, model_input_shape, im_size, train)
-
-    # And finally handle the labels
-    label = repeat_reshape_2d(
-        label, im_size, num_channels, tf_dtype=tf.int32,
-        img_mean_value=None)[:, :, 0]
 
     # Set crazy values to 0
     label = clip_to_value(
@@ -217,7 +220,9 @@ def augment_data(image, model_input_shape, im_size, train):
 
 def inputs(
         tfrecord_file, batch_size, im_size, model_input_shape, num_feats,
-        train=None, num_epochs=None, feat_mean_value=None, use_features=True):
+        train=None, num_epochs=None, feat_mean_value=None,
+        max_pixels_per_image=200, sample=False):
+
     with tf.name_scope('input'):
         filename_queue = tf.train.string_input_producer(
             [tfrecord_file], num_epochs=num_epochs)
@@ -229,23 +234,39 @@ def inputs(
             im_size=im_size,
             model_input_shape=model_input_shape,
             num_feats=num_feats,
+            max_pixels_per_image=max_pixels_per_image,
             train=train,
-            feat_mean_value=feat_mean_value)
+            feat_mean_value=feat_mean_value,
+            sample=sample)
 
         # Shuffle the examples and collect them into batch_size batches.
         # (Internally uses a RandomShuffleQueue.)
         # We run this in two threads to avoid being a bottleneck.
-        if use_features:
-            input_data = feat
-        else:
-            input_data = image
+        # if sample:
+        #     input_data = feat
+            # input_data = tf.unpack(feat)
+        # else:
+        #     input_data = tf.reshape(feat, [np.prod(im_size), num_feats])
+            # input_data = tf.unpack(
+            #     tf.reshape(feat, [np.prod(im_size), num_feats]))
+        input_data = feat
         data, labels = tf.train.shuffle_batch(
             [input_data, label], batch_size=batch_size, num_threads=2,
             capacity=1000 + 3 * batch_size,
             # Ensures a minimum amount of shuffling of examples.
             min_after_dequeue=1000)
 
-        # Finally, have to reshape label -> 1d matrix
-        import ipdb;ipdb.set_trace()
-        labels = tf.reshape(labels, [batch_size, np.prod(im_size)])
+        # Reshape batch into rXc matrix
+        if sample:
+            data = tf.reshape(
+                    data,
+                    [int(data.get_shape()[0]) * int(data.get_shape()[1]),
+                        int(data.get_shape()[2])])
+        else:
+            data = tf.reshape(
+                    data,
+                    [int(data.get_shape()[0]) * int(data.get_shape()[1]) *
+                        int(data.get_shape()[2]),
+                        int(data.get_shape()[3])])
+
     return data, labels

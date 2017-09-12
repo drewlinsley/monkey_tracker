@@ -1,3 +1,7 @@
+"""
+Data encoder for tensorflow tfrecords.
+"""
+
 import os
 import re
 import numpy as np

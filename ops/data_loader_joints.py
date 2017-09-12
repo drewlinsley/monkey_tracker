@@ -1,3 +1,7 @@
+"""
+Data loader for tensorflow tfrecords.
+"""
+
 import os
 import tensorflow as tf
 import numpy as np

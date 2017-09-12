@@ -24,7 +24,7 @@ def train_and_eval(
         check_stats=False,
         get_kinect_masks=False,
         babas=False,
-        dmurphy_adjust=False):
+        dmurphy_adjust=True):
     if config.resume_from_checkpoint is not None:
         try:
             if config.augment_background == 'background':
@@ -95,6 +95,10 @@ def train_and_eval(
         uniform_batch_size = config.train_batch
     print 'Batch size: %s' % uniform_batch_size
     num_epochs = 1
+    if dmurphy_adjust:
+        print '-' * 60
+        print 'Converting x/y predictions to h/w coordinates.'
+        print '-' * 60
     with tf.device('/cpu:0'):
         print 'Using max of %s on train dataset: %s' % (
             config.max_depth, train_data)
@@ -105,7 +109,7 @@ def train_and_eval(
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
-            train=config.data_augmentations,
+            train=[None],
             label_shape=config.num_classes,
             num_epochs=config.epochs,
             image_target_size=config.image_target_size,
@@ -120,13 +124,14 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background='constant',
+            augment_background='none',
             background_folder=config.background_folder,
-            randomize_background=config.randomize_background,
+            randomize_background=1,
+            shuffle=False,
             maya_joint_labels=config.labels,
             # babas_tfrecord_dir=train_babas_tfrecord_dir,
-            shuffle=False,
-            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space,
+            image_target_size_is_flipped=config.image_target_size_is_flipped)
         train_data_dict['deconv_label_size'] = len(config.labels)
 
         val_data_dict = inputs(
@@ -135,7 +140,7 @@ def train_and_eval(
             im_size=config.resize,
             target_size=config.image_target_size,
             model_input_shape=config.resize,
-            train=config.data_augmentations,
+            train=[None],
             label_shape=config.num_classes,
             num_epochs=config.epochs,
             image_target_size=config.image_target_size,
@@ -150,13 +155,14 @@ def train_and_eval(
             keep_dims=config.keep_dims,
             mask_occluded_joints=config.mask_occluded_joints,
             background_multiplier=config.background_multiplier,
-            augment_background=config.augment_background,
+            augment_background='none',
             background_folder=config.background_folder,
-            randomize_background=config.randomize_background,
-            maya_joint_labels=config.labels,
-            # babas_tfrecord_dir=val_babas_tfrecord_dir,
+            randomize_background=1,
             shuffle=False,
-            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space)
+            maya_joint_labels=config.labels,
+            # babas_tfrecord_dir=train_babas_tfrecord_dir,
+            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space,
+            image_target_size_is_flipped=config.image_target_size_is_flipped)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
@@ -229,6 +235,7 @@ def train_and_eval(
     val_session_vars = {
         'val_acc': val_score,
         'val_pred': val_model.output,
+        'val_true': val_data_dict['label'],
         'val_ims': val_data_dict['image']
     }
 
@@ -284,19 +291,18 @@ def train_and_eval(
             else:
                 if config.normalize_labels:
                     # Postlabel normalization
+                    print '-' * 60
+                    print 'Normalizing predictions'
+                    print '-' * 60
                     train_out_dict['yhat'] *= normalize_vec
-                    train_out_dict['ytrue'] *= normalize_vec
+                    train_out_dict['ytrue'] *= normalize_vec * 2
                     val_out_dict['val_pred'] *= normalize_vec
-                train_out_dict['yhat'][train_out_dict['yhat'] < 0] = 0
-                val_out_dict['val_pred'][val_out_dict['val_pred'] < 0] = 0
-                if return_coors:
+                    val_out_dict['val_true'] *= normalize_vec * 2
                     if dmurphy_adjust:
                         conv_xy_to_hw = [1.33, 0.75]
                         yhats = train_out_dict['yhat']
                         ytrues = train_out_dict['ytrue']
-                        for idx in len(yhats):
-                            iyh = yhats[idx]
-                            iyt = ytrues[idx]
+                        for idx, (iyh, iyt) in enumerate(zip(yhats, ytrues)):
                             iyh = iyh.reshape(-1, 2)
                             iyh[:, 0] = iyh[:, 0] * conv_xy_to_hw[0]
                             iyh[:, 1] = iyh[:, 1] * conv_xy_to_hw[1]
@@ -309,6 +315,9 @@ def train_and_eval(
                             ytrues[idx] = iyt
                         train_out_dict['yhat'] = yhats
                         train_out_dict['ytrue'] = ytrues
+                train_out_dict['yhat'][train_out_dict['yhat'] < 0] = 0
+                val_out_dict['val_pred'][val_out_dict['val_pred'] < 0] = 0
+                if return_coors:
                     joint_predictions += [train_out_dict['yhat']]
                     joint_gt += [train_out_dict['ytrue']]
                     out_ims += [train_out_dict['im'].squeeze()]
@@ -340,12 +349,12 @@ def train_and_eval(
                     monkey_mosaic.save_mosaic(
                         train_out_dict['im'].squeeze(),
                         train_out_dict['yhat'],
-                        None,  # train_out_dict['ytrue'],
+                        train_out_dict['ytrue'],
                         save_fig=False)
                     monkey_mosaic.save_mosaic(
                         val_out_dict['val_ims'].squeeze(),
                         val_out_dict['val_pred'],
-                        None,  # train_out_dict['ytrue'],
+                        val_out_dict['val_true'],
                         save_fig=False)
 
             format_str = (
@@ -404,7 +413,8 @@ def main(
         which_joint=None,
         working_on_kinect=True,
         uniform_batch_size=5,
-        babas=False):
+        babas=False,
+        dmurphy_adjust=None):
 
     config = monkeyConfig()
     if which_joint is not None:
@@ -415,7 +425,8 @@ def main(
         config=config,
         working_on_kinect=working_on_kinect,
         uniform_batch_size=uniform_batch_size,
-        babas=babas)
+        babas=babas,
+        dmurphy_adjust=False)
 
 
 if __name__ == '__main__':
@@ -424,13 +435,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_on_pole_3/monkey_on_pole.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
+        default='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test/val.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        default='/home/drew/Desktop/predicted_monkey_in_cage_1/monkey_on_pole.tfrecords',
+        default='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test/train.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",
@@ -448,10 +459,10 @@ if __name__ == '__main__':
         action='store_true',
         help='You are using babas data.')
     parser.add_argument(
-        "--dmurphy_adjust",
+        "--no_dmurphy_adjust",
         dest="dmurphy_adjust",
-        action='store_true',
-        help='Apply dmurphy_adjustment.')
+        action='store_false',
+        help='Do not apply dmurphy_adjustment.')
     parser.add_argument(
         "--bs",
         dest="uniform_batch_size",

@@ -1,3 +1,7 @@
+"""
+Script for converting BABAS-annotated frames to tfrecords for CNN training.
+"""
+
 import numpy as np
 import os
 import shutil

@@ -1,3 +1,7 @@
+"""
+DEPRECIATED.
+"""
+
 import os
 from tensorflow.contrib.learn.python.learn import metric_spec
 from tensorflow.contrib.tensor_forest.client import eval_metrics, random_forest

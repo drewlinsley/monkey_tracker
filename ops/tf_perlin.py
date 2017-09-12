@@ -1,9 +1,12 @@
+"""TF perlin noise for background augmentation."""
+
 import numpy as np
 import tensorflow as tf
 from matplotlib import pyplot as plt
 
 
 def make_canvas(h, w, vec):
+    """Make a canvas for creating perlin noise."""
     qh = h // 2
     qw = w // 2
     vec = tf.squeeze(vec)
@@ -21,8 +24,7 @@ def make_canvas(h, w, vec):
 
 
 def perlin(h, w, x, y, xi, yi, xf, yf, u, v, vectors, pn_range=256):
-    # permutation table
-    # np.random.seed(seed)
+    """Calculate perlin noise."""
     pn = np.arange(pn_range, dtype=np.float32)
     shuff_p = tf.random_shuffle(pn)
     pn = tf.reshape((tf.stack([shuff_p, shuff_p])), [pn_range * 2])
@@ -73,6 +75,7 @@ def gradient(h, x, y, vectors):
 
 
 def get_noise(h, w):
+    """Main script for creating perlin noise."""
     vectors = tf.constant([[0, 1], [0, -1], [1, 0], [-1, 0]], dtype=tf.float32)
     lin_h = np.linspace(0, np.random.randint(2) + 1, h, endpoint=False)
     lin_w = np.linspace(0, np.random.randint(2) + 1, w, endpoint=False)
@@ -88,12 +91,14 @@ def get_noise(h, w):
     v = fade(yf)
     # Perlin noise
     return perlin(h, 2, x, y, xi, yi, xf, yf, u, v, vectors)
-    # adj_constant = tf.constant(1.) - tf.round(tf.random_uniform((), minval=0, maxval=1))
+    # adj_constant = tf.constant(
+    #     1.) - tf.round(tf.random_uniform((), minval=0, maxval=1))
     # adj_pnoise = adj_constant - tf.abs(pnoise)
     # return adj_pnoise
 
 
 def main():
+    """Test perlin noise."""
     p = get_noise(h=240, w=320)
     sess = tf.Session()
     perlin = sess.run(p)
@@ -103,4 +108,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

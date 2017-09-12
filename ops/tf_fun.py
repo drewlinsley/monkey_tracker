@@ -1,3 +1,7 @@
+"""
+TF model and python functions.
+"""
+
 import re
 import os
 import numpy as np
@@ -7,11 +11,13 @@ from math import sqrt
 
 
 def make_dir(d):
+    """Make directory d if it does not exist."""
     if not os.path.exists(d):
         os.makedirs(d)
 
 
 def fine_tune_prepare_layers(tf_vars, finetune_vars):
+    """Prepare layer-wise fine-tuning."""
     ft_vars = []
     other_vars = []
     for v in tf_vars:
@@ -58,12 +64,14 @@ def ft_optimized(cost, var_list_1, var_list_2, optimizer, lr_1, lr_2):
 
 
 def ft_non_optimized(cost, other_opt_vars, ft_opt_vars, optimizer, lr_1, lr_2):
+    """DEPRECIATED."""
     op1 = tf.train.AdamOptimizer(lr_1).minimize(cost, var_list=other_opt_vars)
     op2 = tf.train.AdamOptimizer(lr_2).minimize(cost, var_list=ft_opt_vars)
     return tf.group(op1, op2)  # ft_optimize is more efficient.
 
 
 def class_accuracy(pred, targets):
+    """Calculated classification accuracy for tf tensors."""
     return tf.reduce_mean(
         tf.to_float(
             tf.equal(tf.argmax(pred, 1), tf.cast(
@@ -71,10 +79,12 @@ def class_accuracy(pred, targets):
 
 
 def count_nonzero(data):
+    """Count nonzero values in TF tensor."""
     return tf.reduce_sum(tf.cast(tf.not_equal(data, 0), tf.float32))
 
 
 def fscore(pred, targets):
+    """Calculate F-score for tf tensors."""
     predicted = tf.cast(tf.argmax(pred, axis=1), tf.int32)
 
     # Count true +, true -, false + and false -.
@@ -92,11 +102,13 @@ def fscore(pred, targets):
 
 
 def zscore(x):
+    """TF z-score of x."""
     mu, std = tf.nn.moments(x, axes=[0])
     return (x - mu) / std
 
 
 def correlation(x, y):
+    """TF pearson correlation wrapper."""
     return tf.contrib.metrics.streaming_pearson_correlation(
         predictions=x,
         labels=y,
@@ -104,10 +116,12 @@ def correlation(x, y):
 
 
 def tf_confusion_matrix(pred, targets):
+    """TF confusion matrix wrapper."""
     return tf.contrib.metrics.confusion_matrix(pred, targets)
 
 
 def softmax_cost(logits, labels, ratio=None, label_reshape=None):
+    """Wrapper for softmax. Should be moved to loss_utils.py."""
     if label_reshape is not None:
         # Have to reshape the labels to match output of MLP
         labels = tf.reshape(labels, label_reshape)
@@ -137,6 +151,7 @@ def softmax_cost(logits, labels, ratio=None, label_reshape=None):
 
 
 def find_ckpts(config, dirs=None):
+    """Find and sort TF model checkpoints."""
     if dirs is None:
         dirs = sorted(
             glob(
@@ -149,14 +164,22 @@ def find_ckpts(config, dirs=None):
 
 
 def l1_loss(yhat, y):
+    """TF L1 loss wrapper."""
     return tf.reduce_sum(tf.abs(yhat - y), axis=-1)
 
 
 def l2_loss(yhat, y):
+    """TF L2 loss wrapper."""
     return tf.reduce_sum(tf.pow(yhat - y, 2), axis=-1) / 2
 
 
-def thomas_l1_loss(model, train_data_dict, config, yhat_key='output', y_key='label'):
+def thomas_l1_loss(
+        model,
+        train_data_dict,
+        config,
+        yhat_key='output',
+        y_key='label'):
+    """TF L1/L2 loss wrapper that enables per-joint weights."""
     if config.selected_joints is None:
         use_joints = config.joint_order
     else:
@@ -168,7 +191,7 @@ def thomas_l1_loss(model, train_data_dict, config, yhat_key='output', y_key='lab
         loss = l2_loss
     else:
         raise RuntimeError(
-            'Cannot understand your selected loss type. Needs to be implemented?')
+            'Cannot understand your selected loss type.')
 
     res_gt = tf.reshape(
         train_data_dict[y_key],
@@ -207,6 +230,7 @@ def thomas_l1_loss(model, train_data_dict, config, yhat_key='output', y_key='lab
 
 
 def get_normalization_vec(config, num_joints):
+    """Calculate vector of values for converting labels to pixel-space."""
     normalize_values = (np.asarray(
             config.image_target_size[:2] + [
                 config.max_depth])[:config.keep_dims])
@@ -276,6 +300,7 @@ def finetune_learning(
         trainables,
         fine_tune_layers,
         config):
+    """Wrapper for optimizing with layer-wise fine-tuning."""
     if fine_tune_layers is not None:
         global_step = None
         other_opt_vars, ft_opt_vars = fine_tune_prepare_layers(
@@ -312,6 +337,7 @@ def finetune_learning(
 
 
 def add_filter_summary(trainables, target_layer):
+    """Add images of layer filters to tensorboard summary."""
     target_filt = []
     for v in trainables:
         if target_layer in v.name:

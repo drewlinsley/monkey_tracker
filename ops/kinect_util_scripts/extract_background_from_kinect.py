@@ -1,3 +1,9 @@
+"""
+Utility for foreground subtraction of kinect data.
+
+Used to get real-world backgrounds for CNN augmentation.
+"""
+
 import os
 import numpy as np
 from glob import glob
@@ -10,6 +16,7 @@ def create_background_template(
         frames,
         order_dict,
         rot=-1):
+    """Return a thresholded background image."""
     frame_size = np.rot90(np.load(frames[0]).squeeze(), rot).shape
     output = np.zeros((frame_size))
     for k, v in order_dict.iteritems():
@@ -26,6 +33,7 @@ def create_background_template(
 
 
 if __name__ == '__main__':
+    """Run the script from config/kinectConfig info."""
     config = monkeyConfig()
     kinect_config = kinectConfig()
     selected_video = kinect_config['selected_video']
@@ -43,4 +51,3 @@ if __name__ == '__main__':
         config.image_target_size[:2])
     plt.imshow(background_template);plt.show()
     np.save(os.path.join(config.background_folder, selected_video), background_template)
-
