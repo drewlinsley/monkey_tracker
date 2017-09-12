@@ -61,14 +61,16 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 1.5
+        self.randomize_background = 2
         self.augment_background = 'background'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
         self.epochs = 50
         # self.model_type = 'skip_res_small_conv_deconv'
-        self.model_type = 'mr_densenet'
+        # self.model_type = 'mr_densenet'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
+        # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
         self.fine_tune_layers = None
         self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
@@ -81,7 +83,7 @@ class monkeyConfig(object):
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
+        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'

@@ -325,7 +325,8 @@ def train_and_eval(config, babas_data):
     val_session_vars = {
         'val_acc': val_score,
         'val_pred': val_model.output,
-        'val_ims': val_data_dict['image']
+        'val_ims': val_data_dict['image'],
+        'val_true': val_data_dict['label']
     }
 
     # Create list of variables to save to numpys
@@ -376,11 +377,15 @@ def train_and_eval(config, babas_data):
                         val_session_vars.values())
                     val_out_dict = {k: v for k, v in zip(
                         val_session_vars.keys(), val_out_dict)}
+                    # if config.normalize_labels:
+                        # val_out_dict['val_pred'] *= normalize_vec
+                        # val_out_dict['val_true'] *= normalize_vec
                     np.savez(
                         os.path.join(
                             results_dir, '%s_val_coors' % step),
                         val_pred=val_out_dict['val_pred'],
                         val_ims=val_out_dict['val_ims'],
+                        val_true=val_out_dict['val_true'],
                         normalize_vec=normalize_vec)
                     with open(
                         os.path.join(
