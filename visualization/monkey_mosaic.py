@@ -8,7 +8,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 from mpl_toolkits.mplot3d import Axes3D
 from config import monkeyConfig
-from ops import joint_list
+from ops.kinect_util_scripts import joint_list
 from scipy import polyfit
 
 
