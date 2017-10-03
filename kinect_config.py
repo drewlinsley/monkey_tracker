@@ -353,6 +353,9 @@ class kinectConfig():
         container['gt_image_folder'] = os.path.join(
             container['data_dir'],
             'gt_frames')
+        container['predicted_output_name'] = os.path.join(
+            container['data_dir'],
+            'starbuck_pole_new_configuration_competition_depth_0.mp4')
         container['tfrecord_name'] = os.path.join(
             container['data_dir'],
             'starbuck_pole_new_configuration_competition_depth_0.tfrecords')
@@ -417,6 +420,9 @@ class kinectConfig():
         container['kinect_output_name'] = os.path.join(
             '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
             'starbuck_pole_new_trim_depth_0.mp4')
+        container['gt_output_name'] = os.path.join(
+            container['data_dir'],
+            'gt_starbuck_pole_new_trim_depth_0.mp4')
         container['output_json_path'] = os.path.join(
             '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
             'starbuck_pole_new_trim_depth_0.json')

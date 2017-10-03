@@ -26,7 +26,8 @@ def save_mosaic(
         wspace=0.,
         hspace=0.,
         save_fig=True,
-        conv_xy_to_hw=[1.33, 0.75]):
+        conv_xy_to_hw=[1.33, 0.75],
+        use_legend=True):
     # Get a color for each yhat and a color for each ytrue
     colors, joints, num_joints = get_colors()
     rc = np.ceil(np.sqrt(len(ims))).astype(int)
@@ -68,7 +69,7 @@ def save_mosaic(
             markeredgewidth=.5,
             marker='o',
             mfc='none',
-            markersize=1.5)
+            markersize=5)
 
     plt.subplots_adjust(top=1, left=0)
 
@@ -77,13 +78,14 @@ def save_mosaic(
         patches = est_legend_artists + lab_legend_artists
     else:
         patches = est_legend_artists
-    fig.legend(
-        patches,
-        (["" for _ in colors] +
-         [j for j in joints]),
-        title=leg_title,
-        loc=1, frameon=False, numpoints=1, ncol=2,
-        columnspacing=0, handlelength=0.25, markerscale=2)
+    if use_legend:
+        fig.legend(
+            patches,
+            (["" for _ in colors] +
+             [j for j in joints]),
+            title=leg_title,
+            loc='right', frameon=False, numpoints=1, ncol=2,
+            columnspacing=0, handlelength=0.25, markerscale=2)
     if save_fig:
         plt.savefig(output)
     else:
@@ -129,7 +131,8 @@ def save_3d_mosaic(
                 iys,
                 izs,
                 c=colors,
-                marker='o')
+                marker='o',
+                size=2)
         # Construct skeleton
         jxs, jys, jzs = [], [], []
         for jc in joint_labels.joint_connections:
@@ -189,7 +192,7 @@ def main(
         dmurphy_npy_dir='/media/data_cifs/monkey_tracking/batches/test',
         normalize=False,
         unnormalize=False,
-        max_ims=32,
+        max_ims=1,
         find_fit=True
         ):
 
@@ -273,6 +276,7 @@ def main(
         val_images_list = np.asarray(val_images_list)[rand_order][:max_ims]
         val_yhats_list = np.asarray(val_yhats_list)[rand_order][:max_ims]
         val_ytrues_list = np.asarray(val_ytrues_list)[rand_order][:max_ims]
+
     save_mosaic(
         ims=im_list,
         yhats=yhat_list,
@@ -296,7 +300,7 @@ def main(
 
     if run_vals:
         save_mosaic(
-            ims=val_images_list.squeeze(),
+            ims=val_images_list.squeeze(axis=-1),
             yhats=val_yhats_list,
             ys=val_ytrues_list,  # np.zeros_like(val_yhats_list),
             output='val_%s' % output_file)
