@@ -16,7 +16,7 @@ def main(file_dir, wildcard):
     Execute kinect-file conversion.
 
     Example usage:
-    python ops/convert_mat_to_npy.py --file_dir=/media/data_cifs/monkey_tracking/extracted_kinect_depth/starbuck_pole_new_configuration_competition_IR_0 --wildcard=DepthFrame
+    python ops/kinect_util_scripts/convert_mat_to_npy.py --file_dir=/media/data_cifs/monkey_tracking/extracted_kinect_depth/starbuck_pole_new_configuration_competition_IR_0 --wildcard=DepthFrame
     """
     files = glob(os.path.join(file_dir, '%s*.mat' % wildcard))
     out_dir = os.path.join(file_dir, '%s_npys' % wildcard)
