@@ -238,8 +238,9 @@ def main(
             val_yhats = val_data['val_pred']
             if val_yhats[0].sum() > 100:
                 val_yhats = val_yhats / val_data['normalize_vec']
-            val_yhats *= np.asarray([[450, 560]]).repeat(23, axis=0).reshape(-1)
-            intercept = np.asarray([[65, 60]]).repeat(23, axis=0).reshape(-1)
+            import ipdb;ipdb.set_trace()
+            val_yhats *= np.asarray([[450, 500]]).repeat(23, axis=0).reshape(-1)
+            intercept = np.asarray([[110, 100]]).repeat(23, axis=0).reshape(-1)
             val_yhats -= intercept
             if 'val_true' in val_data.keys():
                 val_ytrues = val_data['val_true']
@@ -268,7 +269,7 @@ def main(
         [val_ytrues_list.append(x) for x in val_ytrues]
 
     if max_ims is not None:
-        rand_order = np.random.permutation(len(im_list))
+        rand_order = np.arange(len(im_list))  # np.random.permutation(len(im_list))
         im_list = np.asarray(im_list)[rand_order][:max_ims]
         yhat_list = np.asarray(yhat_list)[rand_order][:max_ims]
         ytrue_list = np.asarray(ytrue_list)[rand_order][:max_ims]

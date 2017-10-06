@@ -793,7 +793,8 @@ def inputs(
             'deconv_image',
             'deconv_label',
             'domain_adaptation',
-            'domain_adaptation_flip']
+            'domain_adaptation_flip'
+        ]
         keys, var_list = prepare_output_variables(
             output_data=output_data,
             variable_keys=variable_keys,

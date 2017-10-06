@@ -18,7 +18,7 @@ def data():
                 '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
                 'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3_p1.npz'),
             'data': 'monkey_on_pole_3',
-            'cv': 'train'
+            'cv': 'validation'
         },
         {
             'project': os.path.join(
@@ -67,7 +67,7 @@ def data():
                 '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
                 'babas_starbuck_pole_new_configuration_competition_depth_0_wisel_2.npz'),
             'data': 'starbuck_pole_new_configuration_competition_depth_0',
-            'cv': 'validation'
+            'cv': 'train'
         },
         {
             'project': os.path.join(

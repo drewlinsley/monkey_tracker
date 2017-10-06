@@ -26,7 +26,7 @@ class monkeyConfig(object):
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
         use_checkpoint = True
         if use_checkpoint:
-            self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_09_01_09_37_54'
+            self.model_name = 'skip_res_small_conv_deconv_2017_08_30_12_06_56'
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_2017_09_11_17_30_00'
             self.ckpt_file = None
             self.resume_from_checkpoint = os.path.join(

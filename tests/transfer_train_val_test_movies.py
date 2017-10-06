@@ -473,13 +473,13 @@ if __name__ == '__main__':
         "--train",
         dest="train_data",
         type=str,
-        default='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test/val.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
+        default='/media/data_cifs/lakshmi/DepthFrame_npys/starbuck_pole_new_configuration_competition_depth_0.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
         help='Train pointer.')
     parser.add_argument(
         "--val",
         dest="validation_data",
         type=str,
-        default='/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test/train.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
+        default='/media/data_cifs/lakshmi/DepthFrame_npys/starbuck_pole_new_configuration_competition_depth_2.tfrecords',  # '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas/train.tfrecords',  
         help='Validation pointer.')
     parser.add_argument(
         "--which_joint",

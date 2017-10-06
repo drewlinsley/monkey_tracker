@@ -177,12 +177,31 @@ def extract_depth_features_into_tfrecord(
     make tfrecords from them."""
 
     # Crossvalidate and create tfrecords
-    if config.use_train_as_val:
+    if config.special_validation == 'reuse':
         print 'Reusing training data for validation data.'
         depth_files = {'train': depth_files, 'val': depth_files}
         label_files = {'train': label_files, 'val': label_files}
-        occlusion_files = {'train': occlusion_files, 'val': occlusion_files}
-        pixel_label_files = {'train': pixel_label_files, 'val': pixel_label_files}
+        occlusion_files = {
+            'train': occlusion_files, 'val': occlusion_files}
+        pixel_label_files = {
+            'train': pixel_label_files, 'val': pixel_label_files}
+    elif config.special_validation == 'leave_movies_out':
+        depth_files = {
+            'train': depth_files[config.cv_inds['train']],
+            'val': depth_files[config.cv_inds['val']]
+            }
+        label_files = {
+            'train': label_files[config.cv_inds['train']],
+            'val': label_files[config.cv_inds['val']]
+        }
+        occlusion_files = {
+            'train': occlusion_files[config.cv_inds['train']],
+            'val': occlusion_files[config.cv_inds['val']]
+        }
+        pixel_label_files = {
+            'train': pixel_label_files[config.cv_inds['train']],
+            'val': pixel_label_files[config.cv_inds['val']]
+        }
     else:
         depth_files, label_files, occlusion_files, pixel_label_files = cv_files(
             depth_files,

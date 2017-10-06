@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gc
+from ops.loss_helper import flipped_gradient
 
 
 class model_struct:
@@ -9,12 +10,11 @@ class model_struct:
     """
 
     def __init__(
-                self,
-                vgg16_npy_path=None,
-                trainable=True):
-        if vgg16_npy_path is not None:
-            self.data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
-            print 'Restored model weights from: %s' % vgg16_npy_path
+                self, weight_npy_path=None, trainable=True,
+                fine_tune_layers=None):
+        if weight_npy_path is not None:
+            self.data_dict = np.load(weight_npy_path, encoding='latin1').item()
+            print 'Restored model weights from: %s' % weight_npy_path
         else:
             self.data_dict = None
 
@@ -59,12 +59,23 @@ class model_struct:
                 occlusion_shape = int(
                     target_variables['occlusion'].get_shape()[-1])
 
+        if 'z' in target_variables.keys():
+            z_shape = int(
+                target_variables['z'].get_shape()[-1])
+
+        if 'size' in target_variables.keys():
+            size_shape = int(
+                target_variables['size'].get_shape()[-1])
+
         if 'pose' in target_variables.keys():
             if len(target_variables['pose'].get_shape()) == 1:
                 pose_shape = 1
             else:
                 pose_shape = int(
                     target_variables['pose'].get_shape()[-1])
+
+        if 'domain_adaptation' in target_variables.keys():
+            domain_shape = 2  # Always binary
 
         # Convert RGB to BGR
         self.bgr = (rgb * 255.0) - self.VGG_MEAN[0]  # Scale up to imagenet's uint8
@@ -210,6 +221,34 @@ class model_struct:
             self.joint_label_output_keys = ['output']
             self.fine_tune_layers += ['output']
 
+        if 'size' in target_variables.keys():
+            self.size = self.fc_layer(
+                self.high_1x1_2_pool,
+                int(self.high_1x1_2_pool.get_shape()[-1]),
+                size_shape,
+                'size')
+            self.fine_tune_layers += ['size']
+
+        if 'z' in target_variables.keys():
+            # z-dim head -- label + activations
+            self.z_scores = tf.squeeze(
+                    self.fc_layer(
+                        self.high_1x1_2_pool,
+                        int(self.high_1x1_2_pool.get_shape()[-1]),
+                        z_shape,
+                        'z_sc')
+                )
+            out_z = tf.concat([self.z_scores, self.output], axis=1)
+            self.z = tf.squeeze(
+                    self.fc_layer(
+                        out_z,
+                        int(out_z.get_shape()[-1]),
+                        z_shape,
+                        'z')
+                )
+            self.joint_label_output_keys += ['z']
+            self.fine_tune_layers += ['z']
+
         if 'occlusion' in target_variables.keys():
             # Occlusion head
             self.occlusion = tf.squeeze(
@@ -231,6 +270,25 @@ class model_struct:
                         "pose")
                 )
             self.fine_tune_layers += ['pose']
+
+        if 'domain_adaptation_flip' in target_variables.keys():
+            # Domain adaptation head
+            bottom = flipped_gradient(
+                tf.contrib.layers.flatten(self.high_1x1_0_pool))
+            self.domain_adaptation_fc = tf.squeeze(
+                    self.fc_layer(
+                        bottom,
+                        int(bottom.get_shape()[-1]),
+                        256,
+                        "domain_adaptation_fc")
+                )
+            self.domain_adaptation = tf.squeeze(
+                    self.fc_layer(
+                        self.domain_adaptation_fc,
+                        int(self.domain_adaptation_fc.get_shape()[-1]),
+                        domain_shape,
+                        "domain_adaptation")
+                )
 
         self.data_dict = None
 
