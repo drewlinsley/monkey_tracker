@@ -1,0 +1,24 @@
+# TODO:
+
+# Model types (set use_checkpoint == False in config)
+	self.model_name
+		small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion
+		small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr
+		vgg16_multiscale_load_2_grayscale  # self.weight_npy_path in config should point to a numpy with vgg16 weights
+		skip_small_conv_deconv
+
+# Background augmentations:
+	self.randomize_background
+		any of [1, 1.5, 2]
+	self.augment_background
+		'background'  # 'background_perlin'  # 'perlin'  # rescale_and_perlin
+
+# aux losses:
+        self.aux_losses
+        	['occlusion', 'z']
+        	['occlusion', 'z', 'domain_adaptation_flip']
+        	['deconv_label', 'occlusion', 'z']  # For deconv models
+        	['deconv_label', 'occlusion', 'z', 'domain_adaptation_flip']  # For deconv models
+
+
+# Drew shows lakshmi how to extract data from Giovanni machine
