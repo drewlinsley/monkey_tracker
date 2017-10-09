@@ -24,7 +24,7 @@ class monkeyConfig(object):
         self.train_summaries = os.path.join(self.results_dir, 'summaries')
         self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = True
+        use_checkpoint = False
         if use_checkpoint:
             self.model_name = 'skip_res_small_conv_deconv_2017_08_30_12_06_56'
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_2017_09_11_17_30_00'
@@ -62,21 +62,21 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 2
+        self.randomize_background = 1
         self.augment_background = 'background'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
-        self.epochs = 50
-        # self.model_type = 'skip_res_small_conv_deconv'
+        self.epochs = 100
+        self.model_type = 'skip_extra_res_small_conv_deconv'
         # self.model_type = 'mr_densenet'
-        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
+        # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
         # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
         self.fine_tune_layers = None
         self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
             'left_right',
-            # 'up_down'
+            'up_down'
         ]
         self.convert_labels_to_pixel_space = True
 
@@ -89,7 +89,7 @@ class monkeyConfig(object):
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
-        self.loss_type = 'huber'
+        self.loss_type = 'l2'
         self.grad_clip = False
 
         # Potentially outdated training settings
@@ -100,11 +100,11 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['occlusion', 'z']  # ['deconv_label', 'occlusion', 'z']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.aux_losses = ['deconv_label', 'occlusion', 'z']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
         self.include_validation = None  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
         self.wd_type = 'l2'
-        self.wd_penalty = None  # 5e-4
+        self.wd_penalty = 5e-6
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
         self.fc_lambda = 0.01
 
