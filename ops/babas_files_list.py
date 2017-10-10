@@ -100,7 +100,7 @@ def data():
         {
             'project': os.path.join(
                 '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                'babas_starbuck_pole_new_configuration_competition_depth_0_giovanni_0.npz'),
+                'babas_starbuck_pole_new_configuration_competition_depth_0_giovanni_0_fix.npz'),
             'data': 'starbuck_pole_new_configuration_competition_depth_0',
             'cv': 'train'
         },

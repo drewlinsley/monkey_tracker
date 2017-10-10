@@ -174,6 +174,7 @@ def main(
         train_ind = np.asarray(flat_cv_inds == 'train')
         val_ind = np.asarray(flat_cv_inds == 'validation')
 
+        import ipdb;ipdb.set_trace()
         # Set data folders in config
         config.depth_dir = im_folder
         config.label_dir = label_folder
