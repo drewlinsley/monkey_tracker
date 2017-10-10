@@ -41,7 +41,7 @@ def main(
         w_scale=1.125,
         h_scale=1.125,
         debug=True,
-        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/10_6_17_out_of_bag_val',
+        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val',
         fix_image_size=True,
         convert_hw_to_xy=False):
     """Main function for converting BABAS annotated frames to tf records."""
@@ -174,7 +174,6 @@ def main(
         train_ind = np.asarray(flat_cv_inds == 'train')
         val_ind = np.asarray(flat_cv_inds == 'validation')
 
-        import ipdb;ipdb.set_trace()
         # Set data folders in config
         config.depth_dir = im_folder
         config.label_dir = label_folder
@@ -183,7 +182,10 @@ def main(
         config.im_label_dir = im_folder
         config.tfrecord_dir = tfrecord_dir
         config.special_validation = 'leave_movies_out'
-        config.cv_inds = {'train': train_ind, 'val': val_ind}
+        config.cv_inds = {
+            'train': np.asarray(fnames)[train_ind],
+            'val': np.asarray(fnames)[val_ind]
+        }
         config.use_image_labels = True
         process_data(config)
         print 'Saved new tfrecords to: %s' % config.tfrecord_dir

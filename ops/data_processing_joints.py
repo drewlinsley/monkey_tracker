@@ -186,21 +186,45 @@ def extract_depth_features_into_tfrecord(
         pixel_label_files = {
             'train': pixel_label_files, 'val': pixel_label_files}
     elif config.special_validation == 'leave_movies_out':
+        train_depth = [os.path.join(
+            config.depth_dir,
+            x) for x in config.cv_inds['train']]
+        val_depth = [os.path.join(
+            config.depth_dir,
+            x) for x in config.cv_inds['val']]
+        train_label = [os.path.join(
+            config.label_dir,
+            x) for x in config.cv_inds['train']]
+        val_label = [os.path.join(
+            config.label_dir,
+            x) for x in config.cv_inds['val']]
+        train_occlusion = [os.path.join(
+            config.occlusion_dir,
+            x) for x in config.cv_inds['train']]
+        val_occlusion = [os.path.join(
+            config.occlusion_dir,
+            x) for x in config.cv_inds['val']]
+        train_pixel_label = [os.path.join(
+            config.pixel_label_dir,
+            x) for x in config.cv_inds['train']]
+        val_pixel_label = [os.path.join(
+            config.pixel_label_dir,
+            x) for x in config.cv_inds['val']]
         depth_files = {
-            'train': depth_files[config.cv_inds['train']],
-            'val': depth_files[config.cv_inds['val']]
+            'train': train_depth,
+            'val': val_depth
             }
         label_files = {
-            'train': label_files[config.cv_inds['train']],
-            'val': label_files[config.cv_inds['val']]
+            'train': train_label,
+            'val': val_label
         }
         occlusion_files = {
-            'train': occlusion_files[config.cv_inds['train']],
-            'val': occlusion_files[config.cv_inds['val']]
+            'train': train_occlusion,
+            'val': val_occlusion
         }
         pixel_label_files = {
-            'train': pixel_label_files[config.cv_inds['train']],
-            'val': pixel_label_files[config.cv_inds['val']]
+            'train': train_pixel_label,
+            'val': val_pixel_label
         }
     else:
         depth_files, label_files, occlusion_files, pixel_label_files = cv_files(

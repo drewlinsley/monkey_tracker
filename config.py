@@ -102,7 +102,7 @@ class monkeyConfig(object):
         self.normalize_labels = True
         self.aux_losses = ['deconv_label', 'occlusion', 'z']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
-        self.include_validation = None  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
+        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'
         self.wd_type = 'l2'
         self.wd_penalty = 5e-6
         self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
@@ -195,7 +195,7 @@ class monkeyConfig(object):
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
         self.babas_file_for_import = babas_files_list.data()
-        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas_test'  # Set to None to not use kinect data
+        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
