@@ -195,7 +195,7 @@ class monkeyConfig(object):
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
         self.babas_file_for_import = babas_files_list.data()
-        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
+        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
