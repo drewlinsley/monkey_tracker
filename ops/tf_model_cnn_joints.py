@@ -175,6 +175,9 @@ def train_and_eval(config, babas_data):
                 target_variables=train_data_dict,
                 train_mode=train_mode,
                 batchnorm=config.batch_norm)
+            train_mu, train_var = tf.nn.moments(train_data_dict['image'], axes=[1, 2, 3])
+            tf.summary.histogram("train image mean", train_mu)
+            tf.summary.histogram("train image std", tf.sqrt(train_var))
             if 'deconv_image' in config.aux_losses:
                 tf.summary.image('Deconv train', model.deconv)
             if 'deconv_label' in config.aux_losses:
@@ -194,6 +197,9 @@ def train_and_eval(config, babas_data):
                     target_variables=val_data_dict)
 
                 # Calculate validation accuracy
+                val_mu, val_var = tf.nn.moments(val_data_dict['image'], axes=[1, 2, 3])
+                tf.summary.histogram("validation image mean", val_mu)
+                tf.summary.histogram("validation image std", tf.sqrt(val_var))
                 if 'label' in val_data_dict.keys():
                     # val_score = tf.nn.l2_loss(
                     #     val_model.output - val_data_dict['label'])

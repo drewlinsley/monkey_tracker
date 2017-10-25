@@ -173,6 +173,36 @@ def l2_loss(yhat, y):
     return tf.reduce_sum(tf.pow(yhat - y, 2), axis=-1) / 2
 
 
+def skeleton_loss(
+        model,
+        train_data_dict,
+        config,
+        yhat_key='output',
+        y_key='label'):
+    """Skeleton loss defined in: Compositional Human Pose Regression, 2017"""
+    if config.loss_type == 'l1':
+        loss = l1_loss
+    elif config.loss_type == 'l2':
+        loss = l2_loss
+    else:
+        raise RuntimeError(
+            'Cannot understand your selected loss type.')
+    res_gt = tf.reshape(
+        train_data_dict[y_key],
+        [config.train_batch, len(use_joints), config.keep_dims])
+    res_pred = tf.reshape(
+        model[yhat_key],
+        [config.train_batch, len(use_joints), config.keep_dims])
+    sls = []
+    for k, v in config.joint_graph.iteritems():
+        cidx = config.joint_names.index(k)
+        pidx = config.joint_names.index(v)
+        tseg = res_gt[pidx] - res_gt[cidx]
+        pseg = res_pred[pidx] - res_pred[cidx]
+        sls += [tseg - pseg]
+    return loss(tf.stack(sls, axis=0))
+
+
 def thomas_l1_loss(
         model,
         train_data_dict,

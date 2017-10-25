@@ -7,8 +7,8 @@ class monkeyConfig(object):
 
         # Directory settings
         self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = os.path.join(self.base_dir, 'results', 'TrueDepth2MilStore') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.image_dir = os.path.join(self.base_dir, 'batches', 'TrueDepth2MilStore') #os.path.join(self.base_dir, 'walk-all-png') 
+        self.results_dir = os.path.join(self.base_dir, 'results', 'thisisatest') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
+        self.image_dir = os.path.join(self.base_dir, 'batches', 'thisisatest') #os.path.join(self.base_dir, 'walk-all-png') 
         self.depth_dir = os.path.join(self.image_dir, 'depth', 'true_depth')
         self.label_dir = os.path.join(self.image_dir, 'labels', 'joint_coords')
         self.npy_dir = os.path.join(self.base_dir, 'batches', 'test')  # Output for numpys
@@ -20,7 +20,7 @@ class monkeyConfig(object):
         self.label_extension = '.npy' 
         self.occlusion_extension = '.npy'
         self.model_output = os.path.join(self.results_dir, 'model_output') 
-        self.tfrecord_dir = os.path.join(self.image_dir, 'tfrecords_fast_newest2')
+        self.tfrecord_dir = os.path.join(self.image_dir, 'tfrecords_fast')
         self.train_summaries = os.path.join(self.results_dir, 'summaries')
         self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
@@ -50,7 +50,7 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 1200.  # Maya: 1200. --note: prepare kinect with lower value than during testing (e.g. 900train/1800test). Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.max_depth = 1050.  # Maya: 1200. --note: prepare kinect with lower value than during testing (e.g. 900train/1800test). Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
         self.min_depth = 200.  # Maya: 200. Use for normalizing the kinect data
         self.background_constant = self.max_depth * 2  # HIGH_NUMBER
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
@@ -62,21 +62,21 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 1
-        self.augment_background = 'background'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.randomize_background = 2
+        self.augment_background = 'background_perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
         self.epochs = 100
-        self.model_type = 'skip_extra_res_small_conv_deconv'
-        # self.model_type = 'mr_densenet'
-        # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
+        # self.model_type = 'skip_small_conv_
+        self.model_type = 'skip_small_conv_deconv'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
         # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
         self.fine_tune_layers = None
         self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
             'left_right',
-            'up_down'
+            # 'up_down'
         ]
         self.convert_labels_to_pixel_space = True
 
@@ -84,12 +84,12 @@ class monkeyConfig(object):
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
+        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
         self.steps_before_validation = 1000
-        self.loss_type = 'l2'
+        self.loss_type = 'l1'
         self.grad_clip = False
 
         # Potentially outdated training settings
@@ -100,12 +100,12 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['deconv_label', 'occlusion', 'z']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.aux_losses = ['occlusion', 'z']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
         self.calculate_per_joint_loss = False
         self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'
-        self.wd_type = 'l2'
-        self.wd_penalty = 5e-6
-        self.wd_layers = ['occlusion', 'output']  # ['fc6', 'fc7', 'pre_fc8']
+        self.wd_type = 'l1'
+        self.wd_penalty = 5e-7
+        self.wd_layers = ['high_feature_encoder_1x1_0', 'high_feature_encoder_1x1_1', 'high_feature_encoder_1x1_2']  # ['fc6', 'fc7', 'pre_fc8']
         self.fc_lambda = 0.01
 
         # Labels for the rendered images
@@ -188,6 +188,33 @@ class monkeyConfig(object):
             'left toetips',
             'right toetips'
         ]
+
+        self.joint_graph = {
+            'head': 'neck',
+            'neck': 'abdomen',
+            'abdomen': 'neck',
+            'left shoulder': 'neck',
+            'right shoulder': 'neck',
+            'left elbow': 'left shoulder',
+            'right elbow': 'right shoulder',
+            'left hand': 'left elbow',
+            'right hand': 'right elbow',
+            'left knuckles': 'left hand',
+            'right knuckles': 'right hand',
+            'left fingertips': 'left knuckles',
+            'right fingertips': 'right knuckles',
+            'left hip': 'abdomen',
+            'right hip': 'abdomen',
+            'left knee': 'left hip',
+            'right knee': 'right hip',
+            'left ankle': 'left knee',
+            'right ankle': 'right knee',
+            'left bart': 'left ankle',
+            'right bart': 'right ankle',
+            'left toetips': 'left bart',
+            'right toetips': 'right bart'
+        }
+
 
         self.selected_joints = None  # ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
