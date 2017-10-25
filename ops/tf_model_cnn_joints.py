@@ -226,7 +226,7 @@ def train_and_eval(config, babas_data):
         loss_list, loss_label = [], []
         if 'label' in train_data_dict.keys():
             # 1. Joint localization loss
-            if config.calculate_per_joint_loss:
+            if config.calculate_per_joint_loss == 'thomas':
                 label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
                     model=model,
                     train_data_dict=train_data_dict,
@@ -234,6 +234,24 @@ def train_and_eval(config, babas_data):
                     y_key='label',
                     yhat_key='output')
                 loss_list += [label_loss]
+            elif config.calculate_per_joint_loss == 'skeleton':
+                label_loss = tf_fun.skeleton_loss(
+                    model=model,
+                    train_data_dict=train_data_dict,
+                    config=config,
+                    y_key='label',
+                    yhat_key='output')
+                loss_list += [label_loss]
+            elif config.calculate_per_joint_loss == 'skeleton and joint':
+                label_loss = tf_fun.skeleton_loss(
+                    model=model,
+                    train_data_dict=train_data_dict,
+                    config=config,
+                    y_key='label',
+                    yhat_key='output')
+                loss_list += [label_loss]
+                loss_list += [tf.nn.l2_loss(
+                    model['output'] - train_data_dict['label'])]
             else:
                 loss_list += [tf.nn.l2_loss(
                     model['output'] - train_data_dict['label'])]

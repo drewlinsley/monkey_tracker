@@ -62,14 +62,13 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 2
+        self.randomize_background = 1.1
         self.augment_background = 'background_perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
         self.epochs = 100
         # self.model_type = 'skip_small_conv_
-        self.model_type = 'skip_small_conv_deconv'
         self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
         # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
         self.fine_tune_layers = None
