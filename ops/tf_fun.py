@@ -194,17 +194,24 @@ def skeleton_loss(
     res_gt = tf.reshape(
         train_data_dict[y_key],
         [config.train_batch, len(use_joints), config.keep_dims])
+    res_gt = tf.split(res_gt, config.train_batch)
     res_pred = tf.reshape(
         model[yhat_key],
         [config.train_batch, len(use_joints), config.keep_dims])
+    res_pred = tf.split(res_pred, config.train_batch)
     sls = []
-    for k, v in config.joint_graph.iteritems():
-        cidx = config.joint_names.index(k)
-        pidx = config.joint_names.index(v)
-        tseg = res_gt[pidx] - res_gt[cidx]
-        pseg = res_pred[pidx] - res_pred[cidx]
-        sls += [tseg - pseg]
-    return loss(tf.stack(sls, axis=0))
+    for gt_im, p_im in zip(res_gt, res_pred):
+        gt_im = tf.squeeze(gt_im)
+        p_im = tf.squeeze(p_im)
+        it_sls = []
+        for k, v in config.joint_graph.iteritems():
+            cidx = config.joint_names.index(k)
+            pidx = config.joint_names.index(v)
+            tseg = gt_im[pidx] - p_im[cidx]
+            pseg = gt_im[pidx] - p_im[cidx]
+            it_sls += [tseg - pseg]
+        sls += [loss(it_sls)]
+    return tf.add_n(sls) / len(sls)
 
 
 def thomas_l1_loss(
