@@ -180,10 +180,14 @@ def skeleton_loss(
         yhat_key='output',
         y_key='label'):
     """Skeleton loss defined in: Compositional Human Pose Regression, 2017"""
+    if config.selected_joints is None:
+        use_joints = config.joint_order
+    else:
+        use_joints = config.selected_joints
     if config.loss_type == 'l1':
-        loss = l1_loss
+        loss = lambda x: tf.reduce_sum(tf.abs(x))
     elif config.loss_type == 'l2':
-        loss = l2_loss
+        loss = lambda x: tf.nn.l2_loss(x)
     else:
         raise RuntimeError(
             'Cannot understand your selected loss type.')
