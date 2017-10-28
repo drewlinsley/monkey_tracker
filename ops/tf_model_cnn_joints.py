@@ -250,6 +250,8 @@ def train_and_eval(config, babas_data):
                     y_key='label',
                     yhat_key='output')
                 loss_list += [label_loss]
+                delta = model['output'] - train_data_dict['label']
+                delta *= np.asarray(dim_weight)[None, :]
                 loss_list += [tf.reduce_sum(tf.abs(
                     model['output'] - train_data_dict['label']))]
             else:

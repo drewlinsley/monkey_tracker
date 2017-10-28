@@ -180,6 +180,7 @@ def skeleton_loss(
         yhat_key='output',
         y_key='label'):
     """Skeleton loss defined in: Compositional Human Pose Regression, 2017"""
+    assert 'domain_adaptation' in train_data_dict, 'Need a domain label.'
     if config.selected_joints is None:
         use_joints = config.joint_order
     else:
@@ -200,7 +201,7 @@ def skeleton_loss(
         [config.train_batch, len(use_joints), config.keep_dims])
     res_pred = tf.split(res_pred, config.train_batch)
     sls = []
-    for gt_im, p_im in zip(res_gt, res_pred):
+    for idx, (gt_im, p_im) in enumerate(zip(res_gt, res_pred)):
         gt_im = tf.squeeze(gt_im)
         p_im = tf.squeeze(p_im)
         it_sls = []
@@ -209,7 +210,10 @@ def skeleton_loss(
             pidx = config.joint_names.index(v)
             tseg = gt_im[pidx] - p_im[cidx]
             pseg = gt_im[pidx] - p_im[cidx]
-            it_sls += [tseg - pseg]
+            delta = tseg - pseg
+            delta = tf.concat(
+                [delta[:2], delta[-1] * tf.split(train_data_dict['domain_adaptation'], 2, axis=1)[1][idx]], axis=0)
+            it_sls += [delta]
         sls += [loss(it_sls)]
     return tf.add_n(sls) / len(sls)
 

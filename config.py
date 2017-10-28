@@ -90,6 +90,7 @@ class monkeyConfig(object):
         self.steps_before_validation = 1000
         self.loss_type = 'l1'
         self.grad_clip = False
+        self.dim_weight = [1, 1, 0.1]   # If including xyz dim-specific weighting
 
         # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
@@ -217,7 +218,7 @@ class monkeyConfig(object):
 
         self.selected_joints = None  # ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
         self.num_dims = 3
-        self.keep_dims = 2
+        self.keep_dims = 3
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
         self.babas_file_for_import = babas_files_list.data()
