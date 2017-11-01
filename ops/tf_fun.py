@@ -173,6 +173,51 @@ def l2_loss(yhat, y):
     return tf.reduce_sum(tf.pow(yhat - y, 2), axis=-1) / 2
 
 
+def skeleton_loss(
+        model,
+        train_data_dict,
+        config,
+        yhat_key='output',
+        y_key='label'):
+    """Skeleton loss defined in: Compositional Human Pose Regression, 2017"""
+    assert 'domain_adaptation' in train_data_dict, 'Need a domain label.'
+    if config.selected_joints is None:
+        use_joints = config.joint_order
+    else:
+        use_joints = config.selected_joints
+    if config.loss_type == 'l1':
+        loss = lambda x: tf.reduce_sum(tf.abs(x))
+    elif config.loss_type == 'l2':
+        loss = lambda x: tf.nn.l2_loss(x)
+    else:
+        raise RuntimeError(
+            'Cannot understand your selected loss type.')
+    res_gt = tf.reshape(
+        train_data_dict[y_key],
+        [config.train_batch, len(use_joints), config.keep_dims])
+    res_gt = tf.split(res_gt, config.train_batch)
+    res_pred = tf.reshape(
+        model[yhat_key],
+        [config.train_batch, len(use_joints), config.keep_dims])
+    res_pred = tf.split(res_pred, config.train_batch)
+    sls = []
+    for idx, (gt_im, p_im) in enumerate(zip(res_gt, res_pred)):
+        gt_im = tf.squeeze(gt_im)
+        p_im = tf.squeeze(p_im)
+        it_sls = []
+        for k, v in config.joint_graph.iteritems():
+            cidx = config.joint_names.index(k)
+            pidx = config.joint_names.index(v)
+            tseg = gt_im[pidx] - p_im[cidx]
+            pseg = gt_im[pidx] - p_im[cidx]
+            delta = tseg - pseg
+            delta = tf.concat(
+                [delta[:2], delta[-1] * tf.split(train_data_dict['domain_adaptation'], 2, axis=1)[1][idx]], axis=0)
+            it_sls += [delta]
+        sls += [loss(it_sls)]
+    return tf.add_n(sls) / len(sls)
+
+
 def thomas_l1_loss(
         model,
         train_data_dict,

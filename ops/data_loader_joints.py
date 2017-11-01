@@ -818,3 +818,4 @@ def inputs(
                 capacity=100 * batch_size,
                 enqueue_many=True)
         return {k: v for k, v in zip(keys, var_list)}
+

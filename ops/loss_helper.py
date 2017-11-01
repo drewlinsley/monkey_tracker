@@ -40,7 +40,7 @@ def potential_aux_losses():
                 'model_name': 'z',
                 'loss_function': 'l2',
                 'var_label': 'z head',
-                'lambda': 0.01,
+                'lambda': 0.1,
                 'aux_fun': 'none',
                 'da_override': True
                 }
