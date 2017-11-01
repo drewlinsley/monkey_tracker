@@ -251,9 +251,14 @@ def train_and_eval(config, babas_data):
                     yhat_key='output')
                 loss_list += [label_loss]
                 delta = model['output'] - train_data_dict['label']
-                delta *= np.asarray(dim_weight)[None, :]
-                loss_list += [tf.reduce_sum(tf.abs(
-                    model['output'] - train_data_dict['label']))]
+                delta *= np.asarray(config.dim_weight)[None, :]
+                label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
+                    model=model,
+                    train_data_dict=train_data_dict,
+                    config=config,
+                    y_key='label',
+                    yhat_key='output')
+                loss_list += [label_loss]
             else:
                 loss_list += [tf.nn.l2_loss(
                     model['output'] - train_data_dict['label'])]

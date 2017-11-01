@@ -212,7 +212,10 @@ def skeleton_loss(
             pseg = gt_im[pidx] - p_im[cidx]
             delta = tseg - pseg
             delta = tf.concat(
-                [delta[:2], delta[-1] * tf.split(train_data_dict['domain_adaptation'], 2, axis=1)[1][idx]], axis=0)
+                [delta[:2], delta[-1] * tf.split(
+                    train_data_dict['domain_adaptation'],
+                    2,
+                    axis=1)[1][idx]], axis=0)
             it_sls += [delta]
         sls += [loss(it_sls)]
     return tf.add_n(sls) / len(sls)

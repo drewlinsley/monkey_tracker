@@ -50,7 +50,7 @@ class monkeyConfig(object):
         self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
         self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
         self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 1050.  # Maya: 1200. --note: prepare kinect with lower value than during testing (e.g. 900train/1800test). Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
+        self.max_depth = 1200.  # Maya: 1200. --note: prepare kinect with lower value than during testing (e.g. 900train/1800test). Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
         self.min_depth = 200.  # Maya: 200. Use for normalizing the kinect data
         self.background_constant = self.max_depth * 2  # HIGH_NUMBER
         self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
@@ -62,15 +62,14 @@ class monkeyConfig(object):
         self.use_image_labels = False  # if true, extract  color-labeled images
         self.use_pixel_xy = True
         self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 1.1
+        self.randomize_background = 1.
         self.augment_background = 'background_perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Model settings
         self.epochs = 100
-        # self.model_type = 'skip_small_conv_
+        # self.model_type = 'skip_small_conv_deconv
         self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
-        # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
         self.fine_tune_layers = None
         self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
@@ -83,7 +82,7 @@ class monkeyConfig(object):
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
-        self.lr = 1e-3  # Tune this -- also try SGD instead of ADAm
+        self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
         self.optimizer = 'adam'
@@ -100,10 +99,10 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['occlusion', 'z']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
-        self.calculate_per_joint_loss = 'skeleton'  # False
+        self.aux_losses = ['occlusion']  # , 'deconv_label']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.calculate_per_joint_loss = 'skeleton and joint'  # False
         self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'
-        self.wd_type = 'l1'
+        self.wd_type = 'l2'
         self.wd_penalty = 5e-7
         self.wd_layers = ['high_feature_encoder_1x1_0', 'high_feature_encoder_1x1_1', 'high_feature_encoder_1x1_2']  # ['fc6', 'fc7', 'pre_fc8']
         self.fc_lambda = 0.01
@@ -222,7 +221,7 @@ class monkeyConfig(object):
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
         self.babas_file_for_import = babas_files_list.data()
-        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
+        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/11_1_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
