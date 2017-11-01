@@ -41,7 +41,7 @@ def main(
         w_scale=1.125,
         h_scale=1.125,
         debug=True,
-        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val',
+        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/11_1_17_out_of_bag_val',
         fix_image_size=True,
         convert_hw_to_xy=False):
     """Main function for converting BABAS annotated frames to tf records."""
@@ -173,6 +173,16 @@ def main(
         flat_cv_inds = np.concatenate(cv_inds)
         train_ind = np.asarray(flat_cv_inds == 'train')
         val_ind = np.asarray(flat_cv_inds == 'validation')
+
+        # Save moments from the annotations
+        ann_array = np.asarray(annotations)
+        mu = ann_array.mean(0)
+        std = ann_array.std(0)
+        np.savez(
+            os.path.join(
+                tfrecord_dir, 'moments'),
+            mu=mu,
+            std=std)
 
         # Set data folders in config
         config.depth_dir = im_folder

@@ -13,13 +13,13 @@ def data():
         #     'data': 'monkey_on_pole_3'
         # },
     return [
-        {
-            'project': os.path.join(
-                '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
-                'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3_p1.npz'),
-            'data': 'monkey_on_pole_3',
-            'cv': 'validation'
-        },
+        # {
+        #     'project': os.path.join(
+        #         '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+        #         'babas_monkey_tracking_data_for_babas_processed_videos_monkey_on_pole_3_p1.npz'),
+        #     'data': 'monkey_on_pole_3',
+        #     'cv': 'validation'
+        # },
         {
             'project': os.path.join(
                 '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
@@ -118,6 +118,27 @@ def data():
                 'babas_starbuck_pole_new_configuration_competition_depth_0_x7_0.npz'),
             'data': 'starbuck_pole_new_configuration_competition_depth_0',
             'cv': 'train'
+        },
+        {
+            'project': os.path.join(
+                '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                'babas_Freely_Moving_Recording_depth_1_g3.npz'),
+            'data': 'Freely_Moving_Recording_depth_1',
+            'cv': 'train'
+        },
+        {
+            'project': os.path.join(
+                '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                'babas_Freely_Moving_Recording_depth_1_g3.npz'),
+            'data': 'Freely_Moving_Recording_depth_1',
+            'cv': 'train'
+        },
+        {
+            'project': os.path.join(
+                '/media/data_cifs/monkey_tracking/data_for_babas/babas_annotations',
+                'babas_Freely_Moving_Recording_depth_1_g3_test.npz'),
+            'data': 'Freely_Moving_Recording_depth_1',
+            'cv': 'validation'
         },
         # {
         #     'project': os.path.join(

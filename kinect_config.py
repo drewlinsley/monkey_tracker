@@ -10,7 +10,8 @@ class kinectConfig():
         return hasattr(self, name)
 
     def __init__(self):
-        self.selected_video = 'starbuck_pole_new_configuration_competition_depth_0'
+        # self.selected_video = 'starbuck_pole_new_configuration_competition_depth_0'
+        self.selected_video = 'Freely_Moving_Recording_depth_0'
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -454,3 +455,75 @@ class kinectConfig():
         container['output_npy_path'] = container['data_dir']
         container['kinect_file_ext'] = '.npy'
         return container
+
+    def Freely_Moving_Recording_depth_0(self):
+        """Depth frames. Pass through CNN."""
+        container = self.defaults
+        container['output_joint_dict'] = True
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth',
+            '201710091108-Freely_Moving_Recording_depth_1')
+        container['kinect_project'] = 'DepthFrame_npys'
+        container['output_dir'] = '/home/drew/Desktop/lakshmi_files'
+        container['data_dir'] = os.path.join(
+            container['output_dir'],
+            container['kinect_project'])
+        container['prediction_image_folder'] = os.path.join(
+            container['data_dir'],
+            'prediction_frames')
+        container['gt_image_folder'] = os.path.join(
+            container['data_dir'],
+            'gt_frames')
+        container['predicted_output_name'] = os.path.join(
+            container['data_dir'],
+            '201710091108-Freely_Moving_Recording_depth_1.mp4')
+        container['tfrecord_name'] = os.path.join(
+            container['data_dir'],
+            '201710091108-Freely_Moving_Recording_depth_1.tfrecords')
+        container['kinect_output_name'] = os.path.join(
+            container['output_dir'],
+            '201710091108-Freely_Moving_Recording_depth_1.mp4')
+        container['output_json_path'] = os.path.join(
+            container['output_dir'],
+            '201710091108-Freely_Moving_Recording_depth_1.json')
+        container['output_npy_path'] = container['data_dir']
+        container['kinect_file_ext'] = '.npy'
+        return container
+
+
+    def Freely_Moving_Recording_depth_1(self):
+            """Depth frames. Pass through CNN."""
+            container = self.defaults
+            container['output_joint_dict'] = True
+            container['kinect_directory'] = os.path.join(
+                container['base_dir'],
+                'extracted_kinect_depth',
+                '201710091108-Freely_Moving_Recording_depth_1')
+            container['kinect_project'] = 'DepthFrame_npys'
+            container['output_dir'] = '/home/lakshmi/'
+            container['data_dir'] = os.path.join(
+                container['output_dir'],
+                container['kinect_project'])
+            container['prediction_image_folder'] = os.path.join(
+                container['data_dir'],
+                'prediction_frames')
+            container['gt_image_folder'] = os.path.join(
+                container['data_dir'],
+                'gt_frames')
+            container['predicted_output_name'] = os.path.join(
+                container['data_dir'],
+                'Freely_Moving_Recording_depth_201710091108_1.mp4')
+            container['tfrecord_name'] = os.path.join(
+                container['data_dir'],
+                '201710091108-Freely_Moving_Recording_depth_1.tfrecords')
+            container['kinect_output_name'] = os.path.join(
+                container['output_dir'],
+                'kinect',
+                '201710091108-Freely_Moving_Recording_depth_1.mp4')
+            container['output_json_path'] = os.path.join(
+                '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+                '201710091108-Freely_Moving_Recording_depth_1.json')
+            container['output_npy_path'] = '/media/data_cifs/lakshmi/monkey_tracker/'
+            container['kinect_file_ext'] = '.npy'
+            return container

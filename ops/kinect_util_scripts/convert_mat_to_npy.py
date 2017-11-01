@@ -7,7 +7,7 @@ import os
 import numpy as np
 import scipy.io as sio
 from glob import glob
-from tf_fun import make_dir
+from ops.tf_fun import make_dir
 from tqdm import tqdm
 
 
@@ -16,7 +16,7 @@ def main(file_dir, wildcard):
     Execute kinect-file conversion.
 
     Example usage:
-    python ops/convert_mat_to_npy.py --file_dir=/media/data_cifs/monkey_tracking/extracted_kinect_depth/starbuck_pole_new_configuration_competition_IR_0 --wildcard=DepthFrame
+    python ops/kinect_util_scripts/convert_mat_to_npy.py --file_dir=/media/data_cifs/monkey_tracking/extracted_kinect_depth/201710091108-Freely_Moving_Recording_depth_0 --wildcard=DepthFrame
     """
     files = glob(os.path.join(file_dir, '%s*.mat' % wildcard))
     out_dir = os.path.join(file_dir, '%s_npys' % wildcard)

@@ -287,3 +287,4 @@ def process_data(config):
         os.path.join(config.tfrecord_dir, config.mean_file),
         data=mean_dict,
         **mean_dict)
+
