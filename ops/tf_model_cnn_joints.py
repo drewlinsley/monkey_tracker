@@ -251,7 +251,10 @@ def train_and_eval(config, babas_data):
                     yhat_key='output')
                 loss_list += [label_loss]
                 delta = model['output'] - train_data_dict['label']
-                delta *= np.asarray(config.dim_weight)[None, :]
+                proc_weights = np.asarray(
+                    config.dim_weight)[None,:].repeat(
+                        len(config.joint_names), axis=0).reshape(1, -1)
+                delta *= proc_weights
                 label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
                     model=model,
                     train_data_dict=train_data_dict,
