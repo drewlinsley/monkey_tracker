@@ -159,11 +159,12 @@ def read_and_decode(
 
     # Take off first slice of the image
     image = tf.expand_dims(image[:, :, 0], axis=-1)
-    if augment_background is not 'none' and 'stretch_renders' in aux_losses:
-        image = image * 1.5
 
     if not working_on_kinect:
         print 'Normalizing and adjusting rendered data'
+        if 'stretch_renders' in aux_losses and domain_label == 1:
+            stretch_idx = (domain_label * 0.25) + 1
+            image = image * stretch_idx
         # Convert background values
         if randomize_background is not None:
             max_value = tf.constant(max_value)
@@ -726,7 +727,7 @@ def inputs(
                 keep_dims=keep_dims,
                 background_multiplier=background_multiplier,
                 randomize_background=randomize_background,
-                working_on_kinect=False,
+                working_on_kinect=True,
                 augment_background='none',  # 'perlin',  # don't mess with these
                 background_folder=background_folder,
                 maya_joint_labels=maya_joint_labels,

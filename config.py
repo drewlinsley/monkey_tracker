@@ -24,7 +24,7 @@ class monkeyConfig(object):
         self.train_summaries = os.path.join(self.results_dir, 'summaries')
         self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
         self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = True
+        use_checkpoint = False
         if use_checkpoint:
             self.model_name = 'skip_res_small_conv_deconv_2017_08_30_12_06_56'
             # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_2017_09_11_17_30_00'
@@ -67,11 +67,13 @@ class monkeyConfig(object):
         self.background_folder = 'backgrounds'
 
         # Model settings
-        self.epochs = 100
-        # self.model_type = 'skip_small_conv_deconv
-        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
+        self.epochs = 1000
+        # self.model_type = 'skip_small_conv_deconv'
+        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion'
+        # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced'
+        # self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
         self.fine_tune_layers = None
-        self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
+        self.batch_norm = [None]  # ['high_feature_encoder_1x1_0', 'high_feature_encoder_1x1_1', 'high_feature_encoder_1x1_2']  # ['fc6', 'fc7', 'pre_fc8']
         self.data_augmentations = [
             'left_right',
             # 'up_down'
@@ -79,8 +81,8 @@ class monkeyConfig(object):
         self.convert_labels_to_pixel_space = True
 
         # Key training settings
-        self.train_batch = 32
-        self.validation_batch = 32
+        self.train_batch = 16
+        self.validation_batch = 16
         self.ratio = None  # [0.1, 0.9]
         self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
@@ -89,7 +91,7 @@ class monkeyConfig(object):
         self.steps_before_validation = 1000
         self.loss_type = 'l1'
         self.grad_clip = False
-        self.dim_weight = [1, 1, 0.1]   # If including xyz dim-specific weighting
+        self.dim_weight = [1, 1, 0.25]   # If including xyz dim-specific weighting
 
         # Potentially outdated training settings
         self.use_training_loss = False  # early stopping based on loss
@@ -99,9 +101,9 @@ class monkeyConfig(object):
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['occlusion']  # , 'deconv_label']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
-        self.calculate_per_joint_loss = 'skeleton and joint'  # False
-        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'
+        self.aux_losses = ['occlusion', 'stretch_renders']  # , 'deconv_label']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.calculate_per_joint_loss = False  # BABAS 'skeleton and joint'  # False
+        self.include_validation = True  # BABAS '/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1/val.tfrecords'  # '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'
         self.wd_type = 'l2'
         self.wd_penalty = 5e-7
         self.wd_layers = ['high_feature_encoder_1x1_0', 'high_feature_encoder_1x1_1', 'high_feature_encoder_1x1_2']  # ['fc6', 'fc7', 'pre_fc8']
@@ -221,10 +223,11 @@ class monkeyConfig(object):
         self.num_classes = len(self.joint_order) * self.num_dims
         self.mask_occluded_joints = False
         self.babas_file_for_import = babas_files_list.data()
-        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/11_1_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
+        self.babas_tfrecord_dir = None  # BABAS '/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
 
         # Feature extraction settings for classic kinect alg
         self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
         self.n_features = 400  # Tune this
         self.max_pixels_per_image = 800  # Tune this
         self.cte_depth = 2  # ??
+
