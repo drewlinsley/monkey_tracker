@@ -1,5 +1,8 @@
 """
 Utility for converting Kinect data to python numpys.
+Basically, the raw data from the Kinect is extracted as a series of .mat entities
+This script converts these into python-compatible npy arrays.
+On successful completion you'd see a new folder within the file_dir with the image arrays
 """
 
 import argparse
