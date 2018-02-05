@@ -159,6 +159,8 @@ def read_and_decode(
 
     # Take off first slice of the image
     image = tf.expand_dims(image[:, :, 0], axis=-1)
+    if augment_background is not 'none' and 'stretch_renders' in aux_losses:
+        image = image * 1.5
 
     if not working_on_kinect:
         print 'Normalizing and adjusting rendered data'
@@ -724,7 +726,7 @@ def inputs(
                 keep_dims=keep_dims,
                 background_multiplier=background_multiplier,
                 randomize_background=randomize_background,
-                working_on_kinect=working_on_kinect,
+                working_on_kinect=False,
                 augment_background='none',  # 'perlin',  # don't mess with these
                 background_folder=background_folder,
                 maya_joint_labels=maya_joint_labels,
@@ -761,7 +763,7 @@ def inputs(
                 keep_dims=keep_dims,
                 background_multiplier=background_multiplier,
                 randomize_background=randomize_background,
-                working_on_kinect=working_on_kinect,
+                working_on_kinect=False,
                 augment_background=augment_background,
                 background_folder=background_folder,
                 maya_joint_labels=maya_joint_labels,

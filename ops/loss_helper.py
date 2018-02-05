@@ -139,7 +139,7 @@ def get_aux_losses(
                     0),
                 tf.float32), axis=1)  # Mask out the kinect data (first column)
         else:
-            loss_mask = tf.ones(int(yhat.get_shape()[0]))
+            loss_mask = tf.expand_dims(tf.ones(int(yhat.get_shape()[0])), axis=-1)
         if aux_fun == 'resize':
             y = tf.image.resize_bilinear(
                 y, [int(x) for x in yhat.get_shape()[1:3]])

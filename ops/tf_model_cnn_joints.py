@@ -201,11 +201,15 @@ def train_and_eval(config, babas_data):
                 tf.summary.histogram("validation image mean", val_mu)
                 tf.summary.histogram("validation image std", tf.sqrt(val_var))
                 if 'label' in val_data_dict.keys():
-                    # val_score = tf.nn.l2_loss(
-                    #     val_model.output - val_data_dict['label'])
-                    val_score = tf.reduce_mean(
-                        tf_fun.l2_loss(
-                            val_model.output, val_data_dict['label']))
+                    # val_score = tf.reduce_mean(
+                    #     tf_fun.l2_loss(
+                    #         val_model.output, val_data_dict['label']))
+                    if config.keep_dims == 3:
+                        z_mask = tf.expand_dims(tf.tile([1, 1, 0], [int(val_data_dict['label'].get_shape()[-1]) // 3]), axis=0)
+                        z_mask = tf.cast(z_mask, tf.float32)
+                        val_model.output = val_model.output * z_mask
+                        val_data_dict['label'] = val_data_dict['label'] * z_mask 
+                    val_score = tf.reduce_mean(tf.nn.l2_loss(val_model.output - val_data_dict['label']))
                     tf.summary.scalar("validation mse", val_score)
                 if 'fc' in config.aux_losses:
                     tf.summary.image('FC val activations', val_model.final_fc)
@@ -250,18 +254,21 @@ def train_and_eval(config, babas_data):
                     y_key='label',
                     yhat_key='output')
                 loss_list += [label_loss]
+                loss_label += ['skeleton loss']
                 delta = model['output'] - train_data_dict['label']
                 proc_weights = np.asarray(
                     config.dim_weight)[None,:].repeat(
                         len(config.joint_names), axis=0).reshape(1, -1)
                 delta *= proc_weights
-                label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
-                    model=model,
-                    train_data_dict=train_data_dict,
-                    config=config,
-                    y_key='label',
-                    yhat_key='output')
-                loss_list += [label_loss]
+                # label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
+                #     model=model,
+                #     train_data_dict=train_data_dict,
+                #     config=config,
+                #     y_key='label',
+                #     yhat_key='output')
+                # loss_list += [label_loss]
+                loss_list += [tf.nn.l2_loss(
+                    model['output'] - train_data_dict['label'])]
             else:
                 loss_list += [tf.nn.l2_loss(
                     model['output'] - train_data_dict['label'])]
@@ -362,7 +369,7 @@ def train_and_eval(config, babas_data):
         'val_acc': val_score,
         'val_pred': val_model.output,
         'val_ims': val_data_dict['image'],
-        'val_true': val_data_dict['label']
+        'val_true': val_data_dict['label'],
     }
 
     # Create list of variables to save to numpys
