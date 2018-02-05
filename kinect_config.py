@@ -10,7 +10,6 @@ class kinectConfig():
         return hasattr(self, name)
 
     def __init__(self):
-        # self.selected_video = 'starbuck_pole_new_configuration_competition_depth_0'
         self.selected_video = 'Freely_Moving_Recording_depth_0'
         self.defaults = {
             'rotate_frames': -1,
@@ -126,8 +125,8 @@ class kinectConfig():
         container['kinect_project'] = 'Xef2Mat_Output_Trial02_np_conversion'
         container['kinect_file_ext'] = '.npy'
         container['kinect_video'] = 'video.mp4'
-        container['max_adjust'] = 0.5
-        container['min_adjust'] = 2
+        container['max_adjust'] = 1
+        container['min_adjust'] = 1
         return container
 
     def monkey_on_pole_3(self):
@@ -487,10 +486,10 @@ class kinectConfig():
         container['output_json_path'] = os.path.join(
             container['output_dir'],
             '201710091108-Freely_Moving_Recording_depth_1.json')
-        container['output_npy_path'] = container['data_dir']
+        container['output_npy_path'] = '/home/lakshmi'
+        container['frames_npy_name'] = 'freelymoving_0_v1.npy'
         container['kinect_file_ext'] = '.npy'
         return container
-
 
     def Freely_Moving_Recording_depth_1(self):
             """Depth frames. Pass through CNN."""
@@ -524,6 +523,7 @@ class kinectConfig():
             container['output_json_path'] = os.path.join(
                 '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
                 '201710091108-Freely_Moving_Recording_depth_1.json')
-            container['output_npy_path'] = '/media/data_cifs/lakshmi/monkey_tracker/'
+            container['output_npy_path'] = '/home/lakshmi'
+            container['frames_npy_name'] = 'freelymoving_1_v1.npy'
             container['kinect_file_ext'] = '.npy'
             return container

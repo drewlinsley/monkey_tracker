@@ -100,9 +100,7 @@ def save_mosaic(
 
 def save_3d_mosaic(
         ims,
-        pxs,
-        pys,
-        pzs,
+        yhats,
         ys,
         output=None,
         wspace=0.,
@@ -110,33 +108,43 @@ def save_3d_mosaic(
         save_fig=True):
     # Get a color for each yhat and a color for each ytrue
     colors, joints, num_joints = get_colors()
-    rc = np.ceil(np.sqrt(len(ims))).astype(int)
+    rc = np.ceil(len(ims)).astype(int)
     fig = plt.figure(figsize=(10, 10))
-    gs1 = gridspec.GridSpec(rc, rc)
+    gs1 = gridspec.GridSpec(rc, 2)
     lab_legend_artists = None
     joint_labels = joint_list.joint_data()
-    for idx, (im, ixs, iys, izs) in enumerate(zip(ims, pxs, pys, pzs)):
-        ax1 = plt.subplot(gs1[idx], projection='3d')
+    count = 0
+    for im, data in zip(ims, yhats):
+        data = data.reshape(-1, 3)
+        ixs, iys, izs = np.split(data, 3, axis=1)
+        ax1 = plt.subplot(gs1[count])
+        ax1.imshow(im)
         plt.axis('off')
         ax1.set_xticklabels([])
         ax1.set_yticklabels([])
-        # ax1.set_aspect('equal')
+        count += 1
+        ax1 = plt.subplot(gs1[count], projection='3d')
+        count += 1
+        plt.axis('off')
+        ax1.set_xticklabels([])
+        ax1.set_yticklabels([])
+        ax1.set_aspect('equal')
         # ax1.set_xlim([0, 240])
         # ax1.set_ylim([0, 320])
         # ax1.imshow(im, cmap='Greys_r')
-        if ys is not None:
-            lab_legend_artists = plot_coordinates(
-                ax1, ys[idx], colors, marker='.', markersize=1.5)
-            leg_title = 'Predicted | True'
-        else:
-            leg_title = 'Predicted'
+        # if ys is not None:
+        #     lab_legend_artists = plot_coordinates(
+        #         ax1, ys[idx], colors, marker='.', markersize=1.5)
+        #     leg_title = 'Predicted | True'
+        # else:
+        leg_title = 'Predicted'
         est_legend_artists = ax1.scatter(
                 ixs,
                 iys,
                 izs,
                 c=colors,
-                marker='o',
-                size=2)
+                marker='o')  # ,
+                # size=2)
         # Construct skeleton
         jxs, jys, jzs = [], [], []
         for jc in joint_labels.joint_connections:
@@ -144,8 +152,8 @@ def save_3d_mosaic(
             jxs += [ixs[jidx]]
             jys += [iys[jidx]]
             jzs += [izs[jidx]]
-        ax1.plot(ixs, iys, izs)
-        ax1.view_init(0, 20)
+        ax1.plot(np.concatenate(jxs), np.concatenate(jys), np.concatenate(jzs))
+        ax1.view_init(-70, -70)
     plt.subplots_adjust(top=1, left=0)
 
     # Legend
@@ -160,6 +168,7 @@ def save_3d_mosaic(
     #     title=leg_title,
     #     loc=1, frameon=False, numpoints=1, ncol=2,
     #     columnspacing=0, handlelength=0.25, markerscale=2)
+    import ipdb;ipdb.set_trace()
     if save_fig:
         plt.savefig(output)
     else:
@@ -196,7 +205,7 @@ def main(
         dmurphy_npy_dir='/media/data_cifs/monkey_tracking/batches/test',
         normalize=False,
         unnormalize=False,
-        max_ims=32,
+        max_ims=6,
         find_fit=True
         ):
 
@@ -240,20 +249,21 @@ def main(
             normalize_vec = val_data['normalize_vec']
             val_images = val_data['val_ims']
             val_yhats = val_data['val_pred']
-            if val_yhats[0].sum() > 100:
-                val_yhats = val_yhats / val_data['normalize_vec']
-            if val_yhats.shape[-1] == 69:
-                val_yhats *= np.asarray([[450, 500, 0]]).repeat(23, axis=0).reshape(-1)
-                intercept = np.asarray([[110, 100, 0]]).repeat(23, axis=0).reshape(-1)
-            else:
-                val_yhats *= np.asarray([[450, 500]]).repeat(23, axis=0).reshape(-1)
-                intercept = np.asarray([[110, 100]]).repeat(23, axis=0).reshape(-1)
-            val_yhats -= intercept
-            if 'val_true' in val_data.keys():
-                val_ytrues = val_data['val_true']
-                val_ytrues *= (val_data['normalize_vec'])  # * np.asarray([[1.7, 1.8]]).repeat(23, axis=0).reshape(-1))
-            else:
-                val_ytrues = val_yhats
+            # if val_yhats[0].sum() > 100:
+            #     val_yhats = val_yhats / val_data['normalize_vec']
+            # if val_yhats.shape[-1] == 69:
+            #     val_yhats *= np.asarray([[450, 500, 0]]).repeat(23, axis=0).reshape(-1)
+            #     intercept = np.asarray([[110, 100, 0]]).repeat(23, axis=0).reshape(-1)
+            # else:
+            #     val_yhats *= np.asarray([[450, 500]]).repeat(23, axis=0).reshape(-1)
+            #     intercept = np.asarray([[110, 100]]).repeat(23, axis=0).reshape(-1)
+            # val_yhats -= intercept
+            # if 'val_true' in val_data.keys():
+            #     val_ytrues = val_data['val_true']
+            #     val_ytrues *= (val_data['normalize_vec'])  # * np.asarray([[1.7, 1.8]]).repeat(23, axis=0).reshape(-1))
+            # else:
+            #     val_ytrues = val_yhats
+            val_ytrues = val_data['val_true']
             run_vals = True
         else:
             run_vals = False
@@ -285,10 +295,10 @@ def main(
         val_yhats_list = np.asarray(val_yhats_list)[rand_order][:max_ims]
         val_ytrues_list = np.asarray(val_ytrues_list)[rand_order][:max_ims]
 
-    save_mosaic(
-        ims=im_list,
-        yhats=yhat_list,
-        ys=ytrue_list,
+    save_3d_mosaic(
+        ims=val_images_list.squeeze(),
+        yhats=val_yhats_list,
+        ys=val_ytrues_list,
         output=output_file)
 
     if find_fit:

@@ -1,39 +1,73 @@
 import os
 from ops import babas_files_list
 
+
 class monkeyConfig(object):
-    def __init__(self): 
+    def __init__(self):
         '''Main config file for monkey tracking'''
 
         # Directory settings
-        self.base_dir = '/media/data_cifs/monkey_tracking/' #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.results_dir = os.path.join(self.base_dir, 'results', 'thisisatest') #'/media/data_cifs/monkey_tracking/batches/MovieRender'
-        self.image_dir = os.path.join(self.base_dir, 'batches', 'thisisatest') #os.path.join(self.base_dir, 'walk-all-png') 
-        self.depth_dir = os.path.join(self.image_dir, 'depth', 'true_depth')
-        self.label_dir = os.path.join(self.image_dir, 'labels', 'joint_coords')
-        self.npy_dir = os.path.join(self.base_dir, 'batches', 'test')  # Output for numpys
-        self.pixel_label_dir = os.path.join(self.image_dir, 'labels', 'pixel_joint_coords')  # 'joint_coords')
-        self.occlusion_dir = os.path.join(self.image_dir, 'labels', 'occlusions')  # Set to None if there's no occlusion data
-        self.im_label_dir = os.path.join(self.image_dir, 'labels', 'npyLabels')
-        self.depth_regex = '*[0-9].npy'
-        self.image_extension = '.npy'
-        self.label_extension = '.npy' 
-        self.occlusion_extension = '.npy'
-        self.model_output = os.path.join(self.results_dir, 'model_output') 
-        self.tfrecord_dir = os.path.join(self.image_dir, 'tfrecords_fast')
-        self.train_summaries = os.path.join(self.results_dir, 'summaries')
-        self.train_checkpoint = os.path.join(self.results_dir, 'checkpoints')
-        self.weight_npy_path = None  # os.path.join('/media/data_cifs/monkey_tracking/saved_weights/cnn_multiscale_high_res_low_res_skinny_pose_occlusion.npy')
-        use_checkpoint = True
+        self.base_dir = '/media/data_cifs/monkey_tracking/'
+
+        # Data directories
+        self.render_version = ''  # TODO: Move all renders into a v1 dir
+        self.depth_pattern = 'depth_*.png'
+        self.label_label = 'joints'
+        self.label_ext = 'txt'
+        self.depth_label = 'depth'
+        self.occlusion_label = None
+        self.occlusion_ext = None
+        self.part_label = None
+        self.part_ext = None
+        self.render_directory = os.path.join(
+            self.base_dir,
+            'monkey_renders',
+            self.render_version)
+
+        # TF records
+        self.tfrecord_id = 'lakshmi_first_pass'
+        self.tfrecord_dir = os.path.join(
+            self.base_dir,
+            'tfrecords')
+        self.use_train_as_val = False
+        self.train_tfrecords = 'train.tfrecords'
+        self.val_tfrecords = 'val.tfrecords'
+        self.cv_type = None  # only_train_data, leave_movie_out, None
+
+        # Training output
+        self.results_dir = os.path.join(
+            self.base_dir,
+            'results')
+        self.train_summaries = os.path.join(
+            self.base_dir,
+            'summaries')
+        self.train_checkpoint = os.path.join(
+            self.base_dir,
+            'checkpoints')
+
+        # Data loading settings
+        self.max_train_files = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
+        self.max_depth = 9000.
+        self.min_depth = 0.
+        self.background_constant = 10000.
+        self.resize = [424, 512, 1]  # CNN input (don't change) -- make sure this the same dimensions as the input
+        self.image_target_size = [424, 512, 1]  # Resize before tfrecords
+        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'  # Validate on babas data
+        self.babas_file_for_import = babas_files_list.data()
+        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/11_1_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
+
+        # Model initialization settings
+        self.weight_npy_path = None
+        use_checkpoint = False
         if use_checkpoint:
             self.model_name = 'skip_res_small_conv_deconv_2017_08_30_12_06_56'
-            # self.model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_2017_09_11_17_30_00'
             self.ckpt_file = None
             self.resume_from_checkpoint = os.path.join(
                 self.model_output,
                 self.model_name)
             if 'ckpt' in self.resume_from_checkpoint.split('/')[-1]:
-                self.saved_config = '%s.npy' % os.path.sep.join(self.resume_from_checkpoint.split('/')[:-1])
+                self.saved_config = '%s.npy' % os.path.sep.join(
+                    self.resume_from_checkpoint.split('/')[:-1])
             else:
                 self.saved_config = '%s.npy' % self.resume_from_checkpoint
             self.segmentation_model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_08_14_19_28_13'
@@ -44,41 +78,11 @@ class monkeyConfig(object):
         else:
             self.resume_from_checkpoint = None
 
-        # Tfrecords
-        self.use_train_as_val = False
-        self.new_tf_names = {'train': 'train.tfrecords', 'val': 'val.tfrecords'}  # {'train': 'train_2mill.tfrecords', 'val': 'val_2mill.tfrecords'}
-        self.train_tfrecords = 'train.tfrecords'  # Decouple the these vars so you can create new records while training #'train_2mill.tfrecords' 
-        self.val_tfrecords = 'val.tfrecords'  # 'val_2mill.tfrecords'        
-        self.max_train = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 1200.  # Maya: 1200. --note: prepare kinect with lower value than during testing (e.g. 900train/1800test). Divide each image by this value to normalize it to [0, 1]. This is the only normalization we will do. Must be a float!
-        self.min_depth = 200.  # Maya: 200. Use for normalizing the kinect data
-        self.background_constant = self.max_depth * 2  # HIGH_NUMBER
-        self.resize = [240, 320, 3]  # CNN input (don't change) -- make sure this the same dimensions as the input
-        self.image_input_size = [480, 640]  # Maya render output
-        self.image_target_size = [240, 320, 3]  # Resize before tfrecords
-        self.image_target_size_is_flipped = True  # A flip was introduced for labels: h/w -> x/y.
-        self.maya_conversion = 640.0 / 500.0  # pixels / maya units
-        self.sample = {'train': True, 'val': False}  # random sample of feats
-        self.use_image_labels = False  # if true, extract  color-labeled images
-        self.use_pixel_xy = True
-        self.background_multiplier = 1.01  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 1.
-        self.augment_background = 'background_perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
-        self.background_folder = 'backgrounds'
-
-        # Model settings
+        # Training settings
         self.epochs = 100
-        # self.model_type = 'skip_small_conv_deconv
         self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
         self.fine_tune_layers = None
         self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
-        self.data_augmentations = [
-            'left_right',
-            # 'up_down'
-        ]
-        self.convert_labels_to_pixel_space = True
-
-        # Key training settings
         self.train_batch = 32
         self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
@@ -89,25 +93,67 @@ class monkeyConfig(object):
         self.steps_before_validation = 1000
         self.loss_type = 'l1'
         self.grad_clip = False
-        self.dim_weight = [1, 1, 0.1]   # If including xyz dim-specific weighting
-
-        # Potentially outdated training settings
+        self.dim_weight = [1, 1, 0.5]   # If including xyz dim-specific weighting
+        # MIGHT BE DEPRECIATED:
         self.use_training_loss = False  # early stopping based on loss
         self.early_stopping_rounds = 100
         self.test_proportion = 0.1  # TEST_RATIO
         self.mean_file = 'mean_file'  # Double check: used in training?
+        self.selected_joints = None  # ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
+        self.num_dims = 3  # How many joint coordinate dimensions
+        self.keep_dims = 3  # How many joint coordinate dimensions to optimize
+        self.num_classes = 23 * self.num_dims
+        self.mask_occluded_joints = False
 
         # Auxillary training settings
         self.normalize_labels = True
-        self.aux_losses = ['occlusion']  # , 'deconv_label']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
-        self.calculate_per_joint_loss = 'skeleton and joint'  # False
-        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'
+        self.aux_losses = []  # , 'deconv_label']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
+        self.calculate_per_joint_loss = 'skeleton and joint'  # TODO CLEAN UP THIS API
         self.wd_type = 'l2'
         self.wd_penalty = 5e-7
-        self.wd_layers = ['high_feature_encoder_1x1_0', 'high_feature_encoder_1x1_1', 'high_feature_encoder_1x1_2']  # ['fc6', 'fc7', 'pre_fc8']
-        self.fc_lambda = 0.01
+        self.wd_layers = [
+            'high_feature_encoder_1x1_0',
+            'high_feature_encoder_1x1_1',
+            'high_feature_encoder_1x1_2'
+        ]
+        self.fc_lambda = 0.01  # TODO FIGURE THIS OUT
+
+        # Data augmentations
+        self.data_augmentations = [
+            'left_right',
+            # 'up_down'
+        ]
+        self.background_multiplier = 1.  # Where to place the imaginary wall in the renders w.r.t. the max depth value
+        self.randomize_background = 1.
+        self.augment_background = 'background_perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.background_folder = 'backgrounds'
 
         # Labels for the rendered images
+        self.lakshmi_order = [
+            100,
+            97,
+            57,
+            60,
+            79,
+            61,
+            80,
+            62,
+            81,
+            69,
+            91,
+            71,
+            93,
+            38,
+            19,
+            39,
+            20,
+            40,
+            21,
+            41,
+            22,
+            50,
+            31
+        ]
         self.labels = {
             'back_torso':      (99,  130,   0, 254),
             'background':      (0,     0,   0,   0),
@@ -138,27 +184,27 @@ class monkeyConfig(object):
 
         self.joint_order = [
             'lEye',
-            'neck', 
-            'abdomen', 
-            'lShldr', 
-            'rShldr', 
-            'lForeArm', 
-            'rForeArm', 
-            'lHand', 
-            'rHand', 
-            'lMid1', 
-            'rMid1', 
-            'lMid3', 
-            'rMid3', 
-            'lThigh', 
+            'neck',
+            'abdomen',
+            'lShldr',
+            'rShldr',
+            'lForeArm',
+            'rForeArm',
+            'lHand',
+            'rHand',
+            'lMid1',
+            'rMid1',
+            'lMid3',
+            'rMid3',
+            'lThigh',
             'rThigh',
-            'lShin', 
-            'rShin', 
-            'lFoot', 
-            'rFoot', 
-            'lToe', 
-            'rToe', 
-            'lToeMid3', 
+            'lShin',
+            'rShin',
+            'lFoot',
+            'rFoot',
+            'lToe',
+            'rToe',
+            'lToeMid3',
             'rToeMid3'
         ]
 
@@ -213,18 +259,3 @@ class monkeyConfig(object):
             'left toetips': 'left bart',
             'right toetips': 'right bart'
         }
-
-
-        self.selected_joints = None  # ['lThigh', 'lShin', 'lFoot', 'lToe', 'lToeMid3']  #  None  # ['lEye']  # Set to None to ignore
-        self.num_dims = 3
-        self.keep_dims = 3
-        self.num_classes = len(self.joint_order) * self.num_dims
-        self.mask_occluded_joints = False
-        self.babas_file_for_import = babas_files_list.data()
-        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/11_1_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
-
-        # Feature extraction settings for classic kinect alg
-        self.offset_nn = 30  # random +/- x,y pixel offset range # Tune this
-        self.n_features = 400  # Tune this
-        self.max_pixels_per_image = 800  # Tune this
-        self.cte_depth = 2  # ??

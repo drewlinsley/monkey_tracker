@@ -41,7 +41,7 @@ def main(
         w_scale=1.125,
         h_scale=1.125,
         debug=True,
-        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/11_1_17_out_of_bag_val',
+        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1',
         fix_image_size=True,
         convert_hw_to_xy=False):
     """Main function for converting BABAS annotated frames to tf records."""
@@ -68,9 +68,13 @@ def main(
                     occlusion_folder,
                     debug_folder]]
             # Images
+            if 'frames_npy_name' not in it_kinect_config:
+                frame_npy = 'frames.npy'
+            else:
+                frame_npy = it_kinect_config['frames_npy_name']
             ims = np.load(
                 os.path.join(
-                    it_kinect_config['output_npy_path'], 'frames.npy'))
+                    it_kinect_config['output_npy_path'], frame_npy))
             ims = ims[data['frame_range']]
 
             # Throw out specified frames

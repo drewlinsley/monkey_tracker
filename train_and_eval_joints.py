@@ -8,7 +8,7 @@ def main(extract_features=False, which_joint=None, babas_data=False):
     config = monkeyConfig()
 
     # Encodes files into tfrecords
-    if extract_features == True:
+    if extract_features:
         print '-'*60
         print 'Creating new tfrecords file'
         print '-'*60
