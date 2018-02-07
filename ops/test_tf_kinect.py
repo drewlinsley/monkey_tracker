@@ -850,6 +850,7 @@ def overlay_joints_frames(
     colors, joints, num_joints = monkey_mosaic.get_colors()
     files = []
     frames = joint_dict['im']
+    labels = joint_dict.get('labels', None)
     h, w = frames[0].shape
     joint_predictions = joint_dict[target_key]
     for idx, (fr, jp) in tqdm(
@@ -871,7 +872,15 @@ def overlay_joints_frames(
         else:
             im = fr
         ax.imshow(im, cmap='Greys_r')
-        [ax.scatter(xy[0], xy[1], color=c, s=1) for xy, c in zip(xy_coors, colors)]
+        if labels is not None:
+            # Plot the labels
+            im_label = labels[idx]
+            [ax.text(xy[0], xy[1], lab, color=c) for xy, c, lab in zip(
+                xy_coors, colors, im_label)]
+        else:
+            # Plot only the scatter
+            [ax.scatter(xy[0], xy[1], color=c, s=1) for xy, c in zip(
+                xy_coors, colors)]
         # monkey_mosaic.plot_coordinates(ax, jp, colors)
         out_name = os.path.join(output_folder, '%s.png' % idx)
         plt.savefig(out_name)

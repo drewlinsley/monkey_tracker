@@ -260,16 +260,22 @@ def process_data(config):
     Eventually move this into the tensorflow graph and handle
     depth files/ label files in batches. Also directly add
     images into a tfrecord instead of into a numpy array."""
-    depth_files = get_files(config.render_directory, config.depth_pattern)
-    assert len(depth_files) > 0, 'No files found.'
-    if config.label_label is not None:
-        label_files = relabel_files(
-            files=depth_files,
-            new_suffix=config.label_label,
-            new_extension=config.label_ext,
-            separator=config.depth_label)
+    if config.render_files is None:
+        depth_files = get_files(config.render_directory, config.depth_pattern)
     else:
-        label_files = None
+        depth_files = config.render_files
+    assert len(depth_files) > 0, 'No files found.'
+    if config.label_files is None:
+        if config.label_label is not None:
+            label_files = relabel_files(
+                files=depth_files,
+                new_suffix=config.label_label,
+                new_extension=config.label_ext,
+                separator=config.depth_label)
+        else:
+            label_files = None
+    else:
+        label_files = config.label_files
     if config.occlusion_label is not None:
         occlusion_files = relabel_files(
             files=depth_files,

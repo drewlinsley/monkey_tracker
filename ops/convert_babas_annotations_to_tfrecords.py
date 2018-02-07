@@ -39,10 +39,10 @@ def main(
         w_pad=-22.,  # -20.,
         h_pad=-10.,
         w_scale=1.125,
-        h_scale=1.125,
+        h_scale=1.1,
         debug=True,
         tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1',
-        fix_image_size=True,
+        fix_image_size=False,
         convert_hw_to_xy=False):
     """Main function for converting BABAS annotated frames to tf records."""
     config = monkeyConfig()
@@ -110,6 +110,7 @@ def main(
             # Annotations
             joint_dict_list = []
             debug_annotations = []
+            coor_labs = []
             for idx, (im, it_annotation) in tqdm(
                     enumerate(zip(ims, data['annotations'])),
                     total=len(ims),
@@ -119,18 +120,21 @@ def main(
                     joint_dict = {}
                     coors = np.zeros(
                         (len(config.joint_names), config.num_dims))
+                    im_coor_labs = []
                     for il, target_joint in enumerate(config.joint_names):
                         for k, v in it_annotation.iteritems():
                             if k == target_joint:
-                                coors[il, 0] = (v['x'] + w_pad) * w_scale  # (v['x'] * w_scale) + w_pad
-                                coors[il, 1] = (v['y'] + h_pad) * h_scale  # (v['y'] * h_scale) + h_pad
+                                coors[il, 0] = (v['x'] + w_pad) * w_scale * (512. / 320.)
+                                coors[il, 1] = (v['y'] + h_pad) * h_scale * (424. / 240.)
                                 coors[il, 2] = im[0, 0]  # im[coors[il, 1], coors[il, 2]]
                                 it_joint_list += [k]
+                                im_coor_labs += [k]
                     annotations += [coors]
                     debug_annotations += [coors]
                     joint_dict = {
                         k: v[:2] for k, v in zip(it_joint_list, coors)}
                     joint_dict_list += [joint_dict]
+                    coor_labs += [im_coor_labs]
                 else:
                     print 'Skipping annotation frame %s.' % idx
 
@@ -143,7 +147,8 @@ def main(
                 tf_fun.make_dir(debug_im_dir)
                 joint_dict = {
                     'yhat': debug_annotations,
-                    'im': ims
+                    'im': ims,
+                    'labels': coor_labs
                 }
                 overlay_joints_frames(
                     joint_dict=joint_dict,
@@ -189,11 +194,10 @@ def main(
             std=std)
 
         # Set data folders in config
-        config.depth_dir = im_folder
-        config.label_dir = label_folder
-        config.pixel_label_dir = label_folder
+        config.render_files = [os.path.join(label_folder, f) for f in fnames]
+        config.label_files = [os.path.join(label_folder, f) for f in fnames]
+        config.part_label = label_folder
         config.occlusion_dir = occlusion_folder
-        config.im_label_dir = im_folder
         config.tfrecord_dir = tfrecord_dir
         config.special_validation = 'leave_movies_out'
         config.cv_inds = {

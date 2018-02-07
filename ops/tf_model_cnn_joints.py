@@ -40,7 +40,12 @@ def train_and_eval(config, babas_data):
             print 'Relying on default config file.'
 
     if babas_data:  # Shitty naive training method
-        config.tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/tfrecords_from_babas'
+        config.tfrecord_dir = os.path.join(
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'tfrecords_from_babas')
         config.babas_tfrecord_dir = config.tfrecord_dir
         config.steps_before_validation = 20
         config.epochs = 2000
@@ -48,7 +53,6 @@ def train_and_eval(config, babas_data):
         config.augment_background = 'constant'
 
     # Import your model
-    print 'Model directory: %s' % config.model_output
     print 'Running model: %s' % config.model_type
     model_file = import_cnn(config.model_type)
 
@@ -60,11 +64,11 @@ def train_and_eval(config, babas_data):
     if config.selected_joints is not None:
         dt_dataset = '_%s' % (config.selected_joints) + dt_dataset
     config.train_checkpoint = os.path.join(
-        config.model_output, dt_dataset)  # timestamp this run
+        config.results_dir, dt_dataset)  # timestamp this run
     config.summary_dir = os.path.join(
         config.train_summaries, dt_dataset)
-    results_dir = os.path.join(config.npy_dir, dt_dataset)
-    print 'Saving Dmurphy\'s online updates to: %s' % results_dir
+    results_dir = os.path.join(config.results_dir, dt_dataset)
+    print 'Saving online updates to: %s' % results_dir
     dir_list = [config.train_checkpoint, config.summary_dir, results_dir]
     [tf_fun.make_dir(d) for d in dir_list]
 
@@ -106,8 +110,7 @@ def train_and_eval(config, babas_data):
             label_shape=config.num_classes,
             num_epochs=config.epochs,
             image_target_size=config.image_target_size,
-            image_input_size=config.image_input_size,
-            maya_conversion=config.maya_conversion,
+            image_input_size=config.image_target_size,
             max_value=config.max_depth,
             normalize_labels=config.normalize_labels,
             aux_losses=config.aux_losses,
@@ -121,11 +124,8 @@ def train_and_eval(config, babas_data):
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
-            babas_tfrecord_dir=train_babas_tfrecord_dir,
-            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space,
-            image_target_size_is_flipped=config.image_target_size_is_flipped)
+            babas_tfrecord_dir=train_babas_tfrecord_dir)
         train_data_dict['deconv_label_size'] = len(config.labels)
-
         val_data_dict = inputs(
             tfrecord_file=validation_data,
             batch_size=config.validation_batch,
@@ -136,8 +136,7 @@ def train_and_eval(config, babas_data):
             label_shape=config.num_classes,
             num_epochs=config.epochs,
             image_target_size=config.image_target_size,
-            image_input_size=config.image_input_size,
-            maya_conversion=config.maya_conversion,
+            image_input_size=config.image_target_size,
             max_value=config.max_depth,
             normalize_labels=config.normalize_labels,
             aux_losses=config.aux_losses,
@@ -151,9 +150,7 @@ def train_and_eval(config, babas_data):
             background_folder=config.background_folder,
             randomize_background=None,
             maya_joint_labels=config.labels,
-            babas_tfrecord_dir=val_babas_tfrecord_dir,
-            convert_labels_to_pixel_space=config.convert_labels_to_pixel_space,
-            image_target_size_is_flipped=config.image_target_size_is_flipped)
+            babas_tfrecord_dir=val_babas_tfrecord_dir)
         val_data_dict['deconv_label_size'] = len(config.labels)
 
         # Check output_shape
@@ -410,6 +407,7 @@ def train_and_eval(config, babas_data):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
+            import ipdb;ipdb.set_trace()
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(

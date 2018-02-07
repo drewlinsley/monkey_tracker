@@ -10,7 +10,11 @@ class kinectConfig():
         return hasattr(self, name)
 
     def __init__(self):
-        self.selected_video = 'Freely_Moving_Recording_depth_0'
+        self.selected_video = [
+            'monkey_on_pole_3',
+            'monkey_in_cage_1',
+            'starbuck_pole_new_configuration_competition_depth_0'
+        ]
         self.defaults = {
             'rotate_frames': -1,
             'use_tfrecords': True,  # Package into tfrecords
@@ -133,23 +137,31 @@ class kinectConfig():
         container = self.defaults
         container['start_frame'] = 150  # Keep
         container['end_frame'] = 35  # Keep
-        container['time_threshold'] = 80
         container['find_bb'] = False  # Do not use when outputting moies
-        container['low_threshold'] = 1400  # Keep
+        container['low_threshold'] = None  # Keep
         container['mask_with_model'] = False
-        container['high_threshold'] = 3350  # Keep
-        container['cnn_threshold'] = 50  # Keep
+        container['high_threshold'] = None  # Keep
         container['crop_and_pad'] = False
-        container['run_gmm'] = False
-        container['output_dir'] = '/home/drew/Desktop/'
+        container['output_dir'] = os.path.join(
+            '%shome' % os.path.sep,
+            'drew',
+            'Desktop')
         container['data_dir'] = os.path.join(
             container['output_dir'],
             'predicted_monkey_on_pole_3')
         container['kinect_output_name'] = os.path.join(
-            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'processed_videos',
             'monkey_on_pole_3.mp4')
         container['output_json_path'] = os.path.join(
-            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'processed_jsons',
             'monkey_on_pole_3.json')
         container['predicted_output_name'] = os.path.join(
             container['data_dir'],
@@ -175,10 +187,6 @@ class kinectConfig():
         container['min_adjust'] = 1
         container['kinect_max_adjust'] = 1
         container['kinect_min_adjust'] = 1
-        container['background_mask'] = {
-            'left': 140,
-            'right': 0
-        }        
         return container
 
     def monkey_in_cage_1(self):
@@ -187,25 +195,23 @@ class kinectConfig():
         container['crop'] = 'static_and_crop'  # static or box
         container['start_frame'] = 100
         container['end_frame'] = 35
-        container['h0'] = 180
-        container['w0'] = 110
-        container['h1'] = 325
-        container['w1'] = 420
-        container['cnn_threshold'] = 50  # Keep
-        container['crop_and_pad'] = False
-        container['mask_with_model'] = False
-        container['run_gmm'] = False
-        container['time_threshold'] = 95
-        container['crop_and_pad'] = False
         container['output_dir'] = '/home/drew/Desktop/'
         container['data_dir'] = os.path.join(
             container['output_dir'],
             'predicted_monkey_in_cage_1')
         container['kinect_output_name'] = os.path.join(
-            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'processed_videos',
             'monkey_in_cage_1.mp4')
         container['output_json_path'] = os.path.join(
-            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'processed_jsons',
             'monkey_in_cage_1.json')
         container['predicted_output_name'] = os.path.join(
             container['data_dir'],
@@ -229,10 +235,6 @@ class kinectConfig():
         container['kinect_project'] = 'DepthFrame_npys'
         container['kinect_file_ext'] = '.npy'
         container['kinect_video'] = 'video.mp4'
-        container['background_mask'] = {
-            'left': 140,
-            'right': 0
-        }        
         return container
 
     def monkey_in_cage_2(self):
@@ -290,7 +292,6 @@ class kinectConfig():
         }
         return container
 
-
     # New video extractions
     def xef2mat_output(self):
         container = self.defaults
@@ -343,7 +344,10 @@ class kinectConfig():
             'extracted_kinect_depth',
             'starbuck_pole_new_configuration_competition_depth_0')
         container['kinect_project'] = 'DepthFrame_npys'
-        container['output_dir'] = '/home/drew/Desktop/'
+        container['output_dir'] = os.path.join(
+            '%shome' % os.path.sep,
+            'drew',
+            'Desktop')
         container['data_dir'] = os.path.join(
             container['output_dir'],
             container['kinect_project'])
@@ -359,11 +363,20 @@ class kinectConfig():
         container['tfrecord_name'] = os.path.join(
             container['data_dir'],
             'starbuck_pole_new_configuration_competition_depth_0.tfrecords')
+
         container['kinect_output_name'] = os.path.join(
-            '/media/data_cifs/monkey_tracking/data_for_babas/processed_videos',
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'processed_videos',
             'starbuck_pole_new_configuration_competition_depth_0.mp4')
         container['output_json_path'] = os.path.join(
-            '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'processed_jsons',
             'starbuck_pole_new_configuration_competition_depth_0.json')
         container['output_npy_path'] = container['data_dir']
         container['kinect_file_ext'] = '.npy'
@@ -464,7 +477,11 @@ class kinectConfig():
             'extracted_kinect_depth',
             '201710091108-Freely_Moving_Recording_depth_1')
         container['kinect_project'] = 'DepthFrame_npys'
-        container['output_dir'] = '/home/drew/Desktop/lakshmi_files'
+        container['output_dir'] = os.path.join(
+            '%shome' % os.path.sep,
+            'drew',
+            'Desktop',
+            'lakshmi_files')
         container['data_dir'] = os.path.join(
             container['output_dir'],
             container['kinect_project'])
@@ -486,44 +503,55 @@ class kinectConfig():
         container['output_json_path'] = os.path.join(
             container['output_dir'],
             '201710091108-Freely_Moving_Recording_depth_1.json')
-        container['output_npy_path'] = '/home/lakshmi'
+        container['output_npy_path'] = os.path.join(
+            '%shome' % os.path.sep,
+            'lakshmi')
         container['frames_npy_name'] = 'freelymoving_0_v1.npy'
         container['kinect_file_ext'] = '.npy'
         return container
 
     def Freely_Moving_Recording_depth_1(self):
-            """Depth frames. Pass through CNN."""
-            container = self.defaults
-            container['output_joint_dict'] = True
-            container['kinect_directory'] = os.path.join(
-                container['base_dir'],
-                'extracted_kinect_depth',
-                '201710091108-Freely_Moving_Recording_depth_1')
-            container['kinect_project'] = 'DepthFrame_npys'
-            container['output_dir'] = '/home/lakshmi/'
-            container['data_dir'] = os.path.join(
-                container['output_dir'],
-                container['kinect_project'])
-            container['prediction_image_folder'] = os.path.join(
-                container['data_dir'],
-                'prediction_frames')
-            container['gt_image_folder'] = os.path.join(
-                container['data_dir'],
-                'gt_frames')
-            container['predicted_output_name'] = os.path.join(
-                container['data_dir'],
-                'Freely_Moving_Recording_depth_201710091108_1.mp4')
-            container['tfrecord_name'] = os.path.join(
-                container['data_dir'],
-                '201710091108-Freely_Moving_Recording_depth_1.tfrecords')
-            container['kinect_output_name'] = os.path.join(
-                container['output_dir'],
-                'kinect',
-                '201710091108-Freely_Moving_Recording_depth_1.mp4')
-            container['output_json_path'] = os.path.join(
-                '/media/data_cifs/monkey_tracking/data_for_babas/processed_jsons',
-                '201710091108-Freely_Moving_Recording_depth_1.json')
-            container['output_npy_path'] = '/home/lakshmi'
-            container['frames_npy_name'] = 'freelymoving_1_v1.npy'
-            container['kinect_file_ext'] = '.npy'
-            return container
+        """Depth frames. Pass through CNN."""
+        container = self.defaults
+        container['output_joint_dict'] = True
+        container['kinect_directory'] = os.path.join(
+            container['base_dir'],
+            'extracted_kinect_depth',
+            '201710091108-Freely_Moving_Recording_depth_1')
+        container['kinect_project'] = 'DepthFrame_npys'
+        container['output_dir'] = os.path.join(
+            '%shome' % os.path.sep,
+            'lakshmi')
+        container['data_dir'] = os.path.join(
+            container['output_dir'],
+            container['kinect_project'])
+        container['prediction_image_folder'] = os.path.join(
+            container['data_dir'],
+            'prediction_frames')
+        container['gt_image_folder'] = os.path.join(
+            container['data_dir'],
+            'gt_frames')
+        container['predicted_output_name'] = os.path.join(
+            container['data_dir'],
+            'Freely_Moving_Recording_depth_201710091108_1.mp4')
+        container['tfrecord_name'] = os.path.join(
+            container['data_dir'],
+            '201710091108-Freely_Moving_Recording_depth_1.tfrecords')
+        container['kinect_output_name'] = os.path.join(
+            container['output_dir'],
+            'kinect',
+            '201710091108-Freely_Moving_Recording_depth_1.mp4')
+
+        container['output_json_path'] = os.path.join(
+            '%smedia' % os.path.sep,
+            'data_cifs',
+            'monkey_tracking',
+            'data_for_babas',
+            'processed_jsons',
+            '201710091108-Freely_Moving_Recording_depth_1.json')
+        container['output_npy_path'] = os.path.join(
+            '%shome' % os.path.sep,
+            'lakshmi')
+        container['frames_npy_name'] = 'freelymoving_1_v1.npy'
+        container['kinect_file_ext'] = '.npy'
+        return container

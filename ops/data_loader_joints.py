@@ -190,7 +190,8 @@ def read_and_decode(
             im_size=im_size,
             train=train,
             labels=label,
-            max_value=max_value)
+            max_value=max_value,
+            num_dims=num_dims)
 
         if augment_background != 'none':
             background_mask = tf.cast(tf.equal(image, 1), tf.float32)
@@ -590,7 +591,8 @@ def augment_data(
         im_size,
         train,
         max_value=None,
-        labels=None):
+        labels=None,
+        num_dims=3):
     if max_value is None:
         max_value = 1200.
     if train is not None:
@@ -602,7 +604,7 @@ def augment_data(
                 lambda: tf.image.flip_left_right(image),
                 lambda: image)
             if labels is not None:
-                tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
+                tile_size = [int(labels.get_shape()[0]) / num_dims]
                 lab_adjust = tf.cast(
                     tf.tile([im_size[1]] + [0, 0], tile_size), tf.float32)
                 labels = control_flow_ops.cond(
@@ -617,7 +619,7 @@ def augment_data(
                 lambda: tf.image.flip_up_down(image),
                 lambda: image)
             if labels is not None:
-                tile_size = [int(labels.get_shape()[0]) / im_size[-1]]
+                tile_size = [int(labels.get_shape()[0]) / num_dims]
                 lab_adjust = tf.cast(
                     tf.tile([0] + [im_size[0]] + [0], tile_size), tf.float32)
                 labels = control_flow_ops.cond(
@@ -674,7 +676,7 @@ def inputs(
         label_shape,
         image_target_size,
         image_input_size,
-        maya_conversion,
+        maya_conversion=None,
         train=None,
         max_value=None,
         num_epochs=None,

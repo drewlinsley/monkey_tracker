@@ -30,8 +30,8 @@ class monkeyConfig(object):
             self.base_dir,
             'tfrecords')
         self.use_train_as_val = False
-        self.train_tfrecords = 'train.tfrecords'
-        self.val_tfrecords = 'val.tfrecords'
+        self.train_tfrecords = '%s_train.tfrecords' % self.tfrecord_id
+        self.val_tfrecords = '%s_val.tfrecords' % self.tfrecord_id
         self.cv_type = None  # only_train_data, leave_movie_out, None
 
         # Training output
@@ -50,11 +50,11 @@ class monkeyConfig(object):
         self.max_depth = 9000.
         self.min_depth = 0.
         self.background_constant = 10000.
-        self.resize = [424, 512, 1]  # CNN input (don't change) -- make sure this the same dimensions as the input
         self.image_target_size = [424, 512, 1]  # Resize before tfrecords
-        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/10_10_17_out_of_bag_val/val.tfrecords'  # Validate on babas data
+        self.resize = [424, 512, 1]  # CNN input (don't change) -- make sure this the same dimensions as the input
+        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1/lakshmi_first_pass_train.tfrecords'  # Validate on babas data
         self.babas_file_for_import = babas_files_list.data()
-        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/11_1_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
+        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
 
         # Model initialization settings
         self.weight_npy_path = None
@@ -63,18 +63,13 @@ class monkeyConfig(object):
             self.model_name = 'skip_res_small_conv_deconv_2017_08_30_12_06_56'
             self.ckpt_file = None
             self.resume_from_checkpoint = os.path.join(
-                self.model_output,
+                self.results_dir,
                 self.model_name)
             if 'ckpt' in self.resume_from_checkpoint.split('/')[-1]:
                 self.saved_config = '%s.npy' % os.path.sep.join(
                     self.resume_from_checkpoint.split('/')[:-1])
             else:
                 self.saved_config = '%s.npy' % self.resume_from_checkpoint
-            self.segmentation_model_name = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_08_14_19_28_13'
-            self.segmentation_resume_from_checkpoint = os.path.join(
-                self.model_output,
-                self.segmentation_model_name)
-            self.segmentation_saved_config = '%s.npy' % self.resume_from_checkpoint
         else:
             self.resume_from_checkpoint = None
 
@@ -125,7 +120,7 @@ class monkeyConfig(object):
         ]
         self.background_multiplier = 1.  # Where to place the imaginary wall in the renders w.r.t. the max depth value
         self.randomize_background = 1.
-        self.augment_background = 'background_perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.augment_background = 'perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Labels for the rendered images
