@@ -39,6 +39,8 @@ def create_model(
                 rgb=res_images,
                 target_variables=data_dict,
                 batchnorm=config.batch_norm)
+        feature_shape = [int(x) for x in main_features.get_shape()[1:3]]
+        aux_features = tf.image.resize_images(aux_features, feature_shape)
         main_features = tf.concat([main_features, aux_features], axis=-1)
 
     # Include decision model here
