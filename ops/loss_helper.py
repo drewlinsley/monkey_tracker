@@ -31,7 +31,7 @@ def pearson_dist(x, y, axis=None, eps=1e-8, tau=1e-4):
     x_std = tf.sqrt(tf.div(tf.reduce_sum(tf.square(x - x_mean), -1), count))
     y_std = tf.sqrt(tf.div(tf.reduce_sum(tf.square(y - y_mean), -1), count))
     corr = cov/(tf.multiply(x_std, y_std) + tau)
-    return 1. - corr
+    return tf.reduce_mean(1. - corr)
 
 
 def potential_aux_losses():
