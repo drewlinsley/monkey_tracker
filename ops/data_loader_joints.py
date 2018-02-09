@@ -173,6 +173,8 @@ def read_and_decode(
                 minval=0,
                 maxval=randomize_background,
                 dtype=tf.float32)
+        else:
+            randomize_background = 1.
 
         background_mask = tf.cast(tf.equal(image, 0), tf.float32)
         background_constant = (background_multiplier * max_value)
@@ -503,7 +505,6 @@ def read_and_decode(
     if 'domain_adaptation_flip' in aux_losses:
         output_data['domain_adaptation_flip'] = tf.one_hot(
             tf.constant(domain_label), 2)
-
     return output_data
 
 
@@ -697,7 +698,8 @@ def inputs(
         maya_joint_labels=None,
         babas_tfrecord_dir=None,
         convert_labels_to_pixel_space=False,
-        image_target_size_is_flipped=False):
+        image_target_size_is_flipped=False,
+        mixing_dict=None):
     with tf.name_scope('input'):
         data_to_pack = []
         if babas_tfrecord_dir is not None:
@@ -776,6 +778,14 @@ def inputs(
             output_keys = output_data.keys()
 
         if domain_label is not None:
+            # Determine mixing from mixing_dict
+            if mixing_dict is not None:
+                new_packed_data = []
+                for k, v in mixing_dict.iteritems():
+                    for idx in range(v):
+                        new_packed_data += [data_to_pack[k]]
+                data_to_pack = new_packed_data
+
             # Need to mix real/synth tf records.
             packed_data = {}
             for k in output_keys:
@@ -805,7 +815,30 @@ def inputs(
             check_list=aux_losses,
             keys=keys,
             var_list=var_list)
-
+        # tensor_input = []
+        # for idx in range(len(data_to_pack)):
+        #     if shuffle:
+        #         tensor_input += tf.train.shuffle_batch(
+        #             expand_vars([v[idx] for v in var_list], expand=None),
+        #             batch_size=batch_size,
+        #             num_threads=num_threads,
+        #             capacity=1000 + 3 * batch_size,
+        #             enqueue_many=True,
+        #             min_after_dequeue=1000)
+        #     else:
+        #         tensor_input += tf.train.batch(
+        #             expand_vars([v[idx] for v in var_list], expand=None),
+        #             batch_size=batch_size,
+        #             num_threads=num_threads,
+        #             capacity=1000 + 3 * batch_size,
+        #             enqueue_many=True,
+        #             min_after_dequeue=1000)
+        # reshaped_tarray = np.asarray(tensor_input).reshape(-1, len(var_list))
+        # reshaped_tarray = [
+        #     tf.concat(
+        #         reshaped_tarray[:, idx].tolist(),
+        #         axis=0) for idx in range(len(var_list))]
+        # return {k: v for k, v in zip(keys, reshaped_tarray)}
         if shuffle:
             var_list = tf.train.shuffle_batch(
                 expand_vars(var_list, expand=domain_label),
@@ -822,4 +855,3 @@ def inputs(
                 capacity=100 * batch_size,
                 enqueue_many=True)
         return {k: v for k, v in zip(keys, var_list)}
-

@@ -34,6 +34,7 @@ def save_mosaic(
     fig = plt.figure(figsize=(10, 10))
     gs1 = gridspec.GridSpec(rc, rc)
     lab_legend_artists = None
+    import ipdb;ipdb.set_trace()
     for idx, (im, yhat) in enumerate(zip(ims, yhats)):
         # if conv_xy_to_hw:
         #     yhat = yhat.reshape(-1, 2)[:, ::-1].reshape(1, -1)
@@ -284,7 +285,7 @@ def main(
         val_images_list = np.asarray(val_images_list)[rand_order][:max_ims]
         val_yhats_list = np.asarray(val_yhats_list)[rand_order][:max_ims]
         val_ytrues_list = np.asarray(val_ytrues_list)[rand_order][:max_ims]
-
+    import ipdb;ipdb.set_trace()
     save_mosaic(
         ims=im_list,
         yhats=yhat_list,
@@ -320,7 +321,7 @@ if __name__ == '__main__':
         "--dir",
         dest="monkey_date",
         type=str,
-        default='small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_reduced_2017_09_01_09_37_54', # 2017_06_18_11_42_34
+        default='small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr_2018_02_09_13_47_33', # 2017_06_18_11_42_34
         help='Date of model directory.')
 
     args = parser.parse_args()

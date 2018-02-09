@@ -185,6 +185,8 @@ def return_optimizer(optimizer):
     """Optimizer interpreter."""
     if optimizer == 'adam':
         optimizer = tf.train.AdamOptimizer
+    elif optimizer == 'nadam':
+        optimizer = tf.contrib.opt.NadamOptimizer
     elif optimizer == 'sgd':
         optimizer = tf.train.GradientDescentOptimizer
     elif optimizer == 'momentum':

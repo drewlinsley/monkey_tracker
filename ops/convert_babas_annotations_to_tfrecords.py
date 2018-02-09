@@ -41,7 +41,7 @@ def main(
         w_scale=1.125,
         h_scale=1.1,
         debug=True,
-        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1',
+        tfrecord_dir='/media/data_cifs/monkey_tracking/data_for_babas/2_8_17_out_of_bag_val',
         fix_image_size=False,
         convert_hw_to_xy=False):
     """Main function for converting BABAS annotated frames to tf records."""
@@ -194,12 +194,12 @@ def main(
             std=std)
 
         # Set data folders in config
-        config.render_files = [os.path.join(label_folder, f) for f in fnames]
+        config.render_files = [os.path.join(im_folder, f) for f in fnames]
         config.label_files = [os.path.join(label_folder, f) for f in fnames]
-        config.part_label = label_folder
-        config.occlusion_dir = occlusion_folder
+        config.part_label = None
+        config.occlusion_dir = None
         config.tfrecord_dir = tfrecord_dir
-        config.special_validation = 'leave_movies_out'
+        config.cv_type = 'leave_movie_out'
         config.cv_inds = {
             'train': np.asarray(fnames)[train_ind],
             'val': np.asarray(fnames)[val_ind]

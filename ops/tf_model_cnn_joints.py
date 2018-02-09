@@ -13,6 +13,45 @@ from ops import loss_helper
 from ops.utils import get_dt, import_cnn, save_training_data
 
 
+def create_model(
+        feature_model_file,
+        config,
+        data_dict,
+        decision_model_file):
+    """Model creation wrapper."""
+    print 'Creating feature model:'
+    feature_model = feature_model_file.model_struct(
+        weight_npy_path=config.model_weight_path,
+        model_optimizations=config.model_optimizations)
+    main_features = feature_model.build(
+        rgb=data_dict['image'],
+        target_variables=data_dict,
+        batchnorm=config.batch_norm)
+    if config.model_optimizations['multiscale']:
+        with tf.variable_scope('cnn', reuse=tf.AUTO_REUSE):
+            lowres_shape = [
+                int(x) / 2
+                for x in data_dict['image'].get_shape()][:2]
+            res_images = tf.image.resize_images(
+                data_dict['image'],
+                lowres_shape)
+            aux_features = feature_model.build(
+                rgb=res_images,
+                target_variables=data_dict,
+                batchnorm=config.batch_norm)
+        main_features = tf.concat([main_features, aux_features], axis=-1)
+
+    # Include decision model here
+    decision_model = decision_model_file.model_struct(
+        weight_npy_path=config.model_weight_path,
+        model_optimizations=config.model_optimizations)
+    readout = decision_model.build(
+        features=main_features,
+        target_variables=data_dict,
+        batchnorm=config.batch_norm)
+    return readout, decision_model, main_features, feature_model
+
+
 def train_and_eval(config, babas_data):
     """Train and evaluate the model."""
 
@@ -53,14 +92,16 @@ def train_and_eval(config, babas_data):
         config.augment_background = 'constant'
 
     # Import your model
-    print 'Running model: %s' % config.model_type
-    model_file = import_cnn(config.model_type)
+    print 'Running feature model: %s' % config.feature_model_type
+    print 'Running decision model: %s' % config.decision_model_type
+    feature_model_file = import_cnn(config.feature_model_type)
+    decision_model_file = import_cnn(config.decision_model_type)
 
     # Prepare model training
     dt_stamp = re.split(
         '\.', str(datetime.now()))[0].\
         replace(' ', '_').replace(':', '_').replace('-', '_')
-    dt_dataset = '%s_%s' % (config.model_type, dt_stamp)
+    dt_dataset = '%s_%s' % (config.feature_model_type, dt_stamp)
     if config.selected_joints is not None:
         dt_dataset = '_%s' % (config.selected_joints) + dt_dataset
     config.train_checkpoint = os.path.join(
@@ -124,7 +165,8 @@ def train_and_eval(config, babas_data):
             background_folder=config.background_folder,
             randomize_background=config.randomize_background,
             maya_joint_labels=config.labels,
-            babas_tfrecord_dir=train_babas_tfrecord_dir)
+            babas_tfrecord_dir=train_babas_tfrecord_dir,
+            mixing_dict=config.mixing_dict)
         train_data_dict['deconv_label_size'] = len(config.labels)
         val_data_dict = inputs(
             tfrecord_file=validation_data,
@@ -155,73 +197,70 @@ def train_and_eval(config, babas_data):
 
         # Check output_shape
         if config.selected_joints is not None:
-            print 'Targeting joint: %s' % config.selected_joints
+            print 'Targeting_joint: %s' % config.selected_joints
             joint_shape = len(config.selected_joints) * config.keep_dims
             if (config.num_classes // config.keep_dims) > (joint_shape):
-                print 'New target size: %s' % joint_shape
+                print 'New_target_size: %s' % joint_shape
                 config.num_classes = joint_shape
 
     with tf.device('/gpu:0'):
-        with tf.variable_scope('cnn') as scope:
-            print 'Creating training graph:'
-            model = model_file.model_struct(
-                weight_npy_path=config.weight_npy_path)
-            train_mode = tf.get_variable(name='training', initializer=True)
-            model.build(
-                rgb=train_data_dict['image'],
-                target_variables=train_data_dict,
-                train_mode=train_mode,
-                batchnorm=config.batch_norm)
-            train_mu, train_var = tf.nn.moments(train_data_dict['image'], axes=[1, 2, 3])
-            tf.summary.histogram("train image mean", train_mu)
-            tf.summary.histogram("train image std", tf.sqrt(train_var))
+        with tf.variable_scope('cnn'):
+            readout, decision_model, main_features, feature_model = create_model(
+                feature_model_file=feature_model_file,
+                config=config,
+                data_dict=train_data_dict,
+                decision_model_file=decision_model_file)
+        if 'deconv_image' in config.aux_losses:
+            tf.summary.image('Deconv_train', decision_model.deconv)
+        if 'deconv_label' in config.aux_losses:
+            tf.summary.image(
+                'Deconv_label_train',
+                tf.expand_dims(
+                    tf.cast(
+                        tf.argmax(decision_model.deconv, axis=3), tf.float32), 3))
+
+        # Setup validation op
+        if validation_data is not False:
+            with tf.variable_scope('cnn', tf.AUTO_REUSE) as cnn:
+                cnn.reuse_variables()
+                print 'Creating_validation_graph:'
+                val_readout, val_decision_model, val_main_features, val_feature_model = create_model(
+                    feature_model_file=feature_model_file,
+                    config=config,
+                    data_dict=val_data_dict,
+                    decision_model_file=decision_model_file)
+
+            # Calculate validation accuracy for x/y
+            if 'label' in val_data_dict.keys():
+                if config.keep_dims == 3:
+                    z_mask = tf.expand_dims(
+                        tf.tile(
+                            [1, 1, 0],
+                            [int(val_data_dict['label'].get_shape()[-1]) // 3]),
+                        axis=0)
+                    z_mask = tf.cast(z_mask, tf.float32)
+                    val_readout = val_readout * z_mask
+                    val_data_dict['label'] = val_data_dict['label'] * z_mask
+                val_score = tf.reduce_mean(
+                    tf.nn.l2_loss(
+                        val_readout - val_data_dict['label']))
+                tf.summary.scalar('validation_mse', val_score)
+            if 'fc' in config.aux_losses:
+                tf.summary.image(
+                    'FC_val_activations', val_decision_model.final_fc)
             if 'deconv_image' in config.aux_losses:
-                tf.summary.image('Deconv train', model.deconv)
+                tf.summary.image(
+                    'Deconv_val', val_decision_model.deconv)
             if 'deconv_label' in config.aux_losses:
                 tf.summary.image(
-                    'Deconv label train',
+                    'Deconv_label_train',
                     tf.expand_dims(
                         tf.cast(
-                            tf.argmax(model.deconv, axis=3), tf.float32), 3))
-
-            # Setup validation op
-            if validation_data is not False:
-                scope.reuse_variables()
-                print 'Creating validation graph:'
-                val_model = model_file.model_struct()
-                val_model.build(
-                    rgb=val_data_dict['image'],
-                    target_variables=val_data_dict)
-
-                # Calculate validation accuracy
-                val_mu, val_var = tf.nn.moments(val_data_dict['image'], axes=[1, 2, 3])
-                tf.summary.histogram("validation image mean", val_mu)
-                tf.summary.histogram("validation image std", tf.sqrt(val_var))
-                if 'label' in val_data_dict.keys():
-                    # val_score = tf.reduce_mean(
-                    #     tf_fun.l2_loss(
-                    #         val_model.output, val_data_dict['label']))
-                    if config.keep_dims == 3:
-                        z_mask = tf.expand_dims(tf.tile([1, 1, 0], [int(val_data_dict['label'].get_shape()[-1]) // 3]), axis=0)
-                        z_mask = tf.cast(z_mask, tf.float32)
-                        val_model.output = val_model.output * z_mask
-                        val_data_dict['label'] = val_data_dict['label'] * z_mask 
-                    val_score = tf.reduce_mean(tf.nn.l2_loss(val_model.output - val_data_dict['label']))
-                    tf.summary.scalar("validation mse", val_score)
-                if 'fc' in config.aux_losses:
-                    tf.summary.image('FC val activations', val_model.final_fc)
-                if 'deconv_image' in config.aux_losses:
-                    tf.summary.image('Deconv val', val_model.deconv)
-                if 'deconv_label' in config.aux_losses:
-                    tf.summary.image(
-                        'Deconv label train',
-                        tf.expand_dims(
-                            tf.cast(
-                                tf.argmax(val_model.deconv, axis=3),
-                                tf.float32), 3))
-                tf.summary.image(
-                    'validation images',
-                    tf.cast(val_data_dict['image'], tf.float32))
+                            tf.argmax(val_decision_model.deconv, axis=3),
+                            tf.float32), 3))
+            tf.summary.image(
+                'validation_images',
+                tf.cast(val_data_dict['image'], tf.float32))
 
         # Prepare the loss functions:::
         loss_list, loss_label = [], []
@@ -229,7 +268,7 @@ def train_and_eval(config, babas_data):
             # 1. Joint localization loss
             if config.calculate_per_joint_loss == 'thomas':
                 label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
-                    model=model,
+                    model=decision_model,
                     train_data_dict=train_data_dict,
                     config=config,
                     y_key='label',
@@ -237,7 +276,7 @@ def train_and_eval(config, babas_data):
                 loss_list += [label_loss]
             elif config.calculate_per_joint_loss == 'skeleton':
                 label_loss = tf_fun.skeleton_loss(
-                    model=model,
+                    model=decision_model,
                     train_data_dict=train_data_dict,
                     config=config,
                     y_key='label',
@@ -245,37 +284,30 @@ def train_and_eval(config, babas_data):
                 loss_list += [label_loss]
             elif config.calculate_per_joint_loss == 'skeleton and joint':
                 label_loss = tf_fun.skeleton_loss(
-                    model=model,
+                    model=decision_model,
                     train_data_dict=train_data_dict,
                     config=config,
                     y_key='label',
                     yhat_key='output')
                 loss_list += [label_loss]
                 loss_label += ['skeleton loss']
-                delta = model['output'] - train_data_dict['label']
+                delta = readout - train_data_dict['label']
                 proc_weights = np.asarray(
-                    config.dim_weight)[None,:].repeat(
+                    config.dim_weight)[None, :].repeat(
                         len(config.joint_names), axis=0).reshape(1, -1)
                 delta *= proc_weights
-                # label_loss, use_joints, joint_variance = tf_fun.thomas_l1_loss(
-                #     model=model,
-                #     train_data_dict=train_data_dict,
-                #     config=config,
-                #     y_key='label',
-                #     yhat_key='output')
-                # loss_list += [label_loss]
                 loss_list += [tf.nn.l2_loss(
-                    model['output'] - train_data_dict['label'])]
+                    readout - train_data_dict['label'])]
             else:
                 loss_list += [tf.nn.l2_loss(
-                    model['output'] - train_data_dict['label'])]
+                    readout - train_data_dict['label'])]
             loss_label += ['combined head']
             for al in loss_helper.potential_aux_losses():
                 loss_list, loss_label = loss_helper.get_aux_losses(
                     loss_list=loss_list,
                     loss_label=loss_label,
                     train_data_dict=train_data_dict,
-                    model=model,
+                    model=decision_model,
                     aux_loss_dict=al,
                     domain_adaptation=train_babas_tfrecord_dir)
             loss = tf.add_n(loss_list)
@@ -296,7 +328,9 @@ def train_and_eval(config, babas_data):
             optimizer = loss_helper.return_optimizer(config.optimizer)
             optimizer = optimizer(config.lr)
 
-            if hasattr(config, 'fine_tune_layers') and config.fine_tune_layers is not None:
+            if hasattr(
+                    config, 'fine_tune_layers') and\
+                    config.fine_tune_layers is not None:
                 print 'Finetuning learning for: %s' % config.fine_tune_layers
                 train_op, grads = tf_fun.finetune_learning(
                     loss,
@@ -313,9 +347,10 @@ def train_and_eval(config, babas_data):
                     grads_and_vars=grads)
 
             # Summarize all gradients and weights
-            [tf.summary.histogram(
-                var.name + '/gradient', grad)
-                for grad, var in grads if grad is not None]
+            if config.debug:
+                [tf.summary.histogram(
+                    var.name + '/gradient', grad)
+                    for grad, var in grads if grad is not None]
             # train_op = optimizer.minimize(loss)
 
             # Summarize losses
@@ -324,7 +359,7 @@ def train_and_eval(config, babas_data):
 
             # Summarize images and l1 weights
             tf.summary.image(
-                'train images',
+                'train_images',
                 tf.cast(train_data_dict['image'], tf.float32))
             tf_fun.add_filter_summary(
                 trainables=tf.trainable_variables(),
@@ -332,9 +367,10 @@ def train_and_eval(config, babas_data):
 
     # Set up summaries and saver
     saver = tf.train.Saver(
-        tf.global_variables(), max_to_keep=config.keep_checkpoints)
+        tf.global_variables(),
+        max_to_keep=config.keep_checkpoints)
     summary_op = tf.summary.merge_all()
-    tf.add_to_collection('output', model.output)
+    # tf.add_to_collection('output', readout.output)
 
     # Initialize the graph
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
@@ -353,18 +389,18 @@ def train_and_eval(config, babas_data):
         'train_op': train_op,
         'loss_value': loss,
         'im': train_data_dict['image'],
-        'yhat': model.output,
+        'yhat': readout,
         'ytrue': train_data_dict['label']
     }
-    if hasattr(model, 'deconv'):
-        train_session_vars['deconv'] = model.deconv
-    if hasattr(model, 'final_fc'):
-        train_session_vars['fc'] = model.final_fc
+    if hasattr(readout, 'deconv'):
+        train_session_vars['deconv'] = decision_model.deconv
+    if hasattr(readout, 'final_fc'):
+        train_session_vars['fc'] = decision_model.final_fc
 
     # Create list of variables to run through validation model
     val_session_vars = {
         'val_acc': val_score,
-        'val_pred': val_model.output,
+        'val_pred': val_readout,
         'val_ims': val_data_dict['image'],
         'val_true': val_data_dict['label'],
     }
@@ -380,11 +416,13 @@ def train_and_eval(config, babas_data):
     for al in loss_helper.potential_aux_losses():
         if al.keys()[0] in train_data_dict.keys():
             y_key = '%s' % al.keys()[0]
-            train_session_vars[y_key] = train_data_dict[al.values()[0]['y_name']]
+            train_session_vars[y_key] = train_data_dict[
+                al.values()[0]['y_name']]
             save_training_vars += [y_key]
 
             yhat_key = '%s_hat' % al.keys()[0]
-            train_session_vars[yhat_key] = model[al.values()[0]['model_name']]
+            train_session_vars[yhat_key] = decision_model[
+                al.values()[0]['model_name']]
             save_training_vars += [yhat_key]
 
     # Start training loop
@@ -396,7 +434,8 @@ def train_and_eval(config, babas_data):
     if config.resume_from_checkpoint is not None:
         if '.ckpt' in config.resume_from_checkpoint:
             ckpt = config.resume_from_checkpoint
-            'Restoring specified checkpoint: %s' % config.resume_from_checkpoint
+            'Restoring specified checkpoint: %s' %\
+                config.resume_from_checkpoint
         else:
             ckpt = tf.train.latest_checkpoint(config.resume_from_checkpoint)
             print 'Evaluating checkpoint: %s' % ckpt
@@ -407,7 +446,6 @@ def train_and_eval(config, babas_data):
             train_out_dict = sess.run(train_session_vars.values())
             train_out_dict = {k: v for k, v in zip(
                 train_session_vars.keys(), train_out_dict)}
-            import ipdb;ipdb.set_trace()
             losses.append(train_out_dict['loss_value'])
             duration = time.time() - start_time
             assert not np.isnan(
@@ -418,9 +456,6 @@ def train_and_eval(config, babas_data):
                         val_session_vars.values())
                     val_out_dict = {k: v for k, v in zip(
                         val_session_vars.keys(), val_out_dict)}
-                    # if config.normalize_labels:
-                        # val_out_dict['val_pred'] *= normalize_vec
-                        # val_out_dict['val_true'] *= normalize_vec
                     np.savez(
                         os.path.join(
                             results_dir, '%s_val_coors' % step),

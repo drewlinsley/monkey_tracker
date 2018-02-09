@@ -47,17 +47,42 @@ class monkeyConfig(object):
 
         # Data loading settings
         self.max_train_files = None  # Limit the number of files we're going to store in a tfrecords. Set to None if there's no limit.
-        self.max_depth = 9000.
+        self.max_depth = 10000.
         self.min_depth = 0.
+        self.mixing_dict = {
+            0: 1,
+            1: 3
+        }
         self.background_constant = 10000.
         self.image_target_size = [424, 512, 1]  # Resize before tfrecords
         self.resize = [424, 512, 1]  # CNN input (don't change) -- make sure this the same dimensions as the input
-        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1/lakshmi_first_pass_train.tfrecords'  # Validate on babas data
+        self.include_validation = '/media/data_cifs/monkey_tracking/data_for_babas/2_8_17_out_of_bag_val/lakshmi_first_pass_val.tfrecords'  # Validate on babas data
         self.babas_file_for_import = babas_files_list.data()
-        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/11_8_17_out_of_bag_val_1'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
+        self.babas_tfrecord_dir = '/media/data_cifs/monkey_tracking/data_for_babas/2_8_17_out_of_bag_val'  # '/media/data_cifs/monkey_tracking/batches/TrueDepth2MilStore/tfrecords_fast/val.tfrecords'  # True
 
         # Model initialization settings
-        self.weight_npy_path = None
+        self.model_weight_path = {
+            'vgg': os.path.join(
+                '%smedia' % os.path.sep,
+                'data_cifs',
+                'clicktionary',
+                'pretrained_weights',
+                'vgg16.npy'),
+            'inceptionv3': os.path.join(
+                '%smedia' % os.path.sep,
+                'data_cifs',
+                'clicktionary',
+                'pretrained_weights',
+                'inceptionv3.npy')
+        }
+        self.model_optimizations = {
+            'pool_v_stride': 'stride',
+            'dilated': False,
+            'skip': None,  # None, dense, residual
+            'multiscale': True,
+            'initialize_trained': False
+        }
+
         use_checkpoint = False
         if use_checkpoint:
             self.model_name = 'skip_res_small_conv_deconv_2017_08_30_12_06_56'
@@ -75,18 +100,20 @@ class monkeyConfig(object):
 
         # Training settings
         self.epochs = 100
-        self.model_type = 'small_cnn_multiscale_high_res_low_res_skinny_pose_occlusion_bigger_lr'
+        self.debug = True  # Add gradient histograms
+        self.feature_model_type = 'lakshmi_vgg_features'
+        self.decision_model_type = 'lakshmi_vgg_decisions'
         self.fine_tune_layers = None
         self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
-        self.train_batch = 32
-        self.validation_batch = 32
+        self.train_batch = 16
+        self.validation_batch = 16
         self.ratio = None  # [0.1, 0.9]
         self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8
         self.keep_checkpoints = 100
-        self.optimizer = 'adam'
+        self.optimizer = 'nadam'
         self.steps_before_validation = 1000
-        self.loss_type = 'l1'
+        self.loss_type = 'l2'
         self.grad_clip = False
         self.dim_weight = [1, 1, 0.5]   # If including xyz dim-specific weighting
         # MIGHT BE DEPRECIATED:
@@ -103,7 +130,7 @@ class monkeyConfig(object):
         # Auxillary training settings
         self.normalize_labels = True
         self.aux_losses = []  # , 'deconv_label']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
-        self.calculate_per_joint_loss = 'skeleton and joint'  # TODO CLEAN UP THIS API
+        self.calculate_per_joint_loss = False  # 'skeleton and joint'  # TODO CLEAN UP THIS API
         self.wd_type = 'l2'
         self.wd_penalty = 5e-7
         self.wd_layers = [
@@ -111,7 +138,6 @@ class monkeyConfig(object):
             'high_feature_encoder_1x1_1',
             'high_feature_encoder_1x1_2'
         ]
-        self.fc_lambda = 0.01  # TODO FIGURE THIS OUT
 
         # Data augmentations
         self.data_augmentations = [
@@ -119,8 +145,8 @@ class monkeyConfig(object):
             # 'up_down'
         ]
         self.background_multiplier = 1.  # Where to place the imaginary wall in the renders w.r.t. the max depth value
-        self.randomize_background = 1.
-        self.augment_background = 'perlin'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
+        self.randomize_background = None
+        self.augment_background = 'constant'  #  'background'  # 'background_perlin'  # 'background_perlin'  # 'background_perlin'  # 'perlin'  # 'rescale' 'perlin' 'constant' 'rescale_and_perlin'
         self.background_folder = 'backgrounds'
 
         # Labels for the rendered images

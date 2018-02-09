@@ -180,7 +180,6 @@ def skeleton_loss(
         yhat_key='output',
         y_key='label'):
     """Skeleton loss defined in: Compositional Human Pose Regression, 2017"""
-    assert 'domain_adaptation' in train_data_dict, 'Need a domain label.'
     if config.selected_joints is None:
         use_joints = config.joint_order
     else:
@@ -206,16 +205,22 @@ def skeleton_loss(
         p_im = tf.squeeze(p_im)
         it_sls = []
         for k, v in config.joint_graph.iteritems():
+            # Child index
             cidx = config.joint_names.index(k)
+            # Parent index
             pidx = config.joint_names.index(v)
-            tseg = gt_im[pidx] - p_im[cidx]
-            pseg = gt_im[pidx] - p_im[cidx]
-            delta = tseg - pseg
-            delta = tf.concat(
-                [delta[:2], delta[-1] * tf.split(
-                    train_data_dict['domain_adaptation'],
-                    2,
-                    axis=1)[1][idx]], axis=0)
+            # Child segment length
+            cseg = gt_im[cidx] - p_im[cidx]
+            # Parent segment length
+            pseg = gt_im[pidx] - p_im[pidx]
+            # Segment difference
+            delta = cseg - pseg
+            if 'domain_adaptation' in train_data_dict.keys():
+                delta = tf.concat(
+                    [delta[:2], delta[-1] * tf.split(
+                        train_data_dict['domain_adaptation'],
+                        2,
+                        axis=1)[1][idx]], axis=0)
             it_sls += [delta]
         sls += [loss(it_sls)]
     return tf.add_n(sls) / len(sls)
@@ -303,11 +308,13 @@ def put_kernels_on_grid(kernel, pad=1):
     # get shape of the grid. NumKernels == grid_Y * grid_X
     def factorization(n):
         for i in range(int(sqrt(float(n))), 0, -1):
-          if n % i == 0:
-            if i == 1: print('Who would enter a prime number of filters')
-            return (i, int(n / i))
+            if n % i == 0:
+                if i == 1: print('Who would enter a prime number of filters')
+                return (i, int(n / i))
     (grid_Y, grid_X) = factorization (kernel.get_shape()[3].value)
-    print ('grid: %d = (%d, %d)' % (kernel.get_shape()[3].value, grid_Y, grid_X))
+    print (
+        'Visualizing kernels on grid: %d = (%d, %d)' % (
+            kernel.get_shape()[3].value, grid_Y, grid_X))
 
     x_min = tf.reduce_min(kernel)
     x_max = tf.reduce_max(kernel)

@@ -122,7 +122,7 @@ def create_joint_tf_records(
 
             # extract depth image
             if use_npy:
-                depth_image = (np.load(depth)[:, :, :3]).astype(np.float32)
+                depth_image = (np.load(depth)[:, :, :1]).astype(np.float32)
             else:
                 depth_image = misc.imread(depth, mode='F')
             depth_image[depth_image == depth_image.min()] = 0.
@@ -132,10 +132,16 @@ def create_joint_tf_records(
             if depth_image.sum() > 0:  # Because of renders that are all 0
 
                 # encode -> tfrecord
-                label_vector = np.asarray(
-                    [intrinsic_camera_params(x) for x in np.loadtxt(label)])
-                label_vector = label_vector[:, [1, 0, 2]]  # Transpose to h/w\
-                label_vector = label_vector[config.lakshmi_order]
+                if '.npy' in label:
+                    label_vector = np.load(label)
+                elif '.txt' in label:
+                    label_vector = np.asarray(
+                        [intrinsic_camera_params(x) for x in np.loadtxt(
+                            label)])
+                    label_vector = label_vector[:, [1, 0, 2]]  # Trnsps to h/w
+                    label_vector = label_vector[config.lakshmi_order]
+                else:
+                    raise NotImplementedError('Unknown label file type.')
                 im_list += [np.mean(depth_image)]
                 if occlusions is not None:
                     occlusion = np.load(occlusions[i]).astype(np.float32)
@@ -147,7 +153,7 @@ def create_joint_tf_records(
                     part = None
                 example = encode_example(
                     im=depth_image.astype(np.float32),
-                    label=label_vector,
+                    label=label_vector.astype(np.float32),
                     part=part,
                     occlusion=occlusion)
                 tfrecord_writer.write(example)
@@ -178,30 +184,53 @@ def extract_depth_features_into_tfrecord(
         part_files = {
             'train': part_files, 'val': part_files}
     elif config.cv_type == 'leave_movie_out':
-        train_depth = [os.path.join(
-            config.depth_dir,
-            x) for x in config.cv_inds['train']]
-        val_depth = [os.path.join(
-            config.depth_dir,
-            x) for x in config.cv_inds['val']]
-        train_label = [os.path.join(
-            config.label_dir,
-            x) for x in config.cv_inds['train']]
-        val_label = [os.path.join(
-            config.label_dir,
-            x) for x in config.cv_inds['val']]
-        train_occlusion = [os.path.join(
-            config.occlusion_dir,
-            x) for x in config.cv_inds['train']]
-        val_occlusion = [os.path.join(
-            config.occlusion_dir,
-            x) for x in config.cv_inds['val']]
-        train_part_files = [os.path.join(
-            config.pixel_label_dir,
-            x) for x in config.cv_inds['train']]
-        val_part_files = [os.path.join(
-            config.pixel_label_dir,
-            x) for x in config.cv_inds['val']]
+        if depth_files is not None:
+            depth_stem = os.path.sep.join(
+                depth_files[0].split(os.path.sep)[:-1])
+            train_depth = [os.path.join(
+                depth_stem,
+                x) for x in config.cv_inds['train']]
+            val_depth = [os.path.join(
+                depth_stem,
+                x) for x in config.cv_inds['val']]
+        else:
+            train_depth, val_depth = None, None
+        if label_files is not None:
+            label_stem = os.path.sep.join(
+                label_files[0].split(os.path.sep)[:-1])
+            train_label = [os.path.join(
+                label_stem,
+                x) for x in config.cv_inds['train']]
+            val_label = [os.path.join(
+                label_stem,
+                x) for x in config.cv_inds['val']]
+        else:
+            train_label, val_label = None, None
+
+        if occlusion_files is not None:
+            occlusion_stem = os.path.sep.join(
+                occlusion_files[0].split(os.path.sep)[:-1])
+            train_occlusion = [os.path.join(
+                occlusion_stem,
+                x) for x in config.cv_inds['train']]
+            val_occlusion = [os.path.join(
+                occlusion_stem,
+                x) for x in config.cv_inds['val']]
+        else:
+            train_occlusion, val_occlusion = None, None
+
+        if part_files is not None:
+            part_stem = os.path.sep.join(
+                part_files[0].split(os.path.sep)[:-1])
+            train_parts = [os.path.join(
+                part_stem,
+                x) for x in config.cv_inds['train']]
+            val_parts = [os.path.join(
+                part_stem,
+                x) for x in config.cv_inds['val']]
+        else:
+            train_parts, val_parts = None, None
+
         depth_files = {
             'train': train_depth,
             'val': val_depth
@@ -215,8 +244,8 @@ def extract_depth_features_into_tfrecord(
             'val': val_occlusion
         }
         part_files = {
-            'train': train_part_files,
-            'val': val_part_files
+            'train': train_parts,
+            'val': val_parts
         }
     else:
         depth_files, label_files, occlusion_files, part_files = cv_files(
@@ -260,12 +289,14 @@ def process_data(config):
     Eventually move this into the tensorflow graph and handle
     depth files/ label files in batches. Also directly add
     images into a tfrecord instead of into a numpy array."""
-    if config.render_files is None:
+    if not hasattr(
+            config, 'render_files') or config.render_files is None:
         depth_files = get_files(config.render_directory, config.depth_pattern)
     else:
         depth_files = config.render_files
     assert len(depth_files) > 0, 'No files found.'
-    if config.label_files is None:
+    if not hasattr(
+            config, 'label_files') or config.label_files is None:
         if config.label_label is not None:
             label_files = relabel_files(
                 files=depth_files,
@@ -276,7 +307,8 @@ def process_data(config):
             label_files = None
     else:
         label_files = config.label_files
-    if config.occlusion_label is not None:
+    if not hasattr(
+            config, 'occlusion_label') or config.occlusion_label is not None:
         occlusion_files = relabel_files(
             files=depth_files,
             new_suffix=config.occlusion_label,
@@ -284,7 +316,8 @@ def process_data(config):
             separator=config.depth_label)
     else:
         occlusion_files = None
-    if config.part_label is not None:
+    if not hasattr(
+            config, 'part_label') or config.part_label is not None:
         part_files = relabel_files(
             files=depth_files,
             new_suffix=config.part_label,
