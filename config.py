@@ -51,7 +51,7 @@ class monkeyConfig(object):
         self.min_depth = 0.
         self.mixing_dict = {
             0: 1,
-            1: 3
+            1: 2
         }
         self.background_constant = 10000.
         self.image_target_size = [424, 512, 1]  # Resize before tfrecords
@@ -76,9 +76,9 @@ class monkeyConfig(object):
                 'inceptionv3.npy')
         }
         self.model_optimizations = {
-            'pool_v_stride': 'stride',
+            'pool_v_stride': 'pool',
             'dilated': False,
-            'skip': None,  # None, dense, residual
+            'skip': 'residual',  # 'residual',  # None, dense, residual
             'multiscale': True,
             'initialize_trained': True
         }

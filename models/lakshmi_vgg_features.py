@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import gc
-from ops.loss_helper import flipped_gradient
 
 
 def residual_wiring():
@@ -82,21 +81,21 @@ class model_struct:
                     'weights': [64, 64, None],
                     'strides': [1, 1, None],
                     'names': ['conv1_1', 'conv1_2', 'pool1'],
-                    'filter_size': [3, 3, 4]
+                    'filter_size': [3, 3, 2]
                 },
                 {
                     'layers': [conv_op, conv_op, 'pool'],
                     'weights': [128, 128, None],
                     'strides': [1, 1, None],
                     'names': ['conv2_1', 'conv2_2', 'pool2'],
-                    'filter_size': [3, 3, 4]
+                    'filter_size': [3, 3, 2]
                 },
                 {
                     'layers': [conv_op, conv_op, conv_op, 'pool'],
                     'weights': [256, 256, 256, None],
                     'strides': [1, 1, 1, None],
                     'names': ['conv3_1', 'conv3_2', 'conv3_3', 'pool3'],
-                    'filter_size': [3, 3, 3, 4],
+                    'filter_size': [3, 3, 3, 2],
                     'wiring': l3_wiring
                 },
                 {
@@ -104,7 +103,7 @@ class model_struct:
                     'weights': [512, 512, 512, None],
                     'strides': [1, 1, 1, None],
                     'names': ['nconv4_1', 'nconv4_2', 'nconv4_3', 'pool4'],
-                    'filter_size': [3, 3, 3, 4],
+                    'filter_size': [3, 3, 3, 2],
                     'wiring': l4_wiring
                 },
                 {
@@ -112,7 +111,7 @@ class model_struct:
                     'weights': [512, 512, 512, None],
                     'strides': [1, 1, 1, None],
                     'names': ['nconv5_1', 'nconv5_2', 'nconv5_3', 'pool4'],
-                    'filter_size': [3, 3, 3, 4],
+                    'filter_size': [3, 3, 3, 2],
                     'wiring': l5_wiring
                 },
             ]
@@ -121,21 +120,21 @@ class model_struct:
                 {
                     'layers': [conv_op, conv_op],
                     'weights': [64, 64],
-                    'strides': [1, 4],
+                    'strides': [1, 2],
                     'names': ['conv1_1', 'conv1_2'],
                     'filter_size': [3, 3]
                 },
                 {
                     'layers': [conv_op, conv_op],
                     'weights': [128, 128],
-                    'strides': [1, 4],
+                    'strides': [1, 2],
                     'names': ['conv2_1', 'conv2_2'],
                     'filter_size': [3, 3]
                 },
                 {
                     'layers': [conv_op, conv_op, conv_op],
                     'weights': [256, 256, 256],
-                    'strides': [1, 1, 4],
+                    'strides': [1, 1, 2],
                     'names': ['conv3_1', 'conv3_2', 'conv3_3'],
                     'filter_size': [3, 3, 3],
                     'wiring': l3_wiring
@@ -143,7 +142,7 @@ class model_struct:
                 {
                     'layers': [conv_op, conv_op, conv_op],
                     'weights': [512, 512, 512],
-                    'strides': [1, 1, 4],
+                    'strides': [1, 1, 2],
                     'names': ['nconv4_1', 'nconv4_2', 'nconv4_3'],
                     'filter_size': [3, 3, 3],
                     'wiring': l4_wiring
@@ -151,7 +150,7 @@ class model_struct:
                 {
                     'layers': [conv_op, conv_op, conv_op],
                     'weights': [512, 512, 512],
-                    'strides': [1, 1, 4],
+                    'strides': [1, 1, 2],
                     'names': ['nconv5_1', 'nconv5_2', 'nconv5_3'],
                     'filter_size': [3, 3, 3],
                     'wiring': l5_wiring
@@ -227,7 +226,10 @@ class model_struct:
                     print 'Added layer: %s' % na
                 if 'wiring' in layer.keys() and layer['wiring'] is not None:
                     for wire in layer['wiring']:
-                        self[wire['post']] += self[wire['pre']]
+                        setattr(
+                            self,
+                            wire['post'],
+                            self[wire['post']] + self[wire['pre']])
         return act
 
     def batchnorm(self, layer):
