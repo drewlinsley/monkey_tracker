@@ -120,19 +120,20 @@ class model_struct:
         self.high_1x1_1_pool = self.max_pool(
             self.high_feature_encoder_1x1_1,
             'high_1x1_1_pool')
+        self.flat_features = tf.contrib.layers.flatten(self.high_1x1_1_pool)
 
         if 'label' in target_variables.keys():
             self.output = self.fc_layer(
-                self.high_1x1_1_pool,
-                int(self.high_1x1_1_pool.get_shape()[-1]),
+                self.flat_features,
+                int(self.flat_features.get_shape()[-1]),
                 output_shape,
                 'output')
             self.joint_label_output_keys += ['output']
 
         if 'size' in target_variables.keys():
             self.size = self.fc_layer(
-                self.high_1x1_1_pool,
-                int(self.high_1x1_1_pool.get_shape()[-1]),
+                self.flat_features,
+                int(self.flat_features.get_shape()[-1]),
                 size_shape,
                 'size')
 
@@ -140,12 +141,12 @@ class model_struct:
             # z-dim head -- label + activations
             self.z_scores = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_1_pool,
-                        int(self.high_1x1_1_pool.get_shape()[-1]),
+                        self.flat_features,
+                        int(self.flat_features.get_shape()[-1]),
                         z_shape,
                         'z_sc')
                 )
-            out_z = tf.concat([self.z_scores, self.output], axis=1)
+            out_z = tf.concat([self.z_scores, self.flat_features], axis=1)
             self.z = tf.squeeze(
                     self.fc_layer(
                         out_z,
@@ -159,7 +160,7 @@ class model_struct:
             # Occlusion head
             self.occlusion = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_1_pool,
+                        self.flat_features,
                         int(self.high_1x1_1_pool.get_shape()[-1]),
                         occlusion_shape,
                         "occlusion")
@@ -169,7 +170,7 @@ class model_struct:
             # Occlusion head
             self.pose = tf.squeeze(
                     self.fc_layer(
-                        self.high_1x1_1_pool,
+                        self.flat_features,
                         int(self.high_1x1_1_pool.get_shape()[-1]),
                         pose_shape,
                         "pose")
@@ -177,8 +178,7 @@ class model_struct:
 
         if 'domain_adaptation_flip' in target_variables.keys():
             # Domain adaptation head
-            bottom = flipped_gradient(
-                tf.contrib.layers.flatten(self.high_1x1_1_pool))
+            bottom = flipped_gradient(self.flat_features)
             self.domain_adaptation_fc = tf.squeeze(
                 self.fc_layer(
                     bottom,
