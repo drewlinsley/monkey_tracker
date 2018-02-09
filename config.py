@@ -130,7 +130,7 @@ class monkeyConfig(object):
         # Auxillary training settings
         self.normalize_labels = True
         self.aux_losses = []  # , 'deconv_label']  # ['z', 'size', 'occlusion', 'deconv_label']  # 'occlusion' 'pose' 'size' 'z' 'deconv_label' 'deconv'
-        self.calculate_per_joint_loss = False  # 'skeleton and joint'  # TODO CLEAN UP THIS API
+        self.calculate_per_joint_loss = 'skeleton and joint pearson'  # 'skeleton and joint'  # TODO CLEAN UP THIS API
         self.wd_type = 'l2'
         self.wd_penalty = 5e-7
         self.wd_layers = [
