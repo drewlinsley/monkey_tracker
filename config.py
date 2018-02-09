@@ -62,7 +62,7 @@ class monkeyConfig(object):
 
         # Model initialization settings
         self.model_weight_path = {
-            'vgg': os.path.join(
+            'vgg16': os.path.join(
                 '%smedia' % os.path.sep,
                 'data_cifs',
                 'clicktionary',
@@ -80,7 +80,7 @@ class monkeyConfig(object):
             'dilated': False,
             'skip': None,  # None, dense, residual
             'multiscale': True,
-            'initialize_trained': False
+            'initialize_trained': True
         }
 
         use_checkpoint = False
@@ -105,8 +105,8 @@ class monkeyConfig(object):
         self.decision_model_type = 'lakshmi_vgg_decisions'
         self.fine_tune_layers = None
         self.batch_norm = [None]  # ['fc6', 'fc7', 'pre_fc8']
-        self.train_batch = 16
-        self.validation_batch = 16
+        self.train_batch = 32
+        self.validation_batch = 32
         self.ratio = None  # [0.1, 0.9]
         self.lr = 3e-4  # Tune this -- also try SGD instead of ADAm
         self.hold_lr = 1e-8

@@ -20,6 +20,20 @@ import yellowfin
 from tensorflow.python.framework import ops
 
 
+def pearson_dist(x, y, axis=None, eps=1e-8, tau=1e-4):
+    x_mean = tf.reduce_mean(x, keep_dims=True, axis=[-1]) + eps
+    y_mean = tf.reduce_mean(y, keep_dims=True, axis=[-1]) + eps
+    x_flat_normed = x - x_mean
+    y_flat_normed = y - y_mean
+    count = int(y.get_shape()[-1])
+    cov = tf.div(
+        tf.reduce_sum(tf.multiply(x_flat_normed, y_flat_normed), -1), count)
+    x_std = tf.sqrt(tf.div(tf.reduce_sum(tf.square(x - x_mean), -1), count))
+    y_std = tf.sqrt(tf.div(tf.reduce_sum(tf.square(y - y_mean), -1), count))
+    corr = cov/(tf.multiply(x_std, y_std) + tau)
+    return 1. - corr
+
+
 def potential_aux_losses():
     """List of dictionaries for specifying auxiliary losses."""
     return [

@@ -63,7 +63,7 @@ class model_struct:
         :if True, dropout will be turned on
         """
 
-        input_bgr = tf.identity(rgb, name="lrp_input")
+        self.input_bgr = tf.identity(rgb, name="lrp_input")
         if self.model_optimizations['dilated']:
             conv_op = 'dilated'
         else:
@@ -158,7 +158,7 @@ class model_struct:
                 },
             ]
         output = self.create_conv_tower(
-            input_bgr,
+            self.input_bgr,
             layer_structure,
             tower_name='highres_conv')
         self.data_dict = None
@@ -338,10 +338,25 @@ class model_struct:
         return weights, biases
 
     def get_var(
-            self, initial_value, name, idx,
-            var_name, in_size=None, out_size=None):
+            self,
+            initial_value,
+            name,
+            idx,
+            var_name,
+            in_size=None,
+            out_size=None):
         if self.data_dict is not None and name in self.data_dict:
-            value = self.data_dict[name][idx]
+            if name == 'conv1_1' and idx == 0:
+                # Combine across feature channels if 1 channel input
+                if int(self.input_bgr.get_shape()[-1]) == 1:
+                    value = np.mean(
+                        self.data_dict[name][idx], axis=-2, keepdims=True)
+                elif int(self.input_bgr.get_shape()[-1]) != 3:
+                    raise NotImplementedError('Weird input shape.')
+                else:
+                    value = self.data_dict[name][idx]
+            else:
+                value = self.data_dict[name][idx]
         else:
             value = initial_value
 
@@ -382,7 +397,7 @@ class model_struct:
                     data_dict.clear()
                     gc.collect()
                     num_files += 1
-            else :
+            else:
                 var_out = sess.run(var)
                 if name not in data_dict.keys():
                     data_dict[name] = {}

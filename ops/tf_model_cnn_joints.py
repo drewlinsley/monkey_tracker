@@ -217,7 +217,8 @@ def train_and_eval(config, babas_data):
                 'Deconv_label_train',
                 tf.expand_dims(
                     tf.cast(
-                        tf.argmax(decision_model.deconv, axis=3), tf.float32), 3))
+                        tf.argmax(
+                            decision_model.deconv, axis=3), tf.float32), 3))
 
         # Setup validation op
         if validation_data is not False:
@@ -298,6 +299,22 @@ def train_and_eval(config, babas_data):
                 delta *= proc_weights
                 loss_list += [tf.nn.l2_loss(
                     readout - train_data_dict['label'])]
+            elif config.calculate_per_joint_loss == 'skeleton and joint pearson':
+                label_loss = tf_fun.skeleton_loss(
+                    model=decision_model,
+                    train_data_dict=train_data_dict,
+                    config=config,
+                    y_key='label',
+                    yhat_key='output')
+                loss_list += [label_loss]
+                loss_label += ['skeleton loss']
+                delta = readout - train_data_dict['label']
+                proc_weights = np.asarray(
+                    config.dim_weight)[None, :].repeat(
+                        len(config.joint_names), axis=0).reshape(1, -1)
+                delta *= proc_weights
+                loss_list += [loss_helper.pearson_dist(
+                    readout, train_data_dict['label'])]
             else:
                 loss_list += [tf.nn.l2_loss(
                     readout - train_data_dict['label'])]

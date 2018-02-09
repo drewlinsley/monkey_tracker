@@ -33,7 +33,7 @@ class model_struct:
             fine_tune_layers=None,
             model_optimizations=None):
         self.model_optimizations = model_optimizations
-        if weight_npy_path is not None and self.model_optimizations['initialize_trained']:
+        if 0:  # weight_npy_path is not None and self.model_optimizations['initialize_trained']:
             model_weights = weight_npy_path['vgg16']
             self.data_dict = np.load(model_weights, encoding='latin1').item()
         else:
