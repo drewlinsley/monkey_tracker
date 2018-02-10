@@ -2,11 +2,11 @@ import argparse
 from ops.tf_model_cnn_joints import train_and_eval
 from ops.data_processing_joints import process_data
 from config import monkeyConfig
+import os
 
-
-def main(extract_features=False, which_joint=None, babas_data=False):
+def main(extract_features=False, which_joint=None, babas_data=False, selected_gpu="0"):
     config = monkeyConfig()
-
+    os.environ["CUDA_VISIBLE_DEVICES"] = selected_gpu
     # Encodes files into tfrecords
     if extract_features:
         print '-'*60
@@ -36,6 +36,11 @@ if __name__ == '__main__':
         dest="which_joint",
         type=str,
         help='Specify a joint to target with the model.')
+    parser.add_argument(
+        "--gpu",
+        dest="selected_gpu",
+        type=str,
+        help='Specify a free node')
 
     args = parser.parse_args()
     main(**vars(args))

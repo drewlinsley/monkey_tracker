@@ -76,11 +76,11 @@ class monkeyConfig(object):
                 'inceptionv3.npy')
         }
         self.model_optimizations = {
-            'pool_v_stride': 'pool',
+            'pool_v_stride': 'stride',
             'dilated': False,
-            'skip': 'residual',  # 'residual',  # None, dense, residual
-            'multiscale': True,
-            'initialize_trained': True
+            'skip': 'None',  # 'residual',  # None, dense, residual
+            'multiscale': False,
+            'initialize_trained': False
         }
 
         use_checkpoint = False
